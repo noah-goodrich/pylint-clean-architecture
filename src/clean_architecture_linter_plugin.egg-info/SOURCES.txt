@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/clean_architecture_linter/__init__.py
+src/clean_architecture_linter/checker.py
+src/clean_architecture_linter/config.py
+src/clean_architecture_linter/checks/__init__.py
+src/clean_architecture_linter/checks/coupling.py
+src/clean_architecture_linter/checks/design.py
+src/clean_architecture_linter/checks/patterns.py
+src/clean_architecture_linter/checks/resources.py
+src/clean_architecture_linter/checks/visibility.py
+src/clean_architecture_linter_plugin.egg-info/PKG-INFO
+src/clean_architecture_linter_plugin.egg-info/SOURCES.txt
+src/clean_architecture_linter_plugin.egg-info/dependency_links.txt
+src/clean_architecture_linter_plugin.egg-info/requires.txt
+src/clean_architecture_linter_plugin.egg-info/top_level.txt

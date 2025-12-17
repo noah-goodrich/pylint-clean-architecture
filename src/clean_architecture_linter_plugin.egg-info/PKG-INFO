@@ -1,0 +1,43 @@
+Metadata-Version: 2.4
+Name: clean-architecture-linter-plugin
+Version: 0.1.0
+Summary: A Pylint plugin for enforcing Clean Architecture principles and Design Patterns.
+Author: Antigravity Team
+License: MIT
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: pylint>=2.15.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"
+
+# Clean Architecture Linter Plugin
+
+A generic Pylint plugin designed to enforce Clean Architecture constraints, design patterns, and solid coding principles.
+
+## Features
+
+- **W9003**: Protected Member Access (Visibility contracts).
+- **W9004**: Abstract Resource Access Bans (e.g., no DB in Domain).
+- **W9005**: Delegation Anti-Pattern detection.
+- **W9006**: Law of Demeter violations.
+- **W9007**: Naked Return checks (Decoupling).
+- **W9008**: Unused parameter enforcement in abstract layers.
+
+## Configuration
+
+Configure via `pyproject.toml`:
+
+```toml
+[tool.clean-architecture-linter]
+visibility_enforcement = true
+
+[[tool.clean-architecture-linter.layers]]
+name = "Domain"
+module = "myproject.domain"
+allowed_resources = []
+```
