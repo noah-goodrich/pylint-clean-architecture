@@ -55,7 +55,7 @@ def run_pylint(file_path, root_dir):
     import subprocess
 
     # Ensure plugin is in pythonpath
-    plugin_path = Path("/development/clean-architecture-linter-plugin/src").resolve()
+    plugin_path = Path("/development/pylint-clean-architecture/src").resolve()
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{plugin_path}:{env.get('PYTHONPATH', '')}"
 
@@ -64,7 +64,7 @@ def run_pylint(file_path, root_dir):
         str(file_path),
         "--load-plugins=clean_architecture_linter",
         "--disable=all",
-        "--enable=W9003,W9004,W9005,W9006,W9007,W9008",
+        "--enable=W9003,W9004,W9005,W9006,W9007",
         "--score=n",
         "--persistent=n"
     ]
@@ -111,7 +111,7 @@ def save():
 
     output = run_pylint(f, test_env)
     assert "W9004" in output
-    assert "Resource access violation (database_io)" in output
+    assert "clean-arch-resources" in output
 
 def test_w9004_resource_access_allowed(test_env):
     """Test W9004 in Adapters layer (Should pass)."""
@@ -156,4 +156,4 @@ def get_stuff(obj):
 
     output = run_pylint(f, test_env)
     assert "W9006" in output
-    assert "Law of Demeter Violation" in output
+    assert "clean-arch-demeter" in output

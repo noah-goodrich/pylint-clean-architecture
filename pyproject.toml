@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "pylint>=2.15.0",
+    "tomli; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -34,3 +35,9 @@ packages = ["clean_architecture_linter", "clean_architecture_linter.checks"]
 
 [tool.setuptools.package-data]
 "clean_architecture_linter" = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=clean_architecture_linter --cov-report=json --coverage-impact"
+

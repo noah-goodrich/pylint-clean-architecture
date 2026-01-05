@@ -6,7 +6,24 @@ A generic Pylint plugin designed to enforce Clean Architecture constraints, desi
 
 For a deeper understanding of Clean Architecture principles, please refer to:
 - [The Clean Architecture (Uncle Bob)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Clean Architecture in Python (Book)](https://www.packetpub.com/product/clean-architecture-in-python/9781788835824) (Reference)
+- [Clean Architecture in Python (Book)](https://github.com/PacktPublishing/Clean-Architecture-with-Python) (Reference)
+- [The Clean Architecture - Python (YouTube)](https://www.youtube.com/watch?v=AeA7PShEkD8&t=27s)
+- [Clean Architecture with Python (Medium)](https://medium.com/@shaliamekh/clean-architecture-with-python-d62712fd8d4f)
+
+## Project Comparisons & Deviations
+
+This linter takes inspiration from several community resources but enforces stricter or specific conventions:
+
+### vs. [claudiosw/python-clean-architecture-example](https://github.com/claudiosw/python-clean-architecture-example)
+We align with `claudiosw`'s general separation of concerns but deviate in enforcement:
+
+1.  **Strict Linting**: While the example repo *demonstrates* patterns, this project *enforces* them via static analysis (`DependencyChecker`).
+2.  **Naming Conventions**:
+    *   **Gateway vs Client**: We explicitly standardize on `*Gateway` for external I/O wrappers, avoiding ambiguous `*Client` usage in the Infrastructure layer.
+    *   **Repository**: We reserve `*Repository` strictly for Domain Entity persistence.
+3.  **Configurability**: Unlike a static example, our conventions are fully overrideable in `pyproject.toml` to adapt to different flavor preferences (e.g., using `Model` vs `Entity`).
+
+See the `basic_only_cli_memory` branch of the example repo for a simplified view that aligns closely with our `FileSystemGateway` logic (in-memory/file-based vs database).
 
 ![Clean Architecture Diagram](https://blog.cleancoder.com/uncle-bob/images/2012-08-13-the-clean-architecture/CleanArchitecture.jpg)
 
