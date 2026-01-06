@@ -21,7 +21,9 @@ def run_checker(checker_cls, code, filename="test.py"):
     tree.file = filename
 
     def _walk(node):
-        node_name = node.__class__.__name__.lower()  # pylint: disable=law-of-demeter-violation
+        node_name = (
+            node.__class__.__name__.lower()
+        )  # pylint: disable=law-of-demeter-violation
 
         # pylint: disable=law-of-demeter-violation
         if hasattr(checker, f"visit_{node_name}"):

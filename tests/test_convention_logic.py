@@ -1,12 +1,14 @@
-import sys
 import os
-import pytest
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 # Ensure plugin is discoverable
 PLUGIN_DIR = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(PLUGIN_DIR))
+
 
 def run_pylint_on_snippet(file_path, snippet, extra_args=None):
     """
@@ -21,7 +23,7 @@ def run_pylint_on_snippet(file_path, snippet, extra_args=None):
         "--disable=all",
         "--enable=W9003,W9004,W9005,W9006,W9007,W9009",
         "--score=n",
-        "--persistent=n"
+        "--persistent=n",
     ]
 
     if extra_args:
@@ -30,13 +32,9 @@ def run_pylint_on_snippet(file_path, snippet, extra_args=None):
     env = os.environ.copy()
     env["PYTHONPATH"] = str(PLUGIN_DIR)
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        env=env
-    )
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
     return result
+
 
 def test_convention_w9004_usecase_resource_ban(tmp_path):
     # Test valid UseCase logic (Suffix-based)
@@ -61,7 +59,11 @@ class CreateUserUseCase:
     result = run_pylint_on_snippet(f, snippet)
 
     assert "clean-arch-resources" in result.stdout
-    assert "Forbidden I/O access (os.environ.get)" in result.stdout or "Forbidden I/O access (requests.get)" in result.stdout
+    assert (
+        "Forbidden I/O access (import os)" in result.stdout
+        or "Forbidden I/O access (import requests)" in result.stdout
+    )
+
 
 def test_convention_w9004_infrastructure_allowed(tmp_path):
     # Test valid Infrastructure logic (Suffix-based)
@@ -82,6 +84,7 @@ class UserRepository:
     result = run_pylint_on_snippet(f, snippet)
 
     assert "abstract-resource-access-violation" not in result.stdout
+
 
 def test_convention_w9009_missing_abstraction(tmp_path):
     # Test W9009: UseCase holding Client reference
@@ -105,6 +108,7 @@ class SyncDataUseCase:
 
     assert "missing-abstraction-violation" in result.stdout
     assert "snowflake_client" in result.stdout
+
 
 def test_convention_directory_resolution(tmp_path):
     # Test resolution by directory structure

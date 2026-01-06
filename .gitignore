@@ -1,3 +1,10 @@
-**/.coverage
-**/coverage.json
-**/__pycache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+coverage.json
+dist/
+build/
+*.egg-info/
+.DS_Store

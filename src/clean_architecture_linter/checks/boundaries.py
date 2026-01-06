@@ -2,6 +2,7 @@
 
 # AST checks often violate Demeter by design
 from pylint.checkers import BaseChecker
+
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.layer_registry import LayerRegistry
 
@@ -54,7 +55,11 @@ class ResourceChecker(BaseChecker):
     @property
     def forbidden_prefixes(self):
         """Get configured forbidden prefixes."""
-        return self.config_loader.config.get("forbidden_prefixes", [])
+        prefixes = self.config_loader.config.get("forbidden_prefixes", [])
+        if not prefixes:
+            # Default set for legacy support and sensible out-of-the-box enforcement
+            return ["os", "requests", "shutil", "socket", "subprocess"]
+        return prefixes
 
     def visit_import(self, node):
         """Check for forbidden imports."""
@@ -64,8 +69,6 @@ class ResourceChecker(BaseChecker):
         """Handle from x import y."""
         if node.modname:
             self._check_import(node, [node.modname])
-
-
 
     def _check_import(self, node, names):
         root = node.root()
@@ -85,6 +88,6 @@ class ResourceChecker(BaseChecker):
                     self.add_message(
                         "clean-arch-resources",
                         node=node,
-                        args=(f"import {name}", layer)
+                        args=(f"import {name}", layer),
                     )
                     return

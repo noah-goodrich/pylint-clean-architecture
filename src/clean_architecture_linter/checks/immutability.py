@@ -2,6 +2,7 @@
 
 import astroid
 from pylint.checkers import BaseChecker
+
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.helpers import get_node_layer
 
@@ -37,8 +38,8 @@ class ImmutabilityChecker(BaseChecker):
         current_module = root.name
         normalized_path = file_path.replace("\\", "/")
         is_entities = (
-            "domain/entities.py" in normalized_path or
-            current_module.endswith("domain.entities")
+            "domain/entities.py" in normalized_path
+            or current_module.endswith("domain.entities")
         )
 
         # 3. Check for @dataclass decorator
@@ -56,12 +57,16 @@ class ImmutabilityChecker(BaseChecker):
         # Rule: All classes in domain/entities.py MUST be frozen dataclasses
         if is_entities:
             if not (has_dataclass and is_frozen):
-                self.add_message("domain-mutability-violation", node=node, args=(node.name,))
+                self.add_message(
+                    "domain-mutability-violation", node=node, args=(node.name,)
+                )
                 return
 
         # Rule: Any class decorated with @dataclass in Domain layer MUST be frozen
         if has_dataclass and not is_frozen:
-            self.add_message("domain-mutability-violation", node=node, args=(node.name,))
+            self.add_message(
+                "domain-mutability-violation", node=node, args=(node.name,)
+            )
 
     def _is_dataclass_decorator(self, node):
         """Check if decorator is @dataclass."""
@@ -80,7 +85,7 @@ class ImmutabilityChecker(BaseChecker):
     def _is_frozen_dataclass(self, node):
         """Check if @dataclass(frozen=True) is used."""
         if not isinstance(node, astroid.nodes.Call):
-            return False # Bare @dataclass is not frozen by default
+            return False  # Bare @dataclass is not frozen by default
 
         for keyword in node.keywords or []:
             if keyword.arg == "frozen":

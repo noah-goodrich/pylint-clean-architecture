@@ -88,7 +88,9 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         package_totals = defaultdict(int)
 
         # Sort by total count descending
-        for msg_id, details in sorted(errors.items(), key=lambda x: x[1]["total"], reverse=True):
+        for msg_id, details in sorted(
+            errors.items(), key=lambda x: x[1]["total"], reverse=True
+        ):
             row = [msg_id, str(details["name"]), str(details["total"])]
             for pkg in sorted_packages:
                 count = details.get(pkg, 0)

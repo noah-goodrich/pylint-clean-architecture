@@ -1,7 +1,8 @@
-
 class A:
-    def _hidden(self): pass
+    def _hidden(self):
+        pass
+
 
 def func():
     a = A()
-    a._hidden() # W9003
+    a._hidden()  # W9003

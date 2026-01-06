@@ -1,16 +1,22 @@
-from clean_architecture_linter.checks.boundaries import ResourceChecker, VisibilityChecker
+from linter_test_utils import run_checker
+
+from clean_architecture_linter.checks.boundaries import (
+    ResourceChecker,
+    VisibilityChecker,
+)
 from clean_architecture_linter.checks.contracts import ContractChecker
 from clean_architecture_linter.checks.design import DesignChecker
-from clean_architecture_linter.checks.patterns import PatternChecker, CouplingChecker
+from clean_architecture_linter.checks.patterns import CouplingChecker, PatternChecker
 from clean_architecture_linter.checks.testing import TestingChecker
 from clean_architecture_linter.config import ConfigurationLoader
-
-from linter_test_utils import run_checker
 
 
 class TestAllCheckers:
     def test_resource_checker(self):
         code = "import os\ndef execute(): os.remove('foo')"
+        loader = ConfigurationLoader()
+        # pylint: disable=protected-access
+        loader._config["forbidden_prefixes"] = ["os"]
         msgs = run_checker(ResourceChecker, code, "use_cases/test.py")
         assert "clean-arch-resources" in msgs
 
@@ -59,7 +65,9 @@ class TestAllCheckers:
         assert layer == "UseCase"
 
         # Test explicit override
-        loader._config = {"layers": [{"name": "Custom", "module": "my_special"}]}  # pylint: disable=protected-access
+        loader._config = {
+            "layers": [{"name": "Custom", "module": "my_special"}]
+        }  # pylint: disable=protected-access
         layer = loader.get_layer_for_module("my_special.logic")
         assert layer == "Custom"
 

@@ -3,6 +3,7 @@
 # AST checks often violate Demeter by design
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
+
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.helpers import get_call_name
 from clean_architecture_linter.layer_registry import LayerRegistry

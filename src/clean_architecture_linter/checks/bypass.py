@@ -1,6 +1,7 @@
 """Anti-Bypass Guard checks (W9501)."""
 
 import tokenize
+
 from pylint.checkers import BaseTokenChecker
 
 
@@ -43,7 +44,7 @@ class BypassChecker(BaseTokenChecker):
             self.add_message(
                 "anti-bypass-violation",
                 line=lineno,
-                args=("Global pylint: disable", "Fix the issue instead.")
+                args=("Global pylint: disable", "Fix the issue instead."),
             )
 
         # 2. Check for specific forbidden disables
@@ -74,8 +75,8 @@ class BypassChecker(BaseTokenChecker):
                 line=lineno,
                 args=(
                     f"Unjustified disable of {forbidden}",
-                    "Add '# JUSTIFICATION: <reason>' on the previous line."
-                )
+                    "Add '# JUSTIFICATION: <reason>' on the previous line.",
+                ),
             )
             return
 
@@ -87,7 +88,10 @@ class BypassChecker(BaseTokenChecker):
                     line=lineno,
                     args=(
                         f"Banned justification for {forbidden}",
-                        f"The justification '{banned}' is lazy/invalid. Provide a real architectural reason."
-                    )
+                        (
+                            f"The justification '{banned}' is lazy/invalid. "
+                            "Provide a real architectural reason."
+                        ),
+                    ),
                 )
                 break

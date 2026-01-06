@@ -1,11 +1,13 @@
+import io
 import os
 import shutil
+from pathlib import Path
+
 import pytest
 import tomli_w
-from pathlib import Path
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
-import io
+
 
 # Setup temporary test environment
 @pytest.fixture(scope="module")
@@ -17,15 +19,12 @@ def test_env(tmp_path_factory):
         "tool": {
             "clean-architecture-linter": {
                 "visibility_enforcement": True,
-                "resource_access_methods": {
-                    "database_io": ["db.execute"],
-                    "network_io": ["requests.get"]
-                },
+                "forbidden_prefixes": ["db", "requests"],
                 "layers": [
-                    {"name": "Domain", "module": "pkg.domain", "allowed_resources": []},
-                    {"name": "Adapters", "module": "pkg.adapters", "allowed_resources": ["database_io"]},
-                    {"name": "Interface", "module": "pkg.ui", "allowed_resources": []}
-                ]
+                    {"name": "Domain", "module": "pkg.domain"},
+                    {"name": "Adapters", "module": "pkg.adapters"},
+                    {"name": "Interface", "module": "pkg.ui"},
+                ],
             }
         }
     }
@@ -50,6 +49,7 @@ def test_env(tmp_path_factory):
 
     return root
 
+
 def run_pylint(file_path, root_dir):
     """Run pylint via subprocess to avoid SystemExit issues."""
     import subprocess
@@ -66,19 +66,14 @@ def run_pylint(file_path, root_dir):
         "--disable=all",
         "--enable=W9003,W9004,W9005,W9006,W9007",
         "--score=n",
-        "--persistent=n"
+        "--persistent=n",
     ]
 
     # We expect failure (exit code non-zero) if violations are found,
     # so we don't check_returncode=True immediately.
-    result = subprocess.run(
-        cmd,
-        cwd=root_dir,
-        capture_output=True,
-        text=True,
-        env=env
-    )
+    result = subprocess.run(cmd, cwd=root_dir, capture_output=True, text=True, env=env)
     return result.stdout
+
 
 def test_w9003_protected_access(test_env):
     """Test W9003: Protected member access."""
@@ -98,6 +93,7 @@ def access_secret():
     assert "W9003" in output
     assert 'Access to protected member "_secret"' in output
 
+
 def test_w9004_resource_access_violation(test_env):
     """Test W9004 in Domain layer (Should fail)."""
     code = """
@@ -113,6 +109,7 @@ def save():
     assert "W9004" in output
     assert "clean-arch-resources" in output
 
+
 def test_w9004_resource_access_allowed(test_env):
     """Test W9004 in Adapters layer (Should pass)."""
     code = """
@@ -126,6 +123,7 @@ def save():
 
     output = run_pylint(f, test_env)
     assert "W9004" not in output
+
 
 def test_w9005_delegation_anti_pattern(test_env):
     """Test W9005: Delegation anti-pattern."""
@@ -144,6 +142,7 @@ def handle(x):
     output = run_pylint(f, test_env)
     assert "W9005" in output
     assert "Delegation Anti-Pattern" in output
+
 
 def test_w9006_law_of_demeter(test_env):
     """Test W9006: Law of Demeter."""

@@ -20,7 +20,10 @@ class PatternChecker(BaseChecker):
         """Check for delegation chains."""
         # Skip 'if __name__ == "__main__"' blocks
         if isinstance(node.test, astroid.nodes.Compare):
-            if isinstance(node.test.left, astroid.nodes.Name) and node.test.left.name == "__name__":
+            if (
+                isinstance(node.test.left, astroid.nodes.Name)
+                and node.test.left.name == "__name__"
+            ):
                 return
 
         is_delegation, advice = self._check_delegation_chain(node)

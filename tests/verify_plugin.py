@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 # Create a temporary directory for tests
@@ -9,7 +9,8 @@ TEST_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create a dummy pyproject.toml for config
 PYPROJECT = TEST_DIR / "pyproject.toml"
-PYPROJECT.write_text("""
+PYPROJECT.write_text(
+    """
 [tool.clean-architecture-linter]
 visibility_enforcement = true
 resource_access_methods = { database_io = ["db.execute"] }
@@ -23,7 +24,8 @@ allowed_resources = []
 name = "Interface"
 module = "test_pkg.interface"
 allowed_resources = ["database_io"]
-""")
+"""
+)
 
 # Define test cases
 # Format: (filename, content, expected_error_code)
@@ -39,7 +41,7 @@ def func():
     a = A()
     a._hidden() # W9003
 """,
-        "W9003"
+        "W9003",
     ),
     (
         "test_pkg/domain/resources.py",
@@ -48,7 +50,7 @@ import db
 def func():
     db.execute("SELECT") # W9004 (Domain has no allowed resources)
 """,
-        "W9004"
+        "W9004",
     ),
     (
         "test_pkg/interface/resources_ok.py",
@@ -57,7 +59,7 @@ import db
 def func():
     db.execute("SELECT") # OK (Interface allows database_io)
 """,
-        None
+        None,
     ),
     (
         "test_pkg/domain/demeter.py",
@@ -68,9 +70,9 @@ class A:
 def func(obj):
     obj.b.c.method() # W9006
 """,
-        "W9006"
+        "W9006",
     ),
-     (
+    (
         "test_pkg/domain/delegation.py",
         """
 def handler(x):
@@ -80,9 +82,10 @@ def handler(x):
         return bar()
 # W9005
 """,
-        "W9005"
+        "W9005",
     ),
 ]
+
 
 def run_test():
     print("Running plugin verification...")
@@ -131,6 +134,7 @@ def run_test():
         sys.exit(1)
     else:
         print("\n✅ All Checks Passed!")
+
 
 if __name__ == "__main__":
     run_test()

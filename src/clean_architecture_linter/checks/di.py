@@ -1,9 +1,10 @@
 """Dependency Injection checks (W9301)."""
 
 from pylint.checkers import BaseChecker
+
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.layer_registry import LayerRegistry
 from clean_architecture_linter.helpers import get_call_name, get_node_layer
+from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class DIChecker(BaseChecker):

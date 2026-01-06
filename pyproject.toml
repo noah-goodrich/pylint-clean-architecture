@@ -40,5 +40,18 @@ packages = ["clean_architecture_linter", "clean_architecture_linter.checks"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+python_classes = ["Test*"]
 addopts = "--cov=clean_architecture_linter --cov-report=json --coverage-impact"
 
+[tool.pylint.messages_control]
+disable = [
+    "too-few-public-methods",
+    "duplicate-code",
+]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.isort]
+profile = "black"
+line_length = 120

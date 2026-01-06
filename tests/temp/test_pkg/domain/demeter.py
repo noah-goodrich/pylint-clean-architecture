@@ -1,6 +1,7 @@
-
 class A:
-    def method(self): pass
+    def method(self):
+        pass
+
 
 def func(obj):
-    obj.b.c.method() # W9006
+    obj.b.c.method()  # W9006

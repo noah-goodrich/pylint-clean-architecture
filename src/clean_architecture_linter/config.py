@@ -49,7 +49,9 @@ class ConfigurationLoader:
                         # Check for new [tool.snowarch] OR legacy [tool.clean-architecture-linter]
                         self._config = data.get("tool", {}).get("snowarch", {})
                         if not self._config:
-                            self._config = data.get("tool", {}).get("clean-architecture-linter", {})
+                            self._config = data.get("tool", {}).get(
+                                "clean-architecture-linter", {}
+                            )
                         if self._config:
                             return
                 except (IOError, OSError):
@@ -69,14 +71,16 @@ class ConfigurationLoader:
             self._registry = LayerRegistry("generic")
         return self._registry
 
-    def get_layer_for_module(self, module_name: str, file_path: str = "") -> Optional[str]:
+    def get_layer_for_module(
+        self, module_name: str, file_path: str = ""
+    ) -> Optional[str]:
         """Get the architectural layer for a module/file."""
         # Check explicit config first
         if "layers" in self._config:
             layers = sorted(
                 self._config["layers"],
                 key=lambda x: len(x.get("module", "")),
-                reverse=True
+                reverse=True,
             )
             match = next(
                 (
@@ -84,7 +88,7 @@ class ConfigurationLoader:
                     for layer in layers
                     if module_name.startswith(layer.get("module", ""))
                 ),
-                None
+                None,
             )
             if match:
                 return match

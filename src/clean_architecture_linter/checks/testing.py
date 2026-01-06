@@ -43,7 +43,7 @@ class TestingChecker(BaseChecker):
                 self.add_message(
                     "fragile-test-mocks",
                     node=self._current_function,
-                    args=(self._mock_count,)
+                    args=(self._mock_count,),
                 )
         self._current_function = None
         self._mock_count = 0

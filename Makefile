@@ -12,3 +12,6 @@ test:
 
 test-all:
 	pytest tests/
+
+lint:
+	pylint src/
