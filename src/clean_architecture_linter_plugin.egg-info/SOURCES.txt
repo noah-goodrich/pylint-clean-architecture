@@ -8,13 +8,14 @@ src/clean_architecture_linter/layer_registry.py
 src/clean_architecture_linter/reporter.py
 src/clean_architecture_linter/checks/__init__.py
 src/clean_architecture_linter/checks/boundaries.py
+src/clean_architecture_linter/checks/bypass.py
 src/clean_architecture_linter/checks/contracts.py
-src/clean_architecture_linter/checks/coupling.py
 src/clean_architecture_linter/checks/dependencies.py
 src/clean_architecture_linter/checks/design.py
+src/clean_architecture_linter/checks/di.py
+src/clean_architecture_linter/checks/immutability.py
 src/clean_architecture_linter/checks/patterns.py
 src/clean_architecture_linter/checks/testing.py
-src/clean_architecture_linter/checks/visibility.py
 src/clean_architecture_linter_plugin.egg-info/PKG-INFO
 src/clean_architecture_linter_plugin.egg-info/SOURCES.txt
 src/clean_architecture_linter_plugin.egg-info/dependency_links.txt

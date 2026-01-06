@@ -47,18 +47,51 @@ class ContractChecker(BaseChecker):
         if any(ancestor.name == 'Exception' for ancestor in node.ancestors()):
             return
 
+        # 1. Must have a Domain Protocol ancestor
         if not self._has_domain_protocol_ancestor(node):
             self.add_message("contract-integrity-violation", node=node, args=(node.name,))
+            return
+
+        # 2. Expert-Grade: Public methods must be defined in the Protocol
+        protocol_methods = self._get_protocol_methods(node)
+        for member in node.methods():
+            if member.name.startswith("_"):
+                continue
+
+            # Common exclusions for constructors
+            if member.name in ("__init__", "__post_init__"):
+                continue
+
+            if member.name not in protocol_methods:
+                self.add_message("contract-integrity-violation", node=member, args=(f"{node.name}.{member.name} (not in Protocol)",))
+
+    def _get_protocol_methods(self, node):
+        """Collect public method names from all Domain Protocol ancestors."""
+        methods = set()
+        for ancestor in node.ancestors():
+            if self._is_domain_protocol(ancestor):
+                for method in ancestor.methods():
+                    if not method.name.startswith("_"):
+                        methods.add(method.name)
+        return methods
 
     def _has_domain_protocol_ancestor(self, node):
         """Check if any ancestor is a domain protocol."""
-        for ancestor in node.ancestors():
-            try:
-                ancestor_module = ancestor.root().name
-                # Check if ancestor is from a domain module and ends with Protocol
-                # Robust matching for .domain. or domain. at start
-                if (".domain." in f".{ancestor_module}.") and ancestor.name.endswith("Protocol"):
-                    return True
-            except (AttributeError, ValueError):
-                continue
+        return any(self._is_domain_protocol(ancestor) for ancestor in node.ancestors())
+
+    def _is_domain_protocol(self, ancestor):
+        """Identify if an ancestor class is a Domain Protocol."""
+        try:
+            # Check for Protocol inheritance directly if possible
+            is_protocol = any(getattr(b, "name", "") == "Protocol" for b in ancestor.bases)
+
+            ancestor_module = ancestor.root().name
+            # Rule: module path contains '.domain.' and name ends with 'Protocol'
+            # OR it inherits from Protocol and is in a domain module
+            in_domain = ".domain." in f".{ancestor_module}."
+
+            if in_domain and (ancestor.name.endswith("Protocol") or is_protocol):
+                return True
+        except (AttributeError, ValueError):
+            pass
         return False

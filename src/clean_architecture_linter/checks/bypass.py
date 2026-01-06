@@ -51,13 +51,22 @@ class BypassChecker(BaseTokenChecker):
             if forbidden in tok_string:
                 self._check_justification(forbidden, lineno, lines)
 
+    BANNED_PHRASES = {
+        "internal helper",
+        "detailed arguments",
+        "passing the linter",
+    }
+
     def _check_justification(self, forbidden, lineno, lines):
         """Ensure forbidden disable is justified on previous line."""
         prev_lineno = lineno - 1
         justified = False
+        justification_content = ""
         if prev_lineno in lines:
-            if "JUSTIFICATION:" in lines[prev_lineno]:
+            line = lines[prev_lineno]
+            if "JUSTIFICATION:" in line:
                 justified = True
+                justification_content = line.split("JUSTIFICATION:")[1].strip().lower()
 
         if not justified:
             self.add_message(
@@ -68,3 +77,17 @@ class BypassChecker(BaseTokenChecker):
                     "Add '# JUSTIFICATION: <reason>' on the previous line."
                 )
             )
+            return
+
+        # Check for banned phrases
+        for banned in self.BANNED_PHRASES:
+            if banned in justification_content:
+                self.add_message(
+                    "anti-bypass-violation",
+                    line=lineno,
+                    args=(
+                        f"Banned justification for {forbidden}",
+                        f"The justification '{banned}' is lazy/invalid. Provide a real architectural reason."
+                    )
+                )
+                break
