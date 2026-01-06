@@ -83,7 +83,7 @@ class LayerRegistry:
 
         Args:
             node_name: Class or function name
-            file_path: Full file path
+            file_path: Full file path or module name
 
         Returns:
             Layer name or None if unresolved
@@ -94,10 +94,19 @@ class LayerRegistry:
                 if re.match(pattern, node_name):
                     return layer
 
-        # 2. Check directory path
+        # 2. Check path/module (Monorepo support)
+        # Normalize: replace backslashes and dots (except for .py extension)
         normalized_path = file_path.replace("\\", "/")
+        if normalized_path.endswith(".py"):
+            normalized_path = normalized_path[:-3]
+        normalized_path = normalized_path.replace(".", "/")
+
+        # Prefix with / for pattern matching if not already
+        if not normalized_path.startswith("/"):
+            normalized_path = "/" + normalized_path
+
         for pattern, layer in self.DIRECTORY_MAP.items():
-            if re.match(pattern, normalized_path):
+            if re.search(pattern, normalized_path):
                 return layer
 
         return None

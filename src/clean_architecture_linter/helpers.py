@@ -13,3 +13,11 @@ def get_call_name(node):
     if isinstance(node.func, astroid.nodes.Attribute):
         return node.func.attrname
     return None
+
+
+def get_node_layer(node, config_loader):
+    """Resolve the architectural layer for a given AST node."""
+    root = node.root()
+    file_path = getattr(root, "file", "")
+    current_module = root.name
+    return config_loader.get_layer_for_module(current_module, file_path)

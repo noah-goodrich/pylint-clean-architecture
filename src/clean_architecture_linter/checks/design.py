@@ -1,7 +1,6 @@
 """Design checks (W9007, W9009)."""
 
 # AST checks often violate Demeter by design
-# pylint: disable=law-of-demeter-violation
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
 from clean_architecture_linter.config import ConfigurationLoader

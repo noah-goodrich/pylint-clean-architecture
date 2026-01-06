@@ -17,6 +17,7 @@ class PatternChecker(BaseChecker):
     }
 
     def visit_if(self, node):
+        """Check for delegation chains."""
         # Skip 'if __name__ == "__main__"' blocks
         if isinstance(node.test, astroid.nodes.Compare):
             if isinstance(node.test.left, astroid.nodes.Name) and node.test.left.name == "__name__":
@@ -56,12 +57,8 @@ class PatternChecker(BaseChecker):
             if isinstance(orelse, astroid.nodes.If):
                 return self._check_delegation_chain(orelse, depth + 1)
             if self._is_delegation_call(orelse):
-                # We found the final else: do_z()
-                # If depth is 0, we have if/else (2 branches). This might be fine, but let's say >= 2 is a chain?
-                # Actually, the user complained about simple checks.
-                # Let's require depth >= 1 (so 3 branches: if/elif/else or if/elif/elif)
-                # OR if depth is 0, arguably if/else is simple enough.
-                # Let's be conservative: require at least one 'elif' (depth > 0) to call it a "chain"
+                # 3 branches: if/elif/else or if/elif/elif
+                # Let's require depth >= 1 (so if/elif)
                 return depth > 0, advice
 
         return False, None
@@ -126,6 +123,13 @@ class CouplingChecker(BaseChecker):
     }
 
     def visit_call(self, node):
+        """Check for Law of Demeter violations."""
+        # Skip checks for test files
+        root = node.root()
+        file_path = getattr(root, "file", "")
+        if "tests" in file_path.split("/") or "test_" in file_path.split("/")[-1]:
+            return
+
         if not isinstance(node.func, astroid.nodes.Attribute):
             return
 

@@ -1,10 +1,8 @@
 """Dependency checks (W9010)."""
 
-from typing import Dict, Set
 
-import astroid
+
 from pylint.checkers import BaseChecker
-from pylint.interfaces import UNDEFINED
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.layer_registry import LayerRegistry
 
@@ -28,8 +26,14 @@ class DependencyChecker(BaseChecker):
     DEFAULT_RULES = {
         LayerRegistry.LAYER_DOMAIN: set(),  # Domain imports NOTHING (only stdlib)
         LayerRegistry.LAYER_USE_CASE: {LayerRegistry.LAYER_DOMAIN},
-        LayerRegistry.LAYER_INTERFACE: {LayerRegistry.LAYER_USE_CASE, LayerRegistry.LAYER_DOMAIN},
-        LayerRegistry.LAYER_INFRASTRUCTURE: {LayerRegistry.LAYER_USE_CASE, LayerRegistry.LAYER_DOMAIN},
+        LayerRegistry.LAYER_INTERFACE: {
+            LayerRegistry.LAYER_USE_CASE,
+            LayerRegistry.LAYER_DOMAIN
+        },
+        LayerRegistry.LAYER_INFRASTRUCTURE: {
+            LayerRegistry.LAYER_USE_CASE,
+            LayerRegistry.LAYER_DOMAIN
+        },
     }
 
     def __init__(self, linter=None):
@@ -54,6 +58,10 @@ class DependencyChecker(BaseChecker):
 
         current_layer = self.config_loader.get_layer_for_module(current_module, current_file)
 
+        # Skip checks for test files
+        if "tests" in current_file.split("/") or "test_" in current_file.split("/")[-1]:
+            return
+
         if not current_layer:
             return  # Unclassified file, allow for now (OR we could fail strict)
 
@@ -69,8 +77,8 @@ class DependencyChecker(BaseChecker):
 
         # If heuristics fail, user might need to define explicit layer map in config
         if not imported_layer:
-             # Try matching package prefixes if available in config
-             imported_layer = self.config_loader.get_layer_for_module(import_name)
+            # Try matching package prefixes if available in config
+            imported_layer = self.config_loader.get_layer_for_module(import_name)
 
         if not imported_layer:
             return # Library or unknown module
@@ -84,8 +92,8 @@ class DependencyChecker(BaseChecker):
         # Merge with user config overrides if any (TODO)
 
         if imported_layer not in allowed_layers:
-             self.add_message(
-                 "clean-arch-dependency",
-                 node=node,
-                 args=(imported_layer, current_layer),
-             )
+            self.add_message(
+                "clean-arch-dependency",
+                node=node,
+                args=(imported_layer, current_layer),
+            )

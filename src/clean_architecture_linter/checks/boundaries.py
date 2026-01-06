@@ -1,7 +1,6 @@
 """Layer boundary checks (W9003-W9009)."""
 
 # AST checks often violate Demeter by design
-# pylint: disable=law-of-demeter-violation
 from pylint.checkers import BaseChecker
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.layer_registry import LayerRegistry
@@ -24,6 +23,7 @@ class VisibilityChecker(BaseChecker):
         self.config_loader = ConfigurationLoader()
 
     def visit_attribute(self, node):
+        """Check for protected member access."""
         if not self.config_loader.visibility_enforcement:
             return
 
@@ -47,123 +47,44 @@ class ResourceChecker(BaseChecker):
         ),
     }
 
-    # Hardcoded forbidden patterns for strict layers
-    # Default forbidden patterns
-    DEFAULT_FORBIDDEN_PREFIXES = [
-        "os.",
-        "open",
-        "builtins.open",
-        "requests.",
-        "urllib.",
-        "httpx.",
-        "sqlalchemy.",
-        "sqlite3.",
-        "psycopg2.",
-        "snowflake.connector",
-        "snowflake.snowpark",
-        "snowflake.core",
-    ]
-
     def __init__(self, linter=None):
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
     @property
     def forbidden_prefixes(self):
-        """Combine defaults with configured prefixes."""
-        # This assumes ConfigurationLoader has a way to get this list
-        # If not, we might need to add it to config.py as well
-        # For now, we'll try to get it from a potential config attribute
-        configured = getattr(self.config_loader, "forbidden_prefixes", [])
-        return self.DEFAULT_FORBIDDEN_PREFIXES + configured
+        """Get configured forbidden prefixes."""
+        return self.config_loader.config.get("forbidden_prefixes", [])
 
     def visit_import(self, node):
+        """Check for forbidden imports."""
         self._check_import(node, [name for name, _ in node.names])
 
     def visit_importfrom(self, node):
-        # Construct full module path: 'from foo.bar import baz' -> 'foo.bar.baz' ? No, better to check 'foo.bar'
-        # Actually if we forbid 'snowflake.connector', then 'from snowflake.connector import connect' should be caught on 'snowflake.connector'
+        """Handle from x import y."""
         if node.modname:
-             self._check_import(node, [node.modname])
+            self._check_import(node, [node.modname])
+
+
 
     def _check_import(self, node, names):
         root = node.root()
         file_path = getattr(root, "file", "")
-        current_module = self.linter.current_name
+        current_module = root.name
 
         layer = self.config_loader.get_layer_for_module(current_module, file_path)
-        print(f"DEBUG: checking import {names} in {current_module} ({layer})")
 
         # Only check UseCase and Domain
         if layer not in (LayerRegistry.LAYER_USE_CASE, LayerRegistry.LAYER_DOMAIN):
-            print(f"DEBUG: skipping layer {layer}")
             return
 
         for name in names:
             for prefix in self.forbidden_prefixes:
-                # remove trailing dot for module matching if present
                 clean_prefix = prefix.rstrip(".")
                 if name == clean_prefix or name.startswith(clean_prefix + "."):
-                    print(f"DEBUG: MATCH {name} with {clean_prefix}")
-                    self.add_message("clean-arch-resources", node=node, args=(f"import {name}", layer))
+                    self.add_message(
+                        "clean-arch-resources",
+                        node=node,
+                        args=(f"import {name}", layer)
+                    )
                     return
-
-    def visit_call(self, node):
-        root = node.root()
-        file_path = getattr(root, "file", "")
-        current_module = self.linter.current_name
-
-        layer = self.config_loader.get_layer_for_module(current_module, file_path)
-
-        if layer not in (LayerRegistry.LAYER_USE_CASE, LayerRegistry.LAYER_DOMAIN) and layer is not None:
-            return
-
-        # If layer is None (Unclassified), we treat it restrictively (Fail Closed)
-        # to force architectural classification.
-
-        call_name = self._get_call_name(node)
-        if not call_name:
-            return
-
-        # 1. Check forbidden prefixes (Global)
-        for prefix in self.forbidden_prefixes:
-            if call_name.startswith(prefix) or call_name == prefix.rstrip("."):
-                self.add_message("clean-arch-resources", node=node, args=(call_name, layer))
-                return
-
-        # 2. Check configured resource access methods
-        resource_methods = self.config_loader.get_resource_access_methods()
-        found_resource_type = None
-        for r_type, methods in resource_methods.items():
-            if call_name in methods:
-                found_resource_type = r_type
-                break
-
-        if found_resource_type:
-            # Check if allowed in this layer
-            allowed = []
-            if "layers" in self.config_loader.config:
-                # Find the config for the current layer
-                for l in self.config_loader.config["layers"]:
-                    if l.get("name") == layer:
-                        allowed = l.get("allowed_resources", [])
-                        break
-
-            if found_resource_type not in allowed:
-                self.add_message("clean-arch-resources", node=node, args=(call_name, layer))
-
-    def _get_call_name(self, node):
-        """Reconstruct call name from AST."""
-        if hasattr(node.func, "attrname"):
-            return self._stringify_node(node.func)
-        if hasattr(node.func, "name"):
-            return node.func.name
-        return None
-
-    def _stringify_node(self, node):
-        if hasattr(node, "name"):
-            return node.name
-        if hasattr(node, "attrname"):
-            base = self._stringify_node(node.expr)
-            return f"{base}.{node.attrname}" if base else node.attrname
-        return None
