@@ -93,6 +93,19 @@ class ContractChecker(BaseChecker):
         if node.name.startswith("_") and node.name not in ("__init__", "__post_init__"):
             return
 
+        # Skip abstract methods
+        if node.decorators:
+            for decorator in node.decorators.nodes:
+                # Handle @abstractmethod and @abc.abstractmethod
+                name = ""
+                if isinstance(decorator, astroid.Name):
+                    name = decorator.name
+                elif isinstance(decorator, astroid.Attribute):
+                    name = decorator.attrname
+
+                if name == "abstractmethod":
+                    return
+
         if self._is_stub(node):
             self.add_message("concrete-method-stub", node=node, args=(node.name,))
 

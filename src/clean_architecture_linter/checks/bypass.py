@@ -17,10 +17,10 @@ class BypassChecker(BaseTokenChecker):
         ),
     }
 
-    FORBIDDEN_DISABLES = {
-        "too-many-arguments",
-        "too-many-instance-attributes",
-        "too-many-positional-arguments",
+    ALLOWED_DISABLES = {
+        "line-too-long",
+        "missing-docstring",
+        "trailing-whitespace",
     }
 
     def process_tokens(self, tokens):
@@ -34,11 +34,10 @@ class BypassChecker(BaseTokenChecker):
 
     def _check_comment(self, tok_string, lineno, line_content, lines):
         """Check a single comment for bypass violations."""
-        if "pylint:" not in tok_string or "disable" not in tok_string:
+        if "pylint:" not in tok_string or "disable=" not in tok_string:
             return
 
         # 1. Check for module-level (global) disable
-        # We consider a disable global if it's in the first 20 lines and on a standalone line.
         is_standalone = not line_content.split("#")[0].strip()
         if lineno < 20 and is_standalone:
             self.add_message(
@@ -47,10 +46,18 @@ class BypassChecker(BaseTokenChecker):
                 args=("Global pylint: disable", "Fix the issue instead."),
             )
 
-        # 2. Check for specific forbidden disables
-        for forbidden in self.FORBIDDEN_DISABLES:
-            if forbidden in tok_string:
-                self._check_justification(forbidden, lineno, lines)
+        # 2. Check for disables not in the allow list
+        # Extract everything after disable=
+        try:
+            disable_part = tok_string.split("disable=")[1].split("#")[0].split(";")[0]
+            rules = [r.strip() for r in disable_part.split(",")]
+            for rule in rules:
+                if not rule:
+                    continue
+                if rule not in self.ALLOWED_DISABLES:
+                    self._check_justification(rule, lineno, lines)
+        except IndexError:
+            pass
 
     BANNED_PHRASES = {
         "internal helper",

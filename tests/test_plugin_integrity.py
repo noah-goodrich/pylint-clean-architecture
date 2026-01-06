@@ -35,6 +35,7 @@ def run_pylint(file_path):
         ("infrastructure/violation_contract.py", "W9201"),
         ("violation_bypass_lazy.py", "W9501"),
         ("violation_bypass_banned.py", "W9501"),
+        ("violation_bypass_unlisted.py", "W9501"),
     ],
 )
 def test_bait_violations(bait_file, expected_id):
