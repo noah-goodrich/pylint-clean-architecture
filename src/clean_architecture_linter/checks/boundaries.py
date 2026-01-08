@@ -53,13 +53,32 @@ class ResourceChecker(BaseChecker):
         self.config_loader = ConfigurationLoader()
 
     @property
-    def forbidden_prefixes(self):
-        """Get configured forbidden prefixes."""
-        prefixes = self.config_loader.config.get("forbidden_prefixes", [])
-        if not prefixes:
-            # Default set for legacy support and sensible out-of-the-box enforcement
-            return ["os", "requests", "shutil", "socket", "subprocess"]
-        return prefixes
+    def allowed_prefixes(self):
+        """Get configured allowed prefixes."""
+        # Default safe list
+        defaults = {
+            "typing",
+            "dataclasses",
+            "abc",
+            "enum",
+            "pathlib",
+            "logging",
+            "datetime",
+            "uuid",
+            "re",
+            "math",
+            "random",
+            "decimal",
+            "functools",
+            "itertools",
+            "collections",
+            "contextlib",
+            "json",
+        }
+
+        # Add configured allow-list
+        configured = set(self.config_loader.config.get("allowed_prefixes", []))
+        return defaults.union(configured)
 
     def visit_import(self, node):
         """Check for forbidden imports."""
@@ -73,6 +92,28 @@ class ResourceChecker(BaseChecker):
     def _check_import(self, node, names):
         root = node.root()
         file_path = getattr(root, "file", "")
+
+        # EXEMPTION: Tests are allowed to import anything
+        # Check for /tests/ or /test/ in path (robust to OS separators), or module name
+        normalized_path = file_path.replace("\\", "/")
+        module_name = root.name
+
+        is_test_path = (
+            "/tests/" in normalized_path
+            or normalized_path.startswith("tests/")
+            or "/test/" in normalized_path
+            or "tests" in normalized_path.split("/")
+        )
+
+        is_test_module = (
+            ".tests." in module_name
+            or module_name.startswith("tests.")
+            or module_name.startswith("test_")
+        )
+
+        if is_test_path or is_test_module:
+            return
+
         current_module = root.name
 
         layer = self.config_loader.get_layer_for_module(current_module, file_path)
@@ -82,12 +123,30 @@ class ResourceChecker(BaseChecker):
             return
 
         for name in names:
-            for prefix in self.forbidden_prefixes:
-                clean_prefix = prefix.rstrip(".")
-                if name == clean_prefix or name.startswith(clean_prefix + "."):
-                    self.add_message(
-                        "clean-arch-resources",
-                        node=node,
-                        args=(f"import {name}", layer),
-                    )
-                    return
+            # Check 1: Is it an internal module? (domain, dto, use_cases)
+            # We assume internal modules match our layer naming conventions
+            parts = name.split(".")
+            if any(
+                p in parts
+                for p in ("domain", "dto", "use_cases", "protocols", "models")
+            ):
+                continue
+
+            # Check 2: Is it in the allowed prefixes list?
+            # Check pure match or sub-module match (e.g. 'datetime' or 'datetime.datetime')
+            is_allowed = False
+            for allowed in self.allowed_prefixes:
+                if name == allowed or name.startswith(allowed + "."):
+                    is_allowed = True
+                    break
+
+            if is_allowed:
+                continue
+
+            # If not internal and not allowed, it is forbidden.
+            self.add_message(
+                "clean-arch-resources",
+                node=node,
+                args=(f"import {name}", layer),
+            )
+            return

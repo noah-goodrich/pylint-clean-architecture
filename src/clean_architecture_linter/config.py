@@ -100,3 +100,11 @@ class ConfigurationLoader:
     def visibility_enforcement(self) -> bool:
         """Whether to enforce protected member visibility."""
         return self._config.get("visibility_enforcement", True)  # Default ON
+
+    @property
+    def allowed_lod_roots(self) -> set[str]:
+        """Return allowed LoD roots from config, defaulting to SAFE_ROOTS."""
+        # Default roots
+        defaults = {"importlib", "pathlib", "ast", "os", "json", "yaml"}
+        config_val = self._config.get("allowed_lod_roots", [])
+        return defaults.union(set(config_val))

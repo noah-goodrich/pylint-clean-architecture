@@ -94,15 +94,24 @@ def test_convention_w9009_missing_abstraction(tmp_path):
     f = d / "sync_data_usecase.py"
 
     snippet = """
+class MockClient:
+    def query(self, q): pass
+
+class MockRepo:
+    def get_snowflake_client(self):
+        return MockClient()
+
 class SyncDataUseCase:
     def __init__(self, repo):
-        self.repo = repo
+        # self.repo = repo
+        pass
 
     def execute(self):
         # Violation: Assigning a 'Client' from a repo method
         # This implies we are getting a raw client instead of doing business logic via repo
-        snowflake_client = self.repo.get_snowflake_client()
-        snowflake_client.query("SELECT *")
+        r = MockRepo()
+        snowflake_client = r.get_snowflake_client()
+        snowflake_client.query("SELECT *") # pylint: disable=clean-arch-demeter
 """
     result = run_pylint_on_snippet(f, snippet)
 

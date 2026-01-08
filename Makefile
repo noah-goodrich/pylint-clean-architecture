@@ -8,7 +8,7 @@ clean:
 	find . -name "*.pyc" -delete
 
 test:
-	pytest tests/test_plugin_integrity.py
+	pytest
 
 test-all:
 	pytest tests/

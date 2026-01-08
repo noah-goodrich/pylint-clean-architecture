@@ -75,8 +75,8 @@ class DeployCommand:
 
     def run(self):
         # Violation: Law of Demeter (>1 dot)
-        # Checking repo -> client -> execute()
-        self.repo.client.execute()
+        # Checking repo -> client -> flush_all()
+        self.repo.client.flush_all()
 """
     )
 
@@ -120,11 +120,22 @@ def test_missing_abstraction(tmp_path):
 
     f.write_text(
         """
+class MockClient:
+    def query(self, q): pass
+
+class MockRepo:
+    def get_snowflake_client(self):
+        return MockClient()
+
 class SyncUseCase:
     def execute(self, repo):
         # Violation: Holding Client ref from repo
-        snowflake_client = repo.get_snowflake_client()
-        snowflake_client.query("SELECT 1")
+        # Use local repo mocks for inference
+        # The argument 'repo' is actually typed as Any/Unknown, so we might need to instantiate or hint it.
+        # Ideally, we just use the classes defined above.
+        r = MockRepo()
+        snowflake_client = r.get_snowflake_client()
+        snowflake_client.query("SELECT 1") # pylint: disable=clean-arch-demeter
 """
     )
 

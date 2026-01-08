@@ -1,6 +1,6 @@
 """Contract Integrity checks (W9201)."""
 
-import astroid
+from astroid import nodes
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -51,6 +51,9 @@ class ContractChecker(BaseChecker):
             return
 
         # Skip Exceptions
+        # Logic: Check if any ancestor is named 'Exception'
+        # Note: In a real AST, we might want to resolve to builtins.Exception,
+        # but name-based check is safer for linter speed/robustness.
         if any(ancestor.name == "Exception" for ancestor in node.ancestors()):
             return
 
@@ -81,7 +84,7 @@ class ContractChecker(BaseChecker):
     def visit_functiondef(self, node):
         """W9202: Detect stubs in concrete classes."""
         # Only check methods in classes
-        if not isinstance(node.parent, astroid.nodes.ClassDef):
+        if not isinstance(node.parent, nodes.ClassDef):
             return
 
         # Skip protocols and base classes
@@ -98,9 +101,9 @@ class ContractChecker(BaseChecker):
             for decorator in node.decorators.nodes:
                 # Handle @abstractmethod and @abc.abstractmethod
                 name = ""
-                if isinstance(decorator, astroid.Name):
+                if isinstance(decorator, nodes.Name):
                     name = decorator.name
-                elif isinstance(decorator, astroid.Attribute):
+                elif isinstance(decorator, nodes.Attribute):
                     name = decorator.attrname
 
                 if name == "abstractmethod":
@@ -116,24 +119,21 @@ class ContractChecker(BaseChecker):
             return True
 
         for stmt in body:
-            if isinstance(stmt, astroid.nodes.Pass):
+            if isinstance(stmt, nodes.Pass):
                 continue
-            if isinstance(stmt, astroid.nodes.Expr) and isinstance(
-                stmt.value, astroid.nodes.Const
-            ):
+            if isinstance(stmt, nodes.Expr) and isinstance(stmt.value, nodes.Const):
                 if stmt.value.value is Ellipsis:
                     continue
-            if isinstance(stmt, astroid.nodes.Return):
+            if isinstance(stmt, nodes.Return):
                 if stmt.value is None or (
-                    isinstance(stmt.value, astroid.nodes.Const)
-                    and stmt.value.value is None
+                    isinstance(stmt.value, nodes.Const) and stmt.value.value is None
                 ):
                     continue
             # If we find anything else (like an IF that might be a stub, or a real call)
             # we need to decide if it's a stub.
             # The legacy tests had a 'sneaky nested branch stub':
             # if False: pass; return None
-            if isinstance(stmt, astroid.nodes.If):
+            if isinstance(stmt, nodes.If):
                 # Recursively check if the if block is a stub?
                 # For simplicity, if it's an IF we'll check its body.
                 if all(self._is_stmt_stub(s) for s in stmt.body) and (
@@ -144,15 +144,13 @@ class ContractChecker(BaseChecker):
         return True
 
     def _is_stmt_stub(self, stmt):
-        if isinstance(stmt, astroid.nodes.Pass):
+        if isinstance(stmt, nodes.Pass):
             return True
-        if isinstance(stmt, astroid.nodes.Expr) and isinstance(
-            stmt.value, astroid.nodes.Const
-        ):
+        if isinstance(stmt, nodes.Expr) and isinstance(stmt.value, nodes.Const):
             return stmt.value.value is Ellipsis
-        if isinstance(stmt, astroid.nodes.Return):
+        if isinstance(stmt, nodes.Return):
             return stmt.value is None or (
-                isinstance(stmt.value, astroid.nodes.Const) and stmt.value.value is None
+                isinstance(stmt.value, nodes.Const) and stmt.value.value is None
             )
         return False
 

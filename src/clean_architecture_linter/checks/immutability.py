@@ -32,15 +32,17 @@ class ImmutabilityChecker(BaseChecker):
         if layer != "Domain":
             return
 
-        # 2. Identify if this is in entities.py
-        root = node.root()
-        file_path = getattr(root, "file", "")
-        current_module = root.name
-        normalized_path = file_path.replace("\\", "/")
-        is_entities = (
-            "domain/entities.py" in normalized_path
-            or current_module.endswith("domain.entities")
-        )
+        # Skip private classes (starting with _)
+        if node.name.startswith("_"):
+            return
+
+        # Skip Enums and Protocols
+        for ancestor in node.ancestors():
+            if ancestor.name in ("Enum", "Protocol") or ancestor.qname() in (
+                "enum.Enum",
+                "typing.Protocol",
+            ):
+                return
 
         # 3. Check for @dataclass decorator
         has_dataclass = False
@@ -54,16 +56,11 @@ class ImmutabilityChecker(BaseChecker):
                     break
 
         # 4. Enforce rules
-        # Rule: All classes in domain/entities.py MUST be frozen dataclasses
-        if is_entities:
-            if not (has_dataclass and is_frozen):
-                self.add_message(
-                    "domain-mutability-violation", node=node, args=(node.name,)
-                )
-                return
-
-        # Rule: Any class decorated with @dataclass in Domain layer MUST be frozen
+        # Rule: Any public class decorated with @dataclass in the Domain layer MUST be frozen
+        # Primarily focusing on entities and models files for strict enforcement.
         if has_dataclass and not is_frozen:
+            # Even if not in entities.py, if it's a domain dataclass it should be frozen.
+            # Unless there is a very strong reason.
             self.add_message(
                 "domain-mutability-violation", node=node, args=(node.name,)
             )

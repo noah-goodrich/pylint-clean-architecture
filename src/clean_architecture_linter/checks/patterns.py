@@ -3,6 +3,8 @@
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
 
+from clean_architecture_linter.config import ConfigurationLoader
+
 
 class PatternChecker(BaseChecker):
     """W9005: Delegation anti-pattern detection with prescriptive advice."""
@@ -96,6 +98,9 @@ class CouplingChecker(BaseChecker):
         "values",
         "pop",
         "setdefault",
+        "clear",
+        "copy",
+        "update",
         # Logging/output (common façade patterns)
         "print",
         "debug",
@@ -108,7 +113,18 @@ class CouplingChecker(BaseChecker):
         "join",
         "split",
         "strip",
+        "lstrip",
+        "rstrip",
         "replace",
+        "upper",
+        "lower",
+        "capitalize",
+        "title",
+        "startswith",
+        "endswith",
+        "count",
+        "index",
+        "find",
         # Path operations
         "exists",
         "is_dir",
@@ -122,8 +138,58 @@ class CouplingChecker(BaseChecker):
         "iter",
         "create",
         "create_or_alter",
-        "update",
+        "modify",
+        "append",
+        "extend",
+        "insert",
+        "remove",
+        "add",
+        "discard",
+        "sort",
+        "reverse",
+        "union",
+        "intersection",
+        "difference",
+        "symmetric_difference",
+        # Fluent Builders & UI
+        "add_column",
+        "add_row",
+        "build",
+        # DB/Snowflake
+        "execute",
+        "fetchall",
+        "cursor",
+        # Crypto
+        "private_bytes",
+        "public_bytes",
+        "public_key",
     }
+
+    def __init__(self, linter=None):
+        super().__init__(linter)
+        self._locals_map = {}  # Map[variable_name] -> is_stranger (bool)
+
+    # Common Repository/API patterns
+    ALLOWED_TERMINAL_METHODS.add("modify")
+
+    def visit_functiondef(self, _node):
+        """Reset locals map for each function."""
+        # Simple local tracking scope (not handling nested scopes perfectly, but sufficient for this rule)
+        self._locals_map = {}
+
+    def visit_assign(self, node):
+        """Track if a local variable is created from a method call (likely a stranger)."""
+        if not isinstance(node.value, astroid.nodes.Call):
+            return
+
+        # If x = obj.method(), then x is a potential stranger.
+        # Unless it's a safe root/type/internal.
+
+        # We assume stranger until proven otherwise for method returns.
+        # (This is strict LoD: return values of strangers are strangers)
+        for target in node.targets:
+            if isinstance(target, astroid.nodes.AssignName):
+                self._locals_map[target.name] = True
 
     def visit_call(self, node):
         """Check for Law of Demeter violations."""
@@ -133,8 +199,33 @@ class CouplingChecker(BaseChecker):
         if "tests" in file_path.split("/") or "test_" in file_path.split("/")[-1]:
             return
 
-        if not isinstance(node.func, astroid.nodes.Attribute):
+        if self._is_method_chain_violation(node):
             return
+
+        # Case 2: Method called on a 'stranger' variable
+        # x = obj.get_thing()
+        # x.do_something()  <-- Violation
+        if isinstance(node.func, astroid.nodes.Attribute):
+            expr = node.func.expr
+            if isinstance(expr, astroid.nodes.Name):
+                var_name = expr.name
+                if self._locals_map.get(var_name, False):
+                    # It's a method call on a variable derived from another call.
+                    # We accept "Allowed Terminal Methods" on strangers (e.g. string manipulation)
+                    if node.func.attrname in self.ALLOWED_TERMINAL_METHODS:
+                        return
+
+                    self.add_message(
+                        "clean-arch-demeter",
+                        node=node,
+                        args=(f"{var_name}.{node.func.attrname} (Stranger)",),
+                    )
+
+    def _is_method_chain_violation(self, node):
+        """Check direct method chains like a.b.c()"""
+        # pylint: disable=too-many-return-statements
+        if not isinstance(node.func, astroid.nodes.Attribute):
+            return False
 
         chain = []
         curr = node.func
@@ -146,12 +237,44 @@ class CouplingChecker(BaseChecker):
             # 1. Check if terminal method is allowed
             terminal_method = chain[0]
             if terminal_method in self.ALLOWED_TERMINAL_METHODS:
-                return
+                return False
 
             # 2. Relax Demeter for 'self' access (allow self.friend.method())
             if isinstance(curr, astroid.nodes.Name) and curr.name in ("self", "cls"):
                 if len(chain) == 2:
-                    return
+                    return False
+
+            # 3. Exempt Safe Roots and Safe Types
+            config_loader = ConfigurationLoader()
+            safe_roots = config_loader.allowed_lod_roots
+            safe_types = {"str", "int", "list", "dict", "set"}
+
+            # Check if root is a Name (variable/module)
+            if isinstance(curr, astroid.nodes.Name):
+                if curr.name in safe_roots or curr.name in safe_types:
+                    return False
+
+            # 4. Entity/DTO Exemption via Inference (simplified)
+            if self._is_allowed_by_inference(curr, config_loader):
+                return False
 
             full_chain = ".".join(reversed(chain))
             self.add_message("clean-arch-demeter", node=node, args=(full_chain,))
+            return True
+        return False
+
+    def _is_allowed_by_inference(self, node, config_loader):
+        """Check if inferred type is allowed (e.g. Domain Entity)."""
+        try:
+            for inferred in node.infer():
+                if inferred is astroid.Uninferable:
+                    continue
+                definition_root = inferred.root()
+                if hasattr(definition_root, "name"):
+                    module_name = definition_root.name
+                    layer = config_loader.get_layer_for_module(module_name)
+                    if layer and ("domain" in layer.lower() or "dto" in layer.lower()):
+                        return True
+        except astroid.InferenceError:
+            pass
+        return False

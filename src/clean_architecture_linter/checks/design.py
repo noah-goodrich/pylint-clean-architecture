@@ -5,7 +5,6 @@ import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.helpers import get_call_name
 from clean_architecture_linter.layer_registry import LayerRegistry
 
 
@@ -42,26 +41,48 @@ class DesignChecker(BaseChecker):
             self.add_message("naked-return-violation", node=node, args=(type_name,))
 
     def visit_assign(self, node):
-        """W9009: Flag Client references in UseCase layer."""
+        """W9009: Flag references to raw infrastructure types in UseCase layer."""
         root = node.root()
         file_path = getattr(root, "file", "")
-        current_module = self.linter.current_name
+        current_module = root.name
         layer = self.config_loader.get_layer_for_module(current_module, file_path)
 
         if layer not in (LayerRegistry.LAYER_USE_CASE,):
             return
 
-        if not isinstance(node.value, astroid.nodes.Call):
-            return
+        # Check assignment value type
+        try:
+            for inferred in node.value.infer():
+                if inferred is astroid.Uninferable:
+                    continue
 
-        for target in node.targets:
-            if hasattr(target, "name") and "client" in target.name.lower():
-                func_name = get_call_name(node.value)
-                self.add_message(
-                    "missing-abstraction-violation",
-                    node=node,
-                    args=(target.name, func_name or "unknown"),
-                )
+                type_name = getattr(inferred, "name", "")
+                # Check for raw types
+                # Also flag any type ending in 'Client' (heuristic)
+                if type_name in self.RAW_TYPES or (
+                    type_name and type_name.endswith("Client")
+                ):
+                    self.add_message(
+                        "missing-abstraction-violation",
+                        node=node,
+                        args=(node.targets[0].as_string(), type_name),
+                    )
+                    return
+
+                # Also check ancestor classes (e.g. if it inherits from SnowflakeConnection)
+                # This is more expensive but safer.
+                if hasattr(inferred, "ancestors"):
+                    for ancestor in inferred.ancestors():
+                        if ancestor.name in self.RAW_TYPES:
+                            self.add_message(
+                                "missing-abstraction-violation",
+                                node=node,
+                                args=(node.targets[0].as_string(), ancestor.name),
+                            )
+                            return
+
+        except astroid.InferenceError:
+            pass
 
     def _get_type_name(self, node):
         if isinstance(node, astroid.nodes.Call):
