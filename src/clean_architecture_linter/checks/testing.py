@@ -11,12 +11,14 @@ class TestingChecker(BaseChecker):
     name = "clean-arch-testing"
     msgs = {
         "W9101": (
-            "Fragile Test: %d mocks exceed limit of 4. Inject single Protocol instead.",
+            "Fragile Test: %d mocks exceed limit of 4. Inject single Protocol instead. Clean Fix: Use a single Fake "
+            "or Stub implementation of a Protocol rather than mocking many individual methods.",
             "fragile-test-mocks",
             "Tests with many mocks are tightly coupled to implementation.",
         ),
         "W9102": (
-            "Testing private method: %s. Test the execute() behavior instead.",
+            "Testing private method: %s. Test the execute() behavior instead. Clean Fix: Test the public API method "
+            "that calls this private method.",
             "private-method-test",
             "Tests should verify behavior, not implementation details.",
         ),

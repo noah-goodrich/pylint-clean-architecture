@@ -1,158 +1,80 @@
-# Clean Architecture Linter Plugin
+# pylint-clean-architecture
 
-A generic Pylint plugin designed to enforce Clean Architecture constraints, design patterns, and solid coding principles.
+A powerful, highly-opinionated Pylint plugin for enforcing **Clean Architecture** (The Onion Architecture) principles in Python projects.
 
-## Clean Architecture Resources
-
-For a deeper understanding of Clean Architecture principles, please refer to:
-- [The Clean Architecture (Uncle Bob)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Clean Architecture in Python (Book)](https://github.com/PacktPublishing/Clean-Architecture-with-Python) (Reference)
-- [The Clean Architecture - Python (YouTube)](https://www.youtube.com/watch?v=AeA7PShEkD8&t=27s)
-- [Clean Architecture with Python (Medium)](https://medium.com/@shaliamekh/clean-architecture-with-python-d62712fd8d4f)
-
-## Project Comparisons & Deviations
-
-This linter takes inspiration from several community resources but enforces stricter or specific conventions:
-
-### vs. [claudiosw/python-clean-architecture-example](https://github.com/claudiosw/python-clean-architecture-example)
-We align with `claudiosw`'s general separation of concerns but deviate in enforcement:
-
-1.  **Strict Linting**: While the example repo *demonstrates* patterns, this project *enforces* them via static analysis (`DependencyChecker`).
-2.  **Naming Conventions**:
-    *   **Gateway vs Client**: We explicitly standardize on `*Gateway` for external I/O wrappers, avoiding ambiguous `*Client` usage in the Infrastructure layer.
-    *   **Repository**: We reserve `*Repository` strictly for Domain Entity persistence.
-3.  **Configurability**: Unlike a static example, our conventions are fully overrideable in `pyproject.toml` to adapt to different flavor preferences (e.g., using `Model` vs `Entity`).
-
-See the `basic_only_cli_memory` branch of the example repo for a simplified view that aligns closely with our `FileSystemGateway` logic (in-memory/file-based vs database).
-
-![Clean Architecture Diagram](https://blog.cleancoder.com/uncle-bob/images/2012-08-13-the-clean-architecture/CleanArchitecture.jpg)
+This linter acts as a "GPS" for your codebase, preventing technical debt by strictly enforcing architectural boundaries, dependency rules, and design patterns.
 
 ## Features
 
-- **W9003**: Protected Member Access (Visibility contracts).
-- **W9004**: Abstract Resource Access Bans (e.g., no DB in Domain).
-- **W9005**: Delegation Anti-Pattern detection.
-- **W9006**: Law of Demeter violations.
-- **W9007**: Naked Return checks (Decoupling).
-- **W9008**: Unused parameter enforcement in abstract layers.
+*   **Layer Boundary Enforcement**: Prevents inner layers (Domain, UseCase) from importing outer layers (Infrastructure, Interface).
+*   **Dependency Injection Checks**: Forbids direct instantiation of infrastructure classes in UseCases.
+*   **Design Pattern Enforcement**: Detects "naked returns" from repositories, delegation anti-patterns, and more.
+*   **Law of Demeter**: Enforces loose coupling by flagging deep method chains.
+*   **Contract Integrity**: Ensures Infrastructure classes correctly implement Domain Protocols.
+*   **Anti-Bypass Guard**: Prevents "lazy" disabling of linter rules without justification.
+*   **Snowflake Governance (Optional)**: Specific checks for Snowflake pipeline governance (gold layer rules, select star violations).
 
-## Rules & Examples
+## Installation
 
-### W9003: Protected Member Access
-Accessing `_protected` members from outside their defining class/scope is forbidden.
-
-**❌ Bad:**
-```python
-# In module: services.py
-from domain import entity
-
-def process():
-    user = entity.User()
-    print(user._password_hash) # Violation!
+```bash
+pip install pylint-clean-architecture
 ```
 
-**✅ Good:**
-```python
-# In module: services.py
-def process():
-    user = entity.User()
-    print(user.get_password_hash()) # Use public interface
+### Optional Extras
+
+To enable Snowflake-specific checks:
+
+```bash
+pip install "pylint-clean-architecture[snowflake]"
 ```
 
-### W9004: Abstract Resource Access Violation
-Layers not explicitly allowed to access resources (DB, Network) cannot make direct calls to them.
+## Usage
 
-**❌ Bad (in Domain Layer):**
-```python
-# snowfort/shared/user.py
-import requests
+Add the plugin to your `pyproject.toml` or Pylint configuration:
 
-def get_user_data(id):
-    return requests.get(f"api/users/{id}") # Violation: Domain cannot access network!
+```toml
+[tool.pylint.main]
+load-plugins = ["clean_architecture_linter"]
 ```
 
-**✅ Good:**
-```python
-# snowfort/shared/user.py
-# Define an interface instead
-class UserRepository:
-    def get_user(self, id): pass
+Run Pylint as usual:
 
-# Implementation in Infrastructure layer handled via dependency injection
-```
-
-### W9005: Delegation Anti-Pattern
-Flags methods that do nothing but delegate to another method depending on a simple condition.
-
-**❌ Bad:**
-```python
-def handle_request(type):
-    if type == 'A':
-        return handler_a()
-    elif type == 'B':
-        return handler_b()
-    # Violation: Just a switch statement delegating execution.
-```
-
-**✅ Good:**
-```python
-# Use a Dictionary mapping or Strategy pattern
-handlers = {'A': handler_a, 'B': handler_b}
-def handle_request(type):
-    return handlers[type]()
-```
-
-### W9006: Law of Demeter Violation
-Avoid long chains of object access (more than one dot).
-
-**❌ Bad:**
-```python
-def get_zip(order):
-    return order.customer.address.zip_code # Violation: specific knowledge of internal structure
-```
-
-**✅ Good:**
-```python
-def get_zip(order):
-    return order.get_customer_zip_code() # Delegated method
-```
-
-### W9007: Naked Return Violation
-Abstract/Domain layers should return Entities or Value Objects, not raw database cursors or HTTP responses.
-
-**❌ Bad:**
-```python
-def get_users():
-    return db.cursor().fetchall() # Violation: Returning raw DB rows
-```
-
-**✅ Good:**
-```python
-def get_users():
-    rows = db.cursor().fetchall()
-    return [User(row) for row in rows] # Return Domain Entities
-```
-
-### W9008: Unused Parameters in Interfaces
-Abstract methods or interfaces should not define parameters they don't intend to use or enforce.
-
-**❌ Bad:**
-```python
-def update(self, user_id, force=False):
-    # 'force' is never used in this implementation logic
-    self.repo.save(user_id)
+```bash
+pylint src/
 ```
 
 ## Configuration
 
-Configure via `pyproject.toml`:
+The linter is configured via `[tool.clean-arch]` in `pyproject.toml`.
 
 ```toml
-[tool.clean-architecture-linter]
+[tool.clean-arch]
+# 1. Project Type Presets (generic, cli_app, fastapi_sqlalchemy)
+project_type = "generic"
+
+# 2. Strict Visibility Enforcement
 visibility_enforcement = true
 
-[[tool.clean-architecture-linter.layers]]
-name = "Domain"
-module = "myproject.domain"
-allowed_resources = []
+# 3. Enabled Extensions
+enabled_extensions = ["snowflake"]
+
+# 4. Custom Layer Mapping (Map directory regex patterns to layers)
+[tool.clean-arch.layer_map]
+"services" = "UseCase"
+"infrastructure/clients" = "Infrastructure"
+"domain/models" = "Domain"
+
+# 5. Snowflake Governance Config (if enabled)
+governance_module_prefixes = ["my_project.infrastructure.warehouse"]
 ```
+
+## Rules
+
+See [RULES.md](RULES.md) for a complete catalog of enforced rules and "Clean Fix" examples.
+
+## Contributing
+
+1.  Fork the repo.
+2.  Install dependencies: `make install`.
+3.  Run tests: `make test`.
+4.  Submit a PR.

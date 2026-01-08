@@ -13,7 +13,8 @@ class ImmutabilityChecker(BaseChecker):
     name = "clean-arch-immutability"
     msgs = {
         "W9401": (
-            "Domain Mutability Violation: Class %s must be immutable. Use @dataclass(frozen=True).",
+            "Domain Mutability Violation: Class %s must be immutable. Use @dataclass(frozen=True). Clean Fix: Add "
+            "(frozen=True) to the @dataclass decorator.",
             "domain-mutability-violation",
             "Classes in domain/entities.py or decorated with @dataclass must use (frozen=True).",
         ),

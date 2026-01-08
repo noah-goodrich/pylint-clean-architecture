@@ -12,7 +12,7 @@ class PatternChecker(BaseChecker):
     name = "clean-arch-delegation"
     msgs = {
         "W9005": (
-            "Delegation Anti-Pattern: %s",
+            "Delegation Anti-Pattern: %s Clean Fix: Implement logic in the delegate or use a Map/Dictionary lookup.",
             "clean-arch-delegation",
             "If/elif chains that only delegate should use Strategy or Handler patterns.",
         ),
@@ -83,7 +83,8 @@ class CouplingChecker(BaseChecker):
     name = "clean-arch-demeter"
     msgs = {
         "W9006": (
-            "Law of Demeter: Chain access (%s) exceeds one level. Create delegated method.",
+            "Law of Demeter: Chain access (%s) exceeds one level. Create delegated method. Clean Fix: Add a method to "
+            "the immediate object that performs the operation.",
             "clean-arch-demeter",
             "Object chains like a.b.c() indicate tight coupling.",
         ),

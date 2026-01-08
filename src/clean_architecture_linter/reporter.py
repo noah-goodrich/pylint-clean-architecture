@@ -55,7 +55,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
                 try:
                     idx = parts.index("packages")
                     if idx + 1 < len(parts):
-                        package = parts[idx + 1].replace("snowarch-", "")
+                        package = parts[idx + 1]
                 except ValueError:
                     pass
 

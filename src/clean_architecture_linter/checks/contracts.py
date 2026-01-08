@@ -15,13 +15,14 @@ class ContractChecker(BaseChecker):
     msgs = {
         "W9201": (
             "Contract Integrity Violation: Infrastructure class %s "
-            "must inherit from a Domain Protocol.",
+            "must inherit from a Domain Protocol. Clean Fix: Define a Protocol in Domain and inherit from it.",
             "contract-integrity-violation",
             "Infrastructure classes must inherit from a Domain Protocol "
             "(module path contains '.domain.' and name ends with 'Protocol').",
         ),
         "W9202": (
-            "Concrete Method Stub: Method %s is a stub. Implement the logic.",
+            "Concrete Method Stub: Method %s is a stub. Implement the logic. Clean Fix: Implement the method or "
+            "remove it if not needed.",
             "concrete-method-stub",
             "Concrete methods in infrastructure should not be empty stubs.",
         ),

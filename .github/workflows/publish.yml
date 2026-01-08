@@ -1,0 +1,33 @@
+name: Automated Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write  # For trusted publishing (OIDC) if used, but we use token for now
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Python Semantic Release
+      uses: python-semantic-release/python-semantic-release@v8.3.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        pypi_token: ${{ secrets.PYPI_API_TOKEN }}

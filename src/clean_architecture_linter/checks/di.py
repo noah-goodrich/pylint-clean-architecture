@@ -13,7 +13,8 @@ class DIChecker(BaseChecker):
     name = "clean-arch-di"
     msgs = {
         "W9301": (
-            "DI Violation: %s instantiated directly in UseCase. Use constructor injection.",
+            "DI Violation: %s instantiated directly in UseCase. Use constructor injection. Clean Fix: Pass the "
+            "dependency as an argument to __init__.",
             "di-enforcement-violation",
             "Infrastructure classes (Gateway, Repository, Client) must be injected into UseCases.",
         ),

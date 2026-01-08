@@ -13,7 +13,8 @@ class VisibilityChecker(BaseChecker):
     name = "clean-arch-visibility"
     msgs = {
         "W9003": (
-            'Access to protected member "%s" from outer layer.',
+            'Access to protected member "%s" from outer layer. Clean Fix: Expose public '
+            "Interface or Use Case.",
             "clean-arch-visibility",
             "Protected members (_name) should not be accessed across layer boundaries.",
         ),
@@ -42,7 +43,8 @@ class ResourceChecker(BaseChecker):
     name = "clean-arch-resources"
     msgs = {
         "W9004": (
-            "Forbidden I/O access (%s) in %s layer. Use Repository injection.",
+            "Forbidden I/O access (%s) in %s layer. Clean Fix: Move logic to Infrastructure "
+            "and inject via a Domain Protocol.",
             "clean-arch-resources",
             "Raw I/O operations are forbidden in UseCase and Domain layers.",
         ),

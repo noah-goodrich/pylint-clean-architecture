@@ -33,5 +33,16 @@ def register(linter: PyLinter) -> None:
     linter.register_checker(BypassChecker(linter))
     linter.register_checker(DIChecker(linter))
 
+    # Optional extensions
+    # pylint: disable=import-outside-toplevel
+    from clean_architecture_linter.config import ConfigurationLoader
+    from clean_architecture_linter.checks.snowflake import SnowflakeGovernanceChecker
+
+    # pylint: enable=import-outside-toplevel
+
+    config = ConfigurationLoader()
+    if "snowflake" in config.enabled_extensions:
+        linter.register_checker(SnowflakeGovernanceChecker(linter))
+
     # Register reporter
     linter.register_reporter(CleanArchitectureSummaryReporter)

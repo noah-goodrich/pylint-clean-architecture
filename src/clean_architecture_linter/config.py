@@ -16,7 +16,7 @@ class ConfigurationLoader:
     """
     Singleton that loads linter configuration from pyproject.toml.
 
-    Looks for [tool.snowarch] section.
+    Looks for [tool.clean-arch] section, with fallback to [tool.snowarch].
     """
 
     _instance = None
@@ -27,8 +27,28 @@ class ConfigurationLoader:
         if cls._instance is None:
             cls._instance = super(ConfigurationLoader, cls).__new__(cls)
             cls._instance.load_config()
+
             project_type = cls._instance.config.get("project_type", "generic")
-            cls._instance.set_registry(LayerRegistry(project_type))
+
+            # Extract custom layer mappings from config
+            # Config format: [tool.clean-arch.layer_map]
+            # Key = Layer Name (e.g. "Infrastructure"), Value = Directory/Suffix (e.g. "gateways")
+            # We need to flip this for LayerRegistry: Pattern -> Layer Name
+            raw_layer_map = cls._instance.config.get("layer_map", {})
+            directory_map_override = {}
+
+            for layer_name, pattern_or_list in raw_layer_map.items():
+                if isinstance(pattern_or_list, list):
+                    for pattern in pattern_or_list:
+                        directory_map_override[pattern] = layer_name
+                else:
+                    directory_map_override[pattern_or_list] = layer_name
+
+            cls._instance.set_registry(
+                LayerRegistry(
+                    project_type=project_type, directory_map=directory_map_override
+                )
+            )
         return cls._instance
 
     def set_registry(self, registry: LayerRegistry) -> None:
@@ -46,12 +66,21 @@ class ConfigurationLoader:
                 try:
                     with open(config_file, "rb") as f:
                         data = toml.load(f)
-                        # Check for new [tool.snowarch] OR legacy [tool.clean-architecture-linter]
-                        self._config = data.get("tool", {}).get("snowarch", {})
+                        tool_section = data.get("tool", {})
+
+                        # 1. Check for [tool.clean-arch] (New)
+                        self._config = tool_section.get("clean-arch", {})
+
+                        # 2. Check for [tool.snowarch] (Legacy Fallback)
                         if not self._config:
-                            self._config = data.get("tool", {}).get(
+                            self._config = tool_section.get("snowarch", {})
+
+                        # 3. Check for [tool.clean-architecture-linter] (Oldest Legacy)
+                        if not self._config:
+                            self._config = tool_section.get(
                                 "clean-architecture-linter", {}
                             )
+
                         if self._config:
                             return
                 except (IOError, OSError):
@@ -108,3 +137,8 @@ class ConfigurationLoader:
         defaults = {"importlib", "pathlib", "ast", "os", "json", "yaml"}
         config_val = self._config.get("allowed_lod_roots", [])
         return defaults.union(set(config_val))
+
+    @property
+    def enabled_extensions(self) -> list[str]:
+        """Return list of enabled extensions."""
+        return self._config.get("enabled_extensions", [])

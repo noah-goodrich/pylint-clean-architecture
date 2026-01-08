@@ -11,7 +11,8 @@ class BypassChecker(BaseTokenChecker):
     name = "clean-arch-bypass"
     msgs = {
         "W9501": (
-            "Anti-Bypass Violation: %s detected. %s",
+            "Anti-Bypass Violation: %s detected. %s Clean Fix: Justify with '# JUSTIFICATION: <reason>' or "
+            "resolve the architectural issue.",
             "anti-bypass-violation",
             "Module-level disables or unjustified complexity disables are forbidden.",
         ),

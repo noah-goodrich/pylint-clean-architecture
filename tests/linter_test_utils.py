@@ -6,6 +6,7 @@ class MockLinter:
         self.messages = []
         self.config = type("config", (), {})()
         self.current_name = "test_module"
+        self.config_loader = type("MockConfigLoader", (), {"config": {}})()
 
     def add_message(self, msg_id, *_args, **_kwargs):
         self.messages.append(msg_id)

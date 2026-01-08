@@ -12,7 +12,8 @@ class DependencyChecker(BaseChecker):
     name = "clean-arch-dependency"
     msgs = {
         "W9010": (
-            "Illegal Dependency: %s layer cannot import from %s layer.",
+            "Illegal Dependency: %s layer cannot import from %s layer. Clean Fix: Invert dependency using an "
+            "Interface/Protocol in the Domain layer.",
             "clean-arch-dependency",
             "Inner layers (Domain, UseCase) strictly cannot import from Outer layers.",
         ),

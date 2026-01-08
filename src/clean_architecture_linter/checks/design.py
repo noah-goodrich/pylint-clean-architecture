@@ -14,12 +14,14 @@ class DesignChecker(BaseChecker):
     name = "clean-arch-design"
     msgs = {
         "W9007": (
-            "Naked Return: %s returned from Repository. Return Entity instead.",
+            "Naked Return: %s returned from Repository. Return Entity instead. Clean Fix: Map the raw object to a "
+            "Domain Entity before returning.",
             "naked-return-violation",
             "Repository methods must return Domain Entities, not raw I/O objects.",
         ),
         "W9009": (
-            "Missing Abstraction: %s holds reference to %s. Use Domain Entity.",
+            "Missing Abstraction: %s holds reference to %s. Use Domain Entity. Clean Fix: Replace the raw object "
+            "with a Domain Entity or Value Object.",
             "missing-abstraction-violation",
             "Use Cases cannot hold references to infrastructure objects (*Client).",
         ),

@@ -20,8 +20,8 @@ class LayerRegistry:
     LAYER_INFRASTRUCTURE = "Infrastructure"
     LAYER_INTERFACE = "Interface"
 
-    # Priority 1: Class name suffixes
-    SUFFIX_MAP = {
+    # Default mappings
+    DEFAULT_SUFFIX_MAP = {
         r".*UseCase$": LAYER_USE_CASE,
         r".*Interactor$": LAYER_USE_CASE,
         r".*Orchestrator$": LAYER_USE_CASE,
@@ -38,8 +38,7 @@ class LayerRegistry:
         r".*Command$": LAYER_INTERFACE,  # CLI commands
     }
 
-    # Priority 2: Directory patterns
-    DIRECTORY_MAP = {
+    DEFAULT_DIRECTORY_MAP = {
         r"(?:^|.*/)use_cases?(/.*)?$": LAYER_USE_CASE,
         r"(?:^|.*/)orchestrators?(/.*)?$": LAYER_USE_CASE,
         r"(?:^|.*/)domain(/.*)?$": LAYER_DOMAIN,
@@ -57,8 +56,38 @@ class LayerRegistry:
         r"(?:^|.*/)main\.py$": LAYER_INTERFACE,
     }
 
-    def __init__(self, project_type: str = "generic"):
+    def __init__(
+        self,
+        project_type: str = "generic",
+        suffix_map: Optional[dict] = None,
+        directory_map: Optional[dict] = None,
+    ):
         self.project_type = project_type
+
+        # Initialize with defaults copy
+        self.suffix_map = self.DEFAULT_SUFFIX_MAP.copy()
+        self.directory_map = self.DEFAULT_DIRECTORY_MAP.copy()
+
+        # Update with config overrides
+        if suffix_map:
+            self.suffix_map.update(suffix_map)
+        if directory_map:
+            # When mapping "services" -> "UseCase" in TOML, we need to convert simple name to regex
+            # or expect full regex? The user prompt implies simpler mapping "services" = "use_cases" style
+            # But implementing full regex power is better.
+            # However, prompt verification says: "uses 'services' instead of 'use_cases'"
+            # So if user provides "services": "UseCase", we should support that.
+            # But the map contains regexes as keys.
+            # If the key provided by config is simple (alphanumeric), we wrap it in standard dir regex.
+            # If it looks like regex, we use it as is.
+            for patterns, layer in directory_map.items():
+                # Handling simple directory names to regex conversion for ease of use
+                if re.match(r"^[a-zA-Z0-9_]+$", patterns):
+                    regex = rf"(?:^|.*/){patterns}(/.*)?$"
+                    self.directory_map[regex] = layer
+                else:
+                    self.directory_map[patterns] = layer
+
         self._apply_preset()
 
     def _apply_preset(self):
@@ -75,7 +104,7 @@ class LayerRegistry:
         }
 
         if self.project_type in presets:
-            self.SUFFIX_MAP.update(presets[self.project_type])
+            self.suffix_map.update(presets[self.project_type])
 
     def resolve_layer(self, node_name: str, file_path: str) -> Optional[str]:
         """
@@ -90,7 +119,7 @@ class LayerRegistry:
         """
         # 1. Check class name suffix
         if node_name:
-            for pattern, layer in self.SUFFIX_MAP.items():
+            for pattern, layer in self.suffix_map.items():
                 if re.match(pattern, node_name):
                     return layer
 
@@ -105,7 +134,7 @@ class LayerRegistry:
         if not normalized_path.startswith("/"):
             normalized_path = "/" + normalized_path
 
-        for pattern, layer in self.DIRECTORY_MAP.items():
+        for pattern, layer in self.directory_map.items():
             if re.search(pattern, normalized_path):
                 return layer
 
