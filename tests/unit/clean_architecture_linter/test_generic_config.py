@@ -50,15 +50,3 @@ Infrastructure = "gateways"
         # 3. Default 'domain' should still work
         layer = registry.resolve_layer("User", "src/domain/user.py")
         self.assertEqual(layer, "Domain")
-
-    def test_legacy_snowarch_fallback(self):
-        """Test fallback to [tool.snowarch]."""
-        content = """
-[tool.snowarch]
-project_type = "generic"
-"""
-        with open("pyproject.toml", "w") as f:
-            f.write(content)
-
-        loader = ConfigurationLoader()
-        self.assertEqual(loader.config.get("project_type"), "generic")

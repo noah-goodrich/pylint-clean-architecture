@@ -71,11 +71,7 @@ class ConfigurationLoader:
                         # 1. Check for [tool.clean-arch] (New)
                         self._config = tool_section.get("clean-arch", {})
 
-                        # 2. Check for [tool.snowarch] (Legacy Fallback)
-                        if not self._config:
-                            self._config = tool_section.get("snowarch", {})
-
-                        # 3. Check for [tool.clean-architecture-linter] (Oldest Legacy)
+                        # 2. Check for [tool.clean-architecture-linter] (Oldest Legacy)
                         if not self._config:
                             self._config = tool_section.get(
                                 "clean-architecture-linter", {}
@@ -137,8 +133,3 @@ class ConfigurationLoader:
         defaults = {"importlib", "pathlib", "ast", "os", "json", "yaml"}
         config_val = self._config.get("allowed_lod_roots", [])
         return defaults.union(set(config_val))
-
-    @property
-    def enabled_extensions(self) -> list[str]:
-        """Return list of enabled extensions."""
-        return self._config.get("enabled_extensions", [])

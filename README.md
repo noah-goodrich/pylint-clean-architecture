@@ -12,20 +12,10 @@ This linter acts as a "GPS" for your codebase, preventing technical debt by stri
 *   **Law of Demeter**: Enforces loose coupling by flagging deep method chains.
 *   **Contract Integrity**: Ensures Infrastructure classes correctly implement Domain Protocols.
 *   **Anti-Bypass Guard**: Prevents "lazy" disabling of linter rules without justification.
-*   **Snowflake Governance (Optional)**: Specific checks for Snowflake pipeline governance (gold layer rules, select star violations).
-
 ## Installation
 
 ```bash
 pip install pylint-clean-architecture
-```
-
-### Optional Extras
-
-To enable Snowflake-specific checks:
-
-```bash
-pip install "pylint-clean-architecture[snowflake]"
 ```
 
 ## Usage
@@ -55,17 +45,11 @@ project_type = "generic"
 # 2. Strict Visibility Enforcement
 visibility_enforcement = true
 
-# 3. Enabled Extensions
-enabled_extensions = ["snowflake"]
-
-# 4. Custom Layer Mapping (Map directory regex patterns to layers)
+# 3. Custom Layer Mapping (Map directory regex patterns to layers)
 [tool.clean-arch.layer_map]
 "services" = "UseCase"
 "infrastructure/clients" = "Infrastructure"
 "domain/models" = "Domain"
-
-# 5. Snowflake Governance Config (if enabled)
-governance_module_prefixes = ["my_project.infrastructure.warehouse"]
 ```
 
 ## Rules

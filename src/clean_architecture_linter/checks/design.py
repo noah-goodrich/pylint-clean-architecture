@@ -28,6 +28,18 @@ class DesignChecker(BaseChecker):
     }
 
     RAW_TYPES = {"Cursor", "Session", "Response", "Engine", "Connection", "Result"}
+    INFRASTRUCTURE_MODULES = {
+        "sqlalchemy",
+        "requests",
+        "snowflake.connector",
+        "psycopg2",
+        "boto3",
+        "redis",
+        "pymongo",
+        "httpx",
+        "aiohttp",
+        "urllib3",
+    }
 
     def __init__(self, linter=None):
         super().__init__(linter)
@@ -38,9 +50,15 @@ class DesignChecker(BaseChecker):
         if not node.value:
             return
 
-        type_name = self._get_type_name(node.value)
+        type_name = self._get_inferred_type_name(node.value)
         if type_name in self.RAW_TYPES:
             self.add_message("naked-return-violation", node=node, args=(type_name,))
+            return
+
+        # Check infrastructure module origin
+        if self._is_infrastructure_type(node.value):
+            if type_name:
+                self.add_message("naked-return-violation", node=node, args=(type_name,))
 
     def visit_assign(self, node):
         """W9009: Flag references to raw infrastructure types in UseCase layer."""
@@ -59,8 +77,8 @@ class DesignChecker(BaseChecker):
                     continue
 
                 type_name = getattr(inferred, "name", "")
-                # Check for raw types
-                # Also flag any type ending in 'Client' (heuristic)
+
+                # Check for raw types by name (heuristic)
                 if type_name in self.RAW_TYPES or (
                     type_name and type_name.endswith("Client")
                 ):
@@ -71,25 +89,75 @@ class DesignChecker(BaseChecker):
                     )
                     return
 
-                # Also check ancestor classes (e.g. if it inherits from SnowflakeConnection)
-                # This is more expensive but safer.
-                if hasattr(inferred, "ancestors"):
-                    for ancestor in inferred.ancestors():
-                        if ancestor.name in self.RAW_TYPES:
-                            self.add_message(
-                                "missing-abstraction-violation",
-                                node=node,
-                                args=(node.targets[0].as_string(), ancestor.name),
-                            )
-                            return
+                # Check for infrastructure module origin (precise)
+                if self._is_infrastructure_inferred(inferred):
+                    self.add_message(
+                        "missing-abstraction-violation",
+                        node=node,
+                        args=(
+                            node.targets[0].as_string(),
+                            type_name or "InfrastructureObject",
+                        ),
+                    )
+                    return
 
         except astroid.InferenceError:
             pass
 
-    def _get_type_name(self, node):
+    def _get_inferred_type_name(self, node):
+        """Get type name via inference if possible, else fallback to name."""
+        try:
+            for inferred in node.infer():
+                if inferred is not astroid.Uninferable:
+                    return getattr(inferred, "name", None)
+        except astroid.InferenceError:
+            pass
+
+        # Fallback to simple name analysis
         if isinstance(node, astroid.nodes.Call):
             if hasattr(node.func, "name"):
                 return node.func.name
             if hasattr(node.func, "attrname"):
                 return node.func.attrname
         return getattr(node, "name", None)
+
+    def _is_infrastructure_type(self, node):
+        """Check if node infers to a type defined in an infrastructure module."""
+        try:
+            for inferred in node.infer():
+                if self._is_infrastructure_inferred(inferred):
+                    return True
+        except astroid.InferenceError:
+            pass
+        return False
+
+    def _is_infrastructure_inferred(self, inferred):
+        """Check if an inferred node defines comes from infrastructure module."""
+        if inferred is astroid.Uninferable:
+            return False
+
+        # Check root module
+        root = inferred.root()
+        if hasattr(root, "name"):
+            root_name = root.name
+            for infra_mod in self.INFRASTRUCTURE_MODULES:
+                if root_name == infra_mod or root_name.startswith(infra_mod + "."):
+                    return True
+
+        # Check ancestors
+        if hasattr(inferred, "ancestors"):
+            for ancestor in inferred.ancestors():
+                # Checking ancestor names (heuristic)
+                if ancestor.name in self.RAW_TYPES:
+                    return True
+
+                # Checking ancestor module definitions (precise)
+                ancestor_root = ancestor.root()
+                if hasattr(ancestor_root, "name"):
+                    anc_root_name = ancestor_root.name
+                    for infra_mod in self.INFRASTRUCTURE_MODULES:
+                        if anc_root_name == infra_mod or anc_root_name.startswith(
+                            infra_mod + "."
+                        ):
+                            return True
+        return False

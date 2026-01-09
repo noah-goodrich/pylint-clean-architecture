@@ -197,17 +197,3 @@ def complex_func(): ...
 # pylint: disable=too-many-locals
 def complex_func(): ...
 ```
-
-## Snowflake Governance (W96xx)
-
-### W9601: Select Star
-**Message:** Select Star Violation: 'SELECT *' detected.
-**Clean Fix:** List all required columns explicitly.
-
-### W9602: Gold Layer View
-**Message:** Gold Layer View Warning.
-**Clean Fix:** Materialize the view or use a Dynamic Table.
-
-### W9603: Gold Schema Evolution
-**Message:** Gold Layer Schema Evolution.
-**Clean Fix:** Disable auto-evolution and manage schema migrations explicitly.

@@ -255,7 +255,8 @@ class CouplingChecker(BaseChecker):
                 if curr.name in safe_roots or curr.name in safe_types:
                     return False
 
-            # 4. Entity/DTO Exemption via Inference (simplified)
+            # 4. Entity/DTO/Safe Type Exemption via Inference
+            # We check the type of the object we are acting ON (which is 'curr', the head of the expr)
             if self._is_allowed_by_inference(curr, config_loader):
                 return False
 
