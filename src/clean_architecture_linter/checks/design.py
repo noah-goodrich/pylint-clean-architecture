@@ -27,23 +27,31 @@ class DesignChecker(BaseChecker):
         ),
     }
 
-    RAW_TYPES = {"Cursor", "Session", "Response", "Engine", "Connection", "Result"}
-    INFRASTRUCTURE_MODULES = {
-        "sqlalchemy",
-        "requests",
-        "snowflake.connector",
-        "psycopg2",
-        "boto3",
-        "redis",
-        "pymongo",
-        "httpx",
-        "aiohttp",
-        "urllib3",
-    }
-
     def __init__(self, linter=None):
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
+
+    @property
+    def raw_types(self):
+        """Get combined set of default and configured raw types."""
+        defaults = {"Cursor", "Session", "Response", "Engine", "Connection", "Result"}
+        return defaults.union(self.config_loader.raw_types)
+
+    @property
+    def infrastructure_modules(self):
+        """Get combined set of default and configured infrastructure modules."""
+        defaults = {
+            "sqlalchemy",
+            "requests",
+            "psycopg2",
+            "boto3",
+            "redis",
+            "pymongo",
+            "httpx",
+            "aiohttp",
+            "urllib3",
+        }
+        return defaults.union(self.config_loader.infrastructure_modules)
 
     def visit_return(self, node):
         """W9007: Flag raw I/O object returns."""
@@ -51,7 +59,7 @@ class DesignChecker(BaseChecker):
             return
 
         type_name = self._get_inferred_type_name(node.value)
-        if type_name in self.RAW_TYPES:
+        if type_name in self.raw_types:
             self.add_message("naked-return-violation", node=node, args=(type_name,))
             return
 
@@ -79,7 +87,7 @@ class DesignChecker(BaseChecker):
                 type_name = getattr(inferred, "name", "")
 
                 # Check for raw types by name (heuristic)
-                if type_name in self.RAW_TYPES or (
+                if type_name in self.raw_types or (
                     type_name and type_name.endswith("Client")
                 ):
                     self.add_message(
@@ -140,7 +148,7 @@ class DesignChecker(BaseChecker):
         root = inferred.root()
         if hasattr(root, "name"):
             root_name = root.name
-            for infra_mod in self.INFRASTRUCTURE_MODULES:
+            for infra_mod in self.infrastructure_modules:
                 if root_name == infra_mod or root_name.startswith(infra_mod + "."):
                     return True
 
@@ -148,14 +156,14 @@ class DesignChecker(BaseChecker):
         if hasattr(inferred, "ancestors"):
             for ancestor in inferred.ancestors():
                 # Checking ancestor names (heuristic)
-                if ancestor.name in self.RAW_TYPES:
+                if ancestor.name in self.raw_types:
                     return True
 
                 # Checking ancestor module definitions (precise)
                 ancestor_root = ancestor.root()
                 if hasattr(ancestor_root, "name"):
                     anc_root_name = ancestor_root.name
-                    for infra_mod in self.INFRASTRUCTURE_MODULES:
+                    for infra_mod in self.infrastructure_modules:
                         if anc_root_name == infra_mod or anc_root_name.startswith(
                             infra_mod + "."
                         ):

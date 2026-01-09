@@ -16,7 +16,7 @@ class ConfigurationLoader:
     """
     Singleton that loads linter configuration from pyproject.toml.
 
-    Looks for [tool.clean-arch] section, with fallback to [tool.snowarch].
+    Looks for [tool.clean-arch] section.
     """
 
     _instance = None
@@ -72,6 +72,7 @@ class ConfigurationLoader:
                         self._config = tool_section.get("clean-arch", {})
 
                         # 2. Check for [tool.clean-architecture-linter] (Oldest Legacy)
+                        # We keep this strictly for smooth upgrades, but undocumented.
                         if not self._config:
                             self._config = tool_section.get(
                                 "clean-architecture-linter", {}
@@ -133,3 +134,13 @@ class ConfigurationLoader:
         defaults = {"importlib", "pathlib", "ast", "os", "json", "yaml"}
         config_val = self._config.get("allowed_lod_roots", [])
         return defaults.union(set(config_val))
+
+    @property
+    def infrastructure_modules(self) -> set[str]:
+        """Return list of modules considered infrastructure."""
+        return set(self._config.get("infrastructure_modules", []))
+
+    @property
+    def raw_types(self) -> set[str]:
+        """Return list of type names considered raw/infrastructure."""
+        return set(self._config.get("raw_types", []))

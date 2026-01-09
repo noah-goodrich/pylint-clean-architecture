@@ -12,9 +12,9 @@ This project adheres to **Clean Architecture** principles enforced by the `pylin
 ## Layer Boundaries
 
 The project is structured into strict layers.
-Inner layers (Domain, UseCase) **MUST NOT** import from Outer layers (Infrastructure, Interface).
+Inner layers ({domain_layer}, {use_case_layer}) **MUST NOT** import from Outer layers ({infrastructure_layer}, {interface_layer}).
 
-### 1. Domain Layer
+### 1. {domain_layer} Layer
 *   **Purpose**: Contains pure business logic, entities, and protocols (interfaces).
 *   **Rules**:
     *   **NO** I/O operations (DB, API, Filesystem).
@@ -22,19 +22,19 @@ Inner layers (Domain, UseCase) **MUST NOT** import from Outer layers (Infrastruc
     *   **Must be pure Python.**
     *   Use `@dataclass(frozen=True)` for Entities and Value Objects.
 
-### 2. UseCase Layer (Application Logic)
+### 2. {use_case_layer} Layer (Application Logic)
 *   **Purpose**: Orchestrates the flow of data between Domain Objects and Interfaces/Infrastructure.
 *   **Rules**:
-    *   **No Infrastructure-specific drivers or raw I/O** (e.g. no `requests`, no `sqlalchemy.session`, no `snowflake.connector`).
+    *   **No Infrastructure-specific drivers or raw I/O** (e.g. no `requests`, no `sqlalchemy.session`).
     *   **Dependency Injection**: Infrastructure components (Repositories, Clients) MUST be injected via constructor using Domain Protocols.
     *   **Law of Demeter**: Objects should not reach through dependencies (e.g. avoid `obj.child.method()`).
 
-### 3. Interface Layer (Controllers/CLI)
+### 3. {interface_layer} Layer (Controllers/CLI)
 *   **Purpose**: Handles external input (HTTP requests, CLI commands) and calls UseCases.
 *   **Rules**:
     *   Convert external data (JSON, Args) into Domain objects before passing to UseCases.
 
-### 4. Infrastructure Layer (Gateways/Repositories)
+### 4. {infrastructure_layer} Layer (Gateways/Repositories)
 *   **Purpose**: Implements Domain Protocols to interact with the outside world (DB, API, Storage).
 *   **Rules**:
     *   Must implement a Protocol defined in the Domain layer.
@@ -67,13 +67,42 @@ def init_command() -> None:
 
     instructions_file = agent_dir / "instructions.md"
 
-    # We could theoretically inject project specific config into the template here
-    # checking config loader, but the template is quite generic as requested.
-    # config = ConfigurationLoader().config
+    # Dynamic Layer Name Resolution
+    # We load the config to see if the user has renamed any layers
+    # pylint: disable=import-outside-toplevel
+    from clean_architecture_linter.config import ConfigurationLoader
+
+    config = ConfigurationLoader().config
+    layer_map = config.get("layer_map", {})
+
+    # Default display names
+    display_names = {
+        "Domain": "Domain",
+        "UseCase": "UseCase",
+        "Infrastructure": "Infrastructure",
+        "Interface": "Interface",
+    }
+
+    # Reverse the map: We want to show the USER'S directory name if possible
+    # We only care if they mapped a directory to a standard layer
+    for directory, layer in layer_map.items():
+        if layer in display_names:
+            # We assume the first mapping we find is the primary one for display
+            # We verify it's a simple directory name (alphanumeric) before using it as a label
+            if directory.replace("_", "").isalnum():
+                # Capitalize for display (e.g. services -> Services)
+                display_names[layer] = f"{directory.capitalize()} ({layer})"
 
     # Write the instructions
     with open(instructions_file, "w", encoding="utf-8") as f:
-        f.write(AGENT_INSTRUCTIONS_TEMPLATE)
+        f.write(
+            AGENT_INSTRUCTIONS_TEMPLATE.format(
+                domain_layer=display_names["Domain"],
+                use_case_layer=display_names["UseCase"],
+                infrastructure_layer=display_names["Infrastructure"],
+                interface_layer=display_names["Interface"],
+            )
+        )
 
     print(f"Generated: {instructions_file}")
     print("Add this file to your AI coding assistant's context for better compliance.")
