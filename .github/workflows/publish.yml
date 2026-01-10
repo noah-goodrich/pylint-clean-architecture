@@ -12,9 +12,10 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
-      id-token: write  # For trusted publishing (OIDC) if used, but we use token for now
+      id-token: write
 
     steps:
     - uses: actions/checkout@v3
@@ -30,4 +31,3 @@ jobs:
       uses: python-semantic-release/python-semantic-release@v8.3.0
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        pypi_token: ${{ secrets.PYPI_API_TOKEN }}
