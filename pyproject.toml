@@ -39,6 +39,7 @@ packages = ["clean_architecture_linter", "clean_architecture_linter.checks"]
 
 [tool.setuptools.package-data]
 "clean_architecture_linter" = ["py.typed"]
+"*" = ["assets/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

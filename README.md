@@ -1,5 +1,9 @@
 # pylint-clean-architecture
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/noah-goodrich/pylint-clean-architecture/main/assets/logo-compressed.png" width="300" alt="Clean Architecture Linter Logo">
+</p>
+
 A powerful, highly-opinionated Pylint plugin for enforcing **Clean Architecture** (The Onion Architecture) principles in Python projects.
 
 This linter acts as a "GPS" for your codebase, preventing technical debt by strictly enforcing architectural boundaries, dependency rules, and design patterns.
