@@ -33,6 +33,19 @@ Run Pylint as usual:
 pylint src/
 ```
 
+## AI Coding Assistant Support
+
+The `clean-arch-init` command generates architectural instructions for AI agents (like Cursor or GitHub Copilot) to prevent "Split Brain" issues by teaching the AI your project's rules before it writes code.
+
+Usage:
+
+```bash
+clean-arch-init
+```
+
+Outcome: This creates a customized `.agent/instructions.md` file based on the layer names defined in the project's `pyproject.toml`.
+
+
 ## Configuration
 
 The linter is configured via `[tool.clean-arch]` in `pyproject.toml`.
