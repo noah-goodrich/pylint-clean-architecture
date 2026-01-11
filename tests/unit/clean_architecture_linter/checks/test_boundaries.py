@@ -1,15 +1,16 @@
 import unittest
 from unittest.mock import MagicMock
-from clean_architecture_linter.config import ConfigurationLoader
+
 from clean_architecture_linter.checks.boundaries import (
     ResourceChecker,
     VisibilityChecker,
 )
+from clean_architecture_linter.config import ConfigurationLoader
+
 from tests.linter_test_utils import run_checker
 
 
 class TestResourceChecker(unittest.TestCase):
-
     def setUp(self):
         ConfigurationLoader._instance = None
         self.loader = ConfigurationLoader()
@@ -51,9 +52,7 @@ import datetime
 
         try:
             msgs = run_checker(ResourceChecker, code, filename)
-            self.assertEqual(
-                len(msgs), 0, f"Should not have messages for test file. Got: {msgs}"
-            )
+            self.assertEqual(len(msgs), 0, f"Should not have messages for test file. Got: {msgs}")
         finally:
             self.loader.get_layer_for_module = original_get_layer
 
@@ -81,7 +80,6 @@ import datetime
 
 
 class TestVisibilityChecker(unittest.TestCase):
-
     def setUp(self):
         ConfigurationLoader._instance = None
 

@@ -1,15 +1,15 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from astroid import nodes
+
 import astroid
-from clean_architecture_linter.config import ConfigurationLoader
+from astroid import nodes
 from clean_architecture_linter.checks.contracts import ContractChecker
-from clean_architecture_linter.layer_registry import LayerRegistry
-from tests.linter_test_utils import run_checker, MockLinter
+from clean_architecture_linter.config import ConfigurationLoader
+
+from tests.linter_test_utils import MockLinter, run_checker
 
 
 class TestContractChecker(unittest.TestCase):
-
     def setUp(self):
         ConfigurationLoader._instance = None
         self.loader = ConfigurationLoader()
@@ -94,9 +94,7 @@ class Impl(MyBase):
         msgs = run_checker(ContractChecker, code)
         self.assertEqual(msgs, [])
 
-    @patch(
-        "clean_architecture_linter.checks.contracts.ContractChecker._is_domain_protocol"
-    )
+    @patch("clean_architecture_linter.checks.contracts.ContractChecker._is_domain_protocol")
     @patch("clean_architecture_linter.checks.contracts.get_node_layer")
     def test_extra_public_method_violation(self, mock_layer, mock_is_proto):
         """Test W9201: Public method not in Protocol."""

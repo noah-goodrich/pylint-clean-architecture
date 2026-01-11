@@ -96,10 +96,7 @@ class BypassChecker(BaseTokenChecker):
                     line=lineno,
                     args=(
                         f"Banned justification for {forbidden}",
-                        (
-                            f"The justification '{banned}' is lazy/invalid. "
-                            "Provide a real architectural reason."
-                        ),
+                        (f"The justification '{banned}' is lazy/invalid. Provide a real architectural reason."),
                     ),
                 )
                 break

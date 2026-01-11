@@ -1,12 +1,8 @@
-import io
 import os
-import shutil
 from pathlib import Path
 
 import pytest
 import tomli_w
-from pylint.lint import Run
-from pylint.reporters.text import TextReporter
 
 
 # Setup temporary test environment

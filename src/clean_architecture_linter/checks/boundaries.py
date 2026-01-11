@@ -13,8 +13,7 @@ class VisibilityChecker(BaseChecker):
     name = "clean-arch-visibility"
     msgs = {
         "W9003": (
-            'Access to protected member "%s" from outer layer. Clean Fix: Expose public '
-            "Interface or Use Case.",
+            'Access to protected member "%s" from outer layer. Clean Fix: Expose public Interface or Use Case.',
             "clean-arch-visibility",
             "Protected members (_name) should not be accessed across layer boundaries.",
         ),
@@ -107,11 +106,7 @@ class ResourceChecker(BaseChecker):
             or "tests" in normalized_path.split("/")
         )
 
-        is_test_module = (
-            ".tests." in module_name
-            or module_name.startswith("tests.")
-            or module_name.startswith("test_")
-        )
+        is_test_module = ".tests." in module_name or module_name.startswith("tests.") or module_name.startswith("test_")
 
         if is_test_path or is_test_module:
             return
@@ -128,10 +123,7 @@ class ResourceChecker(BaseChecker):
             # Check 1: Is it an internal module? (domain, dto, use_cases)
             # We assume internal modules match our layer naming conventions
             parts = name.split(".")
-            if any(
-                p in parts
-                for p in ("domain", "dto", "use_cases", "protocols", "models")
-            ):
+            if any(p in parts for p in ("domain", "dto", "use_cases", "protocols", "models")):
                 continue
 
             # Check 2: Is it in the allowed prefixes list?

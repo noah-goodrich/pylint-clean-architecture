@@ -1,12 +1,13 @@
-import unittest
 import tokenize
+import unittest
 from io import BytesIO
+
 from clean_architecture_linter.checks.bypass import BypassChecker
+
 from tests.linter_test_utils import MockLinter
 
 
 class TestBypassChecker(unittest.TestCase):
-
     def run_token_checker(self, code):
         linter = MockLinter()
         checker = BypassChecker(linter)

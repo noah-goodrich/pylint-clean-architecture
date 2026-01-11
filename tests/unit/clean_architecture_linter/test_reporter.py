@@ -1,27 +1,19 @@
 import io
-from unittest.mock import MagicMock
 import unittest
 from collections import namedtuple
+from unittest.mock import MagicMock
+
 from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
 
 Message = namedtuple("Message", ["msg_id", "symbol", "path"])
 
 
 class TestCleanArchitectureSummaryReporter(unittest.TestCase):
-
     def test_collect_stats(self):
         reporter = CleanArchitectureSummaryReporter()
-        reporter.handle_message(
-            Message("W9001", "dependency-violation", "packages/core/src/domain/file.py")
-        )
-        reporter.handle_message(
-            Message(
-                "W9001", "dependency-violation", "packages/audit/src/domain/file.py"
-            )
-        )
-        reporter.handle_message(
-            Message("W9004", "io-violation", "packages/core/src/domain/file.py")
-        )
+        reporter.handle_message(Message("W9001", "dependency-violation", "packages/core/src/domain/file.py"))
+        reporter.handle_message(Message("W9001", "dependency-violation", "packages/audit/src/domain/file.py"))
+        reporter.handle_message(Message("W9004", "io-violation", "packages/core/src/domain/file.py"))
 
         errors, packages = reporter._collect_stats()
 

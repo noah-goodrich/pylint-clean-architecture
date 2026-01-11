@@ -9,7 +9,7 @@ except ImportError:
     # Python 3.11+ has tomllib
     import tomllib as toml  # type: ignore[import-not-found]
 
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.layer_registry import LayerRegistry, LayerRegistryConfig
 
 
 class ConfigurationLoader:
@@ -44,11 +44,14 @@ class ConfigurationLoader:
                 else:
                     directory_map_override[pattern_or_list] = layer_name
 
-            cls._instance.set_registry(
-                LayerRegistry(
-                    project_type=project_type, directory_map=directory_map_override
-                )
+            registry_config = LayerRegistryConfig(
+                project_type=project_type,
+                directory_map=directory_map_override,
+                base_class_map=_invert_map(cls._instance.config.get("base_class_map", {})),
+                module_map=_invert_map(cls._instance.config.get("module_map", {})),
             )
+
+            cls._instance.set_registry(LayerRegistry(config=registry_config))
         return cls._instance
 
     def set_registry(self, registry: LayerRegistry) -> None:
@@ -74,9 +77,7 @@ class ConfigurationLoader:
                         # 2. Check for [tool.clean-architecture-linter] (Oldest Legacy)
                         # We keep this strictly for smooth upgrades, but undocumented.
                         if not self._config:
-                            self._config = tool_section.get(
-                                "clean-architecture-linter", {}
-                            )
+                            self._config = tool_section.get("clean-architecture-linter", {})
 
                         if self._config:
                             return
@@ -94,12 +95,11 @@ class ConfigurationLoader:
     def registry(self) -> LayerRegistry:
         """Return the layer registry."""
         if self._registry is None:
-            self._registry = LayerRegistry("generic")
+            # Fallback for unconfigured cases (e.g. tests without config loading)
+            self._registry = LayerRegistry(LayerRegistryConfig(project_type="generic"))
         return self._registry
 
-    def get_layer_for_module(
-        self, module_name: str, file_path: str = ""
-    ) -> Optional[str]:
+    def get_layer_for_module(self, module_name: str, file_path: str = "") -> Optional[str]:
         """Get the architectural layer for a module/file."""
         # Check explicit config first
         if "layers" in self._config:
@@ -109,11 +109,7 @@ class ConfigurationLoader:
                 reverse=True,
             )
             match = next(
-                (
-                    layer.get("name")
-                    for layer in layers
-                    if module_name.startswith(layer.get("module", ""))
-                ),
+                (layer.get("name") for layer in layers if module_name.startswith(layer.get("module", ""))),
                 None,
             )
             if match:
@@ -144,3 +140,15 @@ class ConfigurationLoader:
     def raw_types(self) -> set[str]:
         """Return list of type names considered raw/infrastructure."""
         return set(self._config.get("raw_types", []))
+
+
+def _invert_map(config_map: Dict[str, Any]) -> Dict[str, str]:
+    """Invert config map (Layer -> Items) to (Item -> Layer)."""
+    inverted = {}
+    for layer_name, item_or_list in config_map.items():
+        if isinstance(item_or_list, list):
+            for item in item_or_list:
+                inverted[item] = layer_name
+        else:
+            inverted[item_or_list] = layer_name
+    return inverted

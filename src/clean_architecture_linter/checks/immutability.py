@@ -62,9 +62,7 @@ class ImmutabilityChecker(BaseChecker):
         if has_dataclass and not is_frozen:
             # Even if not in entities.py, if it's a domain dataclass it should be frozen.
             # Unless there is a very strong reason.
-            self.add_message(
-                "domain-mutability-violation", node=node, args=(node.name,)
-            )
+            self.add_message("domain-mutability-violation", node=node, args=(node.name,))
 
     def _is_dataclass_decorator(self, node):
         """Check if decorator is @dataclass."""

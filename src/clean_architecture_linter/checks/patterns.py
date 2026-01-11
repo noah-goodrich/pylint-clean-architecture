@@ -22,10 +22,7 @@ class PatternChecker(BaseChecker):
         """Check for delegation chains."""
         # Skip 'if __name__ == "__main__"' blocks
         if isinstance(node.test, astroid.nodes.Compare):
-            if (
-                isinstance(node.test.left, astroid.nodes.Name)
-                and node.test.left.name == "__name__"
-            ):
+            if isinstance(node.test.left, astroid.nodes.Name) and node.test.left.name == "__name__":
                 return
 
         is_delegation, advice = self._check_delegation_chain(node)
@@ -161,9 +158,17 @@ class CouplingChecker(BaseChecker):
         "fetchall",
         "cursor",
         # Crypto
-        "private_bytes",
         "public_bytes",
         "public_key",
+        # CLI/AST/System
+        "add_argument",
+        "parse_args",
+        "mkdir",
+        "infer",
+        "resolve_layer",
+        # Pathlib
+        "is_absolute",
+        "relative_to",
     }
 
     def __init__(self, linter=None):
@@ -224,7 +229,6 @@ class CouplingChecker(BaseChecker):
 
     def _is_method_chain_violation(self, node):
         """Check direct method chains like a.b.c()"""
-        # pylint: disable=too-many-return-statements
         if not isinstance(node.func, astroid.nodes.Attribute):
             return False
 
@@ -234,35 +238,43 @@ class CouplingChecker(BaseChecker):
             chain.append(curr.attrname)
             curr = curr.expr
 
-        if len(chain) >= 2:
-            # 1. Check if terminal method is allowed
-            terminal_method = chain[0]
-            if terminal_method in self.ALLOWED_TERMINAL_METHODS:
-                return False
+        if len(chain) < 2:
+            return False
 
-            # 2. Relax Demeter for 'self' access (allow self.friend.method())
-            if isinstance(curr, astroid.nodes.Name) and curr.name in ("self", "cls"):
-                if len(chain) == 2:
-                    return False
+        if self._is_chain_excluded(chain, curr):
+            return False
 
-            # 3. Exempt Safe Roots and Safe Types
-            config_loader = ConfigurationLoader()
-            safe_roots = config_loader.allowed_lod_roots
-            safe_types = {"str", "int", "list", "dict", "set"}
+        full_chain = ".".join(reversed(chain))
+        self.add_message("clean-arch-demeter", node=node, args=(full_chain,))
+        return True
 
-            # Check if root is a Name (variable/module)
-            if isinstance(curr, astroid.nodes.Name):
-                if curr.name in safe_roots or curr.name in safe_types:
-                    return False
-
-            # 4. Entity/DTO/Safe Type Exemption via Inference
-            # We check the type of the object we are acting ON (which is 'curr', the head of the expr)
-            if self._is_allowed_by_inference(curr, config_loader):
-                return False
-
-            full_chain = ".".join(reversed(chain))
-            self.add_message("clean-arch-demeter", node=node, args=(full_chain,))
+    def _is_chain_excluded(self, chain, curr):
+        """Check if chain is excluded from Demeter checks."""
+        # 1. Check if terminal method is allowed
+        terminal_method = chain[0]
+        if terminal_method in self.ALLOWED_TERMINAL_METHODS:
             return True
+
+        # 2. Relax Demeter for 'self' access (allow self.friend.method())
+        if isinstance(curr, astroid.nodes.Name) and curr.name in ("self", "cls"):
+            if len(chain) == 2:
+                return True
+
+        # 3. Exempt Safe Roots and Safe Types
+        config_loader = ConfigurationLoader()
+        safe_roots = config_loader.allowed_lod_roots
+        safe_types = {"str", "int", "list", "dict", "set"}
+
+        # Check if root is a Name (variable/module)
+        if isinstance(curr, astroid.nodes.Name):
+            if curr.name in safe_roots or curr.name in safe_types:
+                return True
+
+        # 4. Entity/DTO/Safe Type Exemption via Inference
+        # We check the type of the object we are acting ON (which is 'curr', the head of the expr)
+        if self._is_allowed_by_inference(curr, config_loader):
+            return True
+
         return False
 
     def _is_allowed_by_inference(self, node, config_loader):
@@ -274,6 +286,8 @@ class CouplingChecker(BaseChecker):
                 definition_root = inferred.root()
                 if hasattr(definition_root, "name"):
                     module_name = definition_root.name
+                    if module_name in config_loader.allowed_lod_roots:
+                        return True
                     layer = config_loader.get_layer_for_module(module_name)
                     if layer and ("domain" in layer.lower() or "dto" in layer.lower()):
                         return True

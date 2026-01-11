@@ -1,11 +1,12 @@
 import unittest
-from clean_architecture_linter.config import ConfigurationLoader
+
 from clean_architecture_linter.checks.testing import TestingChecker as CheckerToTest
+from clean_architecture_linter.config import ConfigurationLoader
+
 from tests.linter_test_utils import run_checker
 
 
 class TestTestingChecker(unittest.TestCase):
-
     def setUp(self):
         ConfigurationLoader._instance = None
 

@@ -1,11 +1,11 @@
 import unittest
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
+
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class TestConfigurationLoader(unittest.TestCase):
-
     def setUp(self):
         # Reset ConfigurationLoader singleton for each test
         ConfigurationLoader._instance = None
@@ -40,13 +40,13 @@ class TestConfigurationLoader(unittest.TestCase):
         loader._config = {"layers": []}
 
         # Assuming LayerRegistry has default logic for 'use_cases' in path
-        layer = loader.get_layer_for_module(
-            "my_app.use_cases.something", "my_app/use_cases/something.py"
-        )
+        layer = loader.get_layer_for_module("my_app.use_cases.something", "my_app/use_cases/something.py")
         self.assertEqual(layer, "UseCase")
 
     def test_config_loader_load_config_missing_file(self):
         """Test load_config when no pyproject.toml exists (graceful failure)."""
+        # Reset instance to ensure we don't carry over config from setUp
+        ConfigurationLoader._instance = None
         # We simulate this by mocking Path.exists to return False
         with patch("pathlib.Path.exists", return_value=False):
             loader = ConfigurationLoader()
@@ -71,7 +71,7 @@ class TestConfigurationLoader(unittest.TestCase):
         # But let's try to see if it reads defaults
 
         # Actually, let's just assert that load_config is reachable.
-        loader = ConfigurationLoader()
+        ConfigurationLoader()
         # Coverage target is load_config lines.
         # Even if toml.load fails on the mock, it hits exception and passes.
         # But if it succeeds, it sets config.

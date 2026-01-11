@@ -4,10 +4,7 @@
 
 import os
 import subprocess
-import sys
 from pathlib import Path
-
-import pytest
 
 # Plugin Discovery
 PLUGIN_DIR = Path("/development/pylint-clean-architecture/src").resolve()

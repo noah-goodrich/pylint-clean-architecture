@@ -3,8 +3,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 # Ensure plugin is discoverable
 PLUGIN_DIR = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(PLUGIN_DIR))
@@ -60,8 +58,7 @@ class CreateUserUseCase:
 
     assert "clean-arch-resources" in result.stdout
     assert (
-        "Forbidden I/O access (import os)" in result.stdout
-        or "Forbidden I/O access (import requests)" in result.stdout
+        "Forbidden I/O access (import os)" in result.stdout or "Forbidden I/O access (import requests)" in result.stdout
     )
 
 

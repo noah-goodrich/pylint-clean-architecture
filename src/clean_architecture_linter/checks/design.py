@@ -87,9 +87,7 @@ class DesignChecker(BaseChecker):
                 type_name = getattr(inferred, "name", "")
 
                 # Check for raw types by name (heuristic)
-                if type_name in self.raw_types or (
-                    type_name and type_name.endswith("Client")
-                ):
+                if type_name in self.raw_types or (type_name and type_name.endswith("Client")):
                     self.add_message(
                         "missing-abstraction-violation",
                         node=node,
@@ -164,8 +162,6 @@ class DesignChecker(BaseChecker):
                 if hasattr(ancestor_root, "name"):
                     anc_root_name = ancestor_root.name
                     for infra_mod in self.infrastructure_modules:
-                        if anc_root_name == infra_mod or anc_root_name.startswith(
-                            infra_mod + "."
-                        ):
+                        if anc_root_name == infra_mod or anc_root_name.startswith(infra_mod + "."):
                             return True
         return False

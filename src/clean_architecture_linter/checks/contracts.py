@@ -60,9 +60,7 @@ class ContractChecker(BaseChecker):
 
         # 1. Must have a Domain Protocol ancestor
         if not self._has_domain_protocol_ancestor(node):
-            self.add_message(
-                "contract-integrity-violation", node=node, args=(node.name,)
-            )
+            self.add_message("contract-integrity-violation", node=node, args=(node.name,))
             return
 
         # 2. Expert-Grade: Public methods must be defined in the Protocol
@@ -89,9 +87,9 @@ class ContractChecker(BaseChecker):
             return
 
         # Skip protocols and base classes
-        if any(
-            getattr(b, "name", "") == "Protocol" for b in node.parent.bases
-        ) or node.parent.name.endswith("Protocol"):
+        if any(getattr(b, "name", "") == "Protocol" for b in node.parent.bases) or node.parent.name.endswith(
+            "Protocol"
+        ):
             return
 
         if node.name.startswith("_") and node.name not in ("__init__", "__post_init__"):
@@ -126,9 +124,7 @@ class ContractChecker(BaseChecker):
                 if stmt.value.value is Ellipsis:
                     continue
             if isinstance(stmt, nodes.Return):
-                if stmt.value is None or (
-                    isinstance(stmt.value, nodes.Const) and stmt.value.value is None
-                ):
+                if stmt.value is None or (isinstance(stmt.value, nodes.Const) and stmt.value.value is None):
                     continue
             # If we find anything else (like an IF that might be a stub, or a real call)
             # we need to decide if it's a stub.
@@ -150,9 +146,7 @@ class ContractChecker(BaseChecker):
         if isinstance(stmt, nodes.Expr) and isinstance(stmt.value, nodes.Const):
             return stmt.value.value is Ellipsis
         if isinstance(stmt, nodes.Return):
-            return stmt.value is None or (
-                isinstance(stmt.value, nodes.Const) and stmt.value.value is None
-            )
+            return stmt.value is None or (isinstance(stmt.value, nodes.Const) and stmt.value.value is None)
         return False
 
     def _get_protocol_methods(self, node):
@@ -173,9 +167,7 @@ class ContractChecker(BaseChecker):
         """Identify if an ancestor class is a Domain Protocol."""
         try:
             # Check for Protocol inheritance directly if possible
-            is_protocol = any(
-                getattr(b, "name", "") == "Protocol" for b in ancestor.bases
-            )
+            is_protocol = any(getattr(b, "name", "") == "Protocol" for b in ancestor.bases)
 
             ancestor_module = ancestor.root().name
             # Rule: module path contains '.domain.' and name ends with 'Protocol'

@@ -15,6 +15,7 @@ from clean_architecture_linter.checks.design import DesignChecker
 from clean_architecture_linter.checks.di import DIChecker
 from clean_architecture_linter.checks.immutability import ImmutabilityChecker
 from clean_architecture_linter.checks.patterns import CouplingChecker, PatternChecker
+from clean_architecture_linter.checks.structure import ModuleStructureChecker
 from clean_architecture_linter.checks.testing import TestingChecker
 from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
 
@@ -32,6 +33,7 @@ def register(linter: PyLinter) -> None:
     linter.register_checker(ImmutabilityChecker(linter))
     linter.register_checker(BypassChecker(linter))
     linter.register_checker(DIChecker(linter))
+    linter.register_checker(ModuleStructureChecker(linter))
 
     # Register reporter
     linter.register_reporter(CleanArchitectureSummaryReporter)

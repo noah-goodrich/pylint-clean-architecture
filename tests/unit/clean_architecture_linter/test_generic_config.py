@@ -1,10 +1,9 @@
-import unittest
-import tempfile
-import shutil
 import os
-from pathlib import Path
+import shutil
+import tempfile
+import unittest
+
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class TestGenericConfiguration(unittest.TestCase):

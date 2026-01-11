@@ -1,11 +1,12 @@
 import unittest
+
+from clean_architecture_linter.checks.patterns import CouplingChecker, PatternChecker
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.checks.patterns import PatternChecker, CouplingChecker
+
 from tests.linter_test_utils import run_checker
 
 
 class TestPatternChecker(unittest.TestCase):
-
     def setUp(self):
         ConfigurationLoader._instance = None
 
@@ -35,7 +36,6 @@ def process(x):
 
 
 class TestCouplingChecker(unittest.TestCase):
-
     def setUp(self):
         ConfigurationLoader._instance = None
 

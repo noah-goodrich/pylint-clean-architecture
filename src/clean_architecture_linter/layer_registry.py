@@ -1,7 +1,22 @@
 """Layer registry for convention-based layer resolution."""
 
+import logging
 import re
+from dataclasses import dataclass, field
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class LayerRegistryConfig:
+    """Configuration for LayerRegistry."""
+
+    project_type: str = "generic"
+    suffix_map: Optional[dict] = field(default_factory=dict)
+    directory_map: Optional[dict] = field(default_factory=dict)
+    base_class_map: Optional[dict] = field(default_factory=dict)
+    module_map: Optional[dict] = field(default_factory=dict)
 
 
 class LayerRegistry:
@@ -56,32 +71,24 @@ class LayerRegistry:
         r"(?:^|.*/)main\.py$": LAYER_INTERFACE,
     }
 
-    def __init__(
-        self,
-        project_type: str = "generic",
-        suffix_map: Optional[dict] = None,
-        directory_map: Optional[dict] = None,
-    ):
-        self.project_type = project_type
+    def __init__(self, config: Optional[LayerRegistryConfig] = None):
+        if config is None:
+            config = LayerRegistryConfig()
+
+        self.project_type = config.project_type
 
         # Initialize with defaults copy
         self.suffix_map = self.DEFAULT_SUFFIX_MAP.copy()
         self.directory_map = self.DEFAULT_DIRECTORY_MAP.copy()
+        self.base_class_map = config.base_class_map or {}
+        self.module_map = config.module_map or {}
 
         # Update with config overrides
-        if suffix_map:
-            self.suffix_map.update(suffix_map)
-        if directory_map:
-            # When mapping "services" -> "UseCase" in TOML, we need to convert simple name to regex
-            # or expect full regex? The user prompt implies simpler mapping "services" = "use_cases" style
-            # But implementing full regex power is better.
-            # However, prompt verification says: "uses 'services' instead of 'use_cases'"
-            # So if user provides "services": "UseCase", we should support that.
-            # But the map contains regexes as keys.
-            # If the key provided by config is simple (alphanumeric), we wrap it in standard dir regex.
-            # If it looks like regex, we use it as is.
-            for patterns, layer in directory_map.items():
-                # Handling simple directory names to regex conversion for ease of use
+        if config.suffix_map:
+            self.suffix_map.update(config.suffix_map)
+        if config.directory_map:
+            # Handle simple directory names to regex conversion
+            for patterns, layer in config.directory_map.items():
                 if re.match(r"^[a-zA-Z0-9_]+$", patterns):
                     regex = rf"(?:^|.*/){patterns}(/.*)?$"
                     self.directory_map[regex] = layer
@@ -106,24 +113,47 @@ class LayerRegistry:
         if self.project_type in presets:
             self.suffix_map.update(presets[self.project_type])
 
-    def resolve_layer(self, node_name: str, file_path: str) -> Optional[str]:
+    def resolve_by_inheritance(self, node) -> Optional[str]:
+        """Resolve layer by checking base classes."""
+        if not node:
+            return None
+
+        try:
+            # Check ancestors if available (astroid nodes)
+            if hasattr(node, "ancestors"):
+                for ancestor in node.ancestors():
+                    if ancestor.name in self.base_class_map:
+                        return self.base_class_map[ancestor.name]
+        except Exception as e:
+            logger.debug(f"LayerRegistry: Error resolving inheritance for node {getattr(node, 'name', '?')}: {e}")
+            return None
+        return None
+
+    def resolve_layer(self, node_name: str, file_path: str, node=None) -> Optional[str]:
         """
         Resolve the architectural layer for a node.
 
         Args:
             node_name: Class or function name
             file_path: Full file path or module name
+            node: Optional AST node for inheritance checks
 
         Returns:
             Layer name or None if unresolved
         """
-        # 1. Check class name suffix
-        if node_name:
-            for pattern, layer in self.suffix_map.items():
-                if re.match(pattern, node_name):
-                    return layer
+        # 1. Base Class Map (Inheritance)
+        if node:
+            layer = self.resolve_by_inheritance(node)
+            if layer:
+                return layer
 
-        # 2. Check path/module (Monorepo support)
+        # 2. Module Map (Specific files)
+        file_name = file_path.split("/")[-1]
+        if file_name in self.module_map:
+            return self.module_map[file_name]
+
+        # 3. Directory Map
+        # Check path/module (Monorepo support)
         # Normalize: replace backslashes and dots (except for .py extension)
         normalized_path = file_path.replace("\\", "/")
         if normalized_path.endswith(".py"):
@@ -137,5 +167,11 @@ class LayerRegistry:
         for pattern, layer in self.directory_map.items():
             if re.search(pattern, normalized_path):
                 return layer
+
+        # 4. Suffix Map
+        if node_name:
+            for pattern, layer in self.suffix_map.items():
+                if re.match(pattern, node_name):
+                    return layer
 
         return None

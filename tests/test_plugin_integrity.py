@@ -10,9 +10,7 @@ def run_pylint(file_path):
     env = os.environ.copy()
     root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     src_path = os.path.join(root_path, "src")
-    env["PYTHONPATH"] = (
-        src_path + os.pathsep + root_path + os.pathsep + env.get("PYTHONPATH", "")
-    )
+    env["PYTHONPATH"] = src_path + os.pathsep + root_path + os.pathsep + env.get("PYTHONPATH", "")
 
     cmd = [
         sys.executable,
@@ -41,9 +39,7 @@ def run_pylint(file_path):
 def test_bait_violations(bait_file, expected_id):
     path = os.path.join(os.path.dirname(__file__), "bait", bait_file)
     output = run_pylint(path)
-    assert (
-        expected_id in output
-    ), f"Expected {expected_id} in output for {bait_file}, but got:\n{output}"
+    assert expected_id in output, f"Expected {expected_id} in output for {bait_file}, but got:\n{output}"
 
 
 def test_clean_file():
@@ -51,6 +47,4 @@ def test_clean_file():
     output = run_pylint(path)
     # Ensure no arch warnings
     for arch_id in ["W9201", "W9401", "W9501"]:
-        assert (
-            arch_id not in output
-        ), f"Expected NO {arch_id} in output for clean_file.py, but got:\n{output}"
+        assert arch_id not in output, f"Expected NO {arch_id} in output for clean_file.py, but got:\n{output}"

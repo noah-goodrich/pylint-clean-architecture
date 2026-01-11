@@ -92,7 +92,7 @@ def run_test():
     # Ensure package is in path
     os.environ["PYTHONPATH"] = "/development/clean-architecture-linter-plugin/src"
 
-    for rel_path, content, expected in CASES:
+    for rel_path, content, _expected in CASES:
         file_path = TEST_DIR / rel_path
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content)
@@ -105,6 +105,9 @@ def run_test():
         (TEST_DIR / "test_pkg/interface").mkdir(exist_ok=True)
         (TEST_DIR / "test_pkg/interface/__init__.py").touch()
 
+    print(f"Created {len(CASES)} test files in {TEST_DIR}")
+    print("Running Pylint...")
+
     # Run Pylint
     # We switch CWD to TEST_DIR so ConfigLoader finds pyproject.toml
     cmd = ["pylint", "--load-plugins", "clean_architecture_linter", "test_pkg"]
@@ -114,9 +117,10 @@ def run_test():
     print("Pylint Output:")
     print(result.stdout)
 
+    # Verification
     failures = []
 
-    for rel_path, content, expected in CASES:
+    for rel_path, _content, expected in CASES:
         if expected:
             if expected not in result.stdout:
                 failures.append(f"Expected {expected} in {rel_path}, but not found.")
