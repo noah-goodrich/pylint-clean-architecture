@@ -170,26 +170,12 @@ class CouplingChecker(BaseChecker):
         # Pathlib
         "is_absolute",
         "relative_to",
+        "root",
     }
 
     def __init__(self, linter=None):
         super().__init__(linter)
         self._locals_map = {}  # Map[variable_name] -> is_stranger (bool)
-        # Force add methods to ensure they are present (handling potential class-attr issues)
-        self.ALLOWED_TERMINAL_METHODS.update(
-            {
-                "add_argument",
-                "parse_args",
-                "mkdir",
-                "infer",
-                "resolve_layer",
-                "get_layer_for_class_node",
-                "is_absolute",
-                "relative_to",
-                "modify",
-                "root",
-            }
-        )
 
     # Common Repository/API patterns
 

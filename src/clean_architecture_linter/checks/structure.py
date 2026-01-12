@@ -12,18 +12,18 @@ from clean_architecture_linter.layer_registry import LayerRegistry
 class ModuleStructureChecker(BaseChecker):
     """
     Governance Engine Rules:
-    W9020: God File Violation (Mixed Layers or Multiple Heavy Components)
-    W9021: Deep Structure Violation (Root Logic)
+    W9010: God File Violation (Mixed Layers or Multiple Heavy Components)
+    W9011: Deep Structure Violation (Root Logic)
     """
 
     name = "clean-arch-structure"
     msgs = {
-        "W9020": (
+        "W9010": (
             "God File detected: %s. Clean Fix: Split into separate files.",
             "clean-arch-god-file",
             "A file should not contain multiple 'Heavy' components or mixed layers.",
         ),
-        "W9021": (
+        "W9011": (
             "Deep Structure violation: Module '%s' in project root. Clean Fix: Move to a sub-package.",
             "clean-arch-folder-structure",
             "Non-boilerplate logic must reside in sub-packages (e.g. core/, gateways/).",
