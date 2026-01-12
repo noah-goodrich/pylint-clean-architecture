@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.1 (2026-01-12)
+
+### Bug Fixes
+
+- Fixing linter issues
+  ([`4ed71e9`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/4ed71e9e272882fb7551f52b999db260f0fb0627))
+
+
 ## v1.2.0 (2026-01-11)
 
 ### Documentation
