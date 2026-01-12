@@ -113,6 +113,24 @@ class LayerRegistry:
         if self.project_type in presets:
             self.suffix_map.update(presets[self.project_type])
 
+    def get_layer_for_class_node(self, node) -> Optional[str]:
+        """
+        Get layer for a class node using name and inheritance.
+        1. Check suffix match on class name.
+        2. Check inheritance via ancestors.
+        """
+        if not node:
+            return None
+
+        # 1. Direct Name Match (Suffix Map)
+        # Note: The user mentioned 'class_map' but we use suffix_map for name patterns
+        for pattern, layer in self.suffix_map.items():
+            if re.match(pattern, node.name):
+                return layer
+
+        # 2. Inheritance Check
+        return self.resolve_by_inheritance(node)
+
     def resolve_by_inheritance(self, node) -> Optional[str]:
         """Resolve layer by checking base classes."""
         if not node:

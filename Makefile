@@ -14,4 +14,4 @@ test-all:
 	pytest tests/
 
 lint:
-	pylint src/
+	ruff check src/

@@ -120,6 +120,7 @@ def init_command() -> None:
         "Please read 'ARCHITECTURE_ONBOARDING.md' and '.agent/instructions.md' "
         "to understand the architectural rules and refactoring plan."
     )
+    print("Start with Phase 1 in ARCHITECTURE_ONBOARDING.md to avoid being overwhelmed.")
     print("=" * 40 + "\n")
 
 

@@ -72,14 +72,17 @@ class ModuleStructureChecker(BaseChecker):
 
     def visit_classdef(self, node):
         """Visit class definition to categorize."""
-        file_path = getattr(node.root(), "file", "")
+        # Resolve layer using the new inheritance-aware method
+        layer = self.config_loader.get_layer_for_class_node(node)
 
-        # Resolve layer for this class using Inheritance (pass node!)
-        layer = self.config_loader.registry.resolve_layer(node.name, file_path, node=node)
+        # Fallback to file path if class-specific resolution failed
+        if not layer:
+            file_path = getattr(node.root(), "file", "")
+            layer = self.config_loader.resolve_layer(node.name, file_path, node=node)
 
         if layer:
             self.current_layer_types.add(layer)
-            if self._is_heavy_component(layer):
+            if self._is_heavy_component(layer, node):
                 self.heavy_component_count += 1
 
     def _is_root_logic(self, node):
@@ -115,15 +118,22 @@ class ModuleStructureChecker(BaseChecker):
 
         return True
 
-    def _is_heavy_component(self, layer):
+    def _is_heavy_component(self, layer, node):
         """Check if layer is considered 'Heavy'."""
-        # Domain entities/values are Light.
-        # Interfaces can include DTOs (Light) or Controllers (Heavy).
-        # We simplify: UseCase and Infrastructure are Heavy. Domain and Interface are Light-ish or handled separately?
-        # Re-read spec: """Multiple "Heavy" classes of the same layer. "Heavy" classes
-        # are those mapped to UseCase or Infrastructure (like Orchestrator or Service).
-        # Multiple "Lightweight" classes (Protocols, DTOs, ValueObjects) are permitted."""
+        # W9020 Refinement:
+        # Protocols (checking for Protocol in ancestors or name) are LIGHT.
+        # DTOs (checking name) are LIGHT.
+        if "Protocol" in node.name or "DTO" in node.name:
+            return False
 
+        # Check ancestors for Protocol
+        try:
+            if any(a.name == "Protocol" for a in node.ancestors()):
+                return False
+        except Exception:
+            pass
+
+        # Heavy Layers: UseCase and Infrastructure
         return layer in (
             LayerRegistry.LAYER_USE_CASE,
             LayerRegistry.LAYER_INFRASTRUCTURE,

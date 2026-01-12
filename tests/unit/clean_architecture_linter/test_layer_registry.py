@@ -57,6 +57,34 @@ class TestLayerRegistry(unittest.TestCase):
         # Dotted path with .py (should invoke strip)
         self.assertEqual(registry.resolve_layer("", "src.domain.logic.py"), "Domain")
 
+    def test_get_layer_for_class_node_inheritance(self):
+        """Test layer detection via inheritance using base_class_map."""
+        from unittest.mock import MagicMock
+
+        from clean_architecture_linter.layer_registry import LayerRegistryConfig
+
+        config = LayerRegistryConfig()
+        config.base_class_map = {"BaseUseCase": "UseCase"}
+        registry = LayerRegistry(config)
+
+        # Mock AST node
+        mock_node = MagicMock()
+        mock_node.name = "MySpecialLogic"
+
+        # Mock ancestors
+        mock_base = MagicMock()
+        mock_base.name = "BaseUseCase"
+        mock_node.ancestors.return_value = [mock_base]
+
+        # Should detect UseCase via inheritance
+        layer = registry.get_layer_for_class_node(mock_node)
+        self.assertEqual(layer, "UseCase")
+
+        # Should respect suffix map priority if match found (which is step 1 in get_layer_for_class_node)
+        mock_node.name = "MySpecialUseCase"
+        layer_suffix = registry.get_layer_for_class_node(mock_node)
+        self.assertEqual(layer_suffix, "UseCase")
+
 
 if __name__ == "__main__":
     unittest.main()

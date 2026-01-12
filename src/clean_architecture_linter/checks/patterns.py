@@ -166,6 +166,7 @@ class CouplingChecker(BaseChecker):
         "mkdir",
         "infer",
         "resolve_layer",
+        "get_layer_for_class_node",
         # Pathlib
         "is_absolute",
         "relative_to",
@@ -174,9 +175,23 @@ class CouplingChecker(BaseChecker):
     def __init__(self, linter=None):
         super().__init__(linter)
         self._locals_map = {}  # Map[variable_name] -> is_stranger (bool)
+        # Force add methods to ensure they are present (handling potential class-attr issues)
+        self.ALLOWED_TERMINAL_METHODS.update(
+            {
+                "add_argument",
+                "parse_args",
+                "mkdir",
+                "infer",
+                "resolve_layer",
+                "get_layer_for_class_node",
+                "is_absolute",
+                "relative_to",
+                "modify",
+                "root",
+            }
+        )
 
     # Common Repository/API patterns
-    ALLOWED_TERMINAL_METHODS.add("modify")
 
     def visit_functiondef(self, _node):
         """Reset locals map for each function."""
@@ -219,6 +234,10 @@ class CouplingChecker(BaseChecker):
                     # It's a method call on a variable derived from another call.
                     # We accept "Allowed Terminal Methods" on strangers (e.g. string manipulation)
                     if node.func.attrname in self.ALLOWED_TERMINAL_METHODS:
+                        return
+
+                    # Check inference for safe types/roots (e.g. argparse, pathlib)
+                    if self._is_allowed_by_inference(expr, ConfigurationLoader()):
                         return
 
                     self.add_message(

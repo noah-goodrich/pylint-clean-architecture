@@ -141,6 +141,14 @@ class ConfigurationLoader:
         """Return list of type names considered raw/infrastructure."""
         return set(self._config.get("raw_types", []))
 
+    def get_layer_for_class_node(self, node) -> Optional[str]:
+        """Delegate to registry for LoD compliance."""
+        return self.registry.get_layer_for_class_node(node)
+
+    def resolve_layer(self, node_name: str, file_path: str, node=None) -> Optional[str]:
+        """Delegate to registry for LoD compliance."""
+        return self.registry.resolve_layer(node_name, file_path, node=node)
+
 
 def _invert_map(config_map: Dict[str, Any]) -> Dict[str, str]:
     """Invert config map (Layer -> Items) to (Item -> Layer)."""

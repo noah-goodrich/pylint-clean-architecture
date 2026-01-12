@@ -46,6 +46,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 addopts = "--cov=clean_architecture_linter --cov-report=json --coverage-impact"
+markers = [
+    "unit: mark a test as a unit test."
+]
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]

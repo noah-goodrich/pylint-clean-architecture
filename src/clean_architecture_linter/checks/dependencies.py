@@ -73,7 +73,7 @@ class DependencyChecker(BaseChecker):
         # Simple heuristic: Check against LayerRegistry rules based on module name
         # We simulate a "file path" from the module name to trigger directory matching in registry
         simulated_path = "/" + import_name.replace(".", "/")
-        imported_layer = self.config_loader.registry.resolve_layer(import_name, simulated_path)
+        imported_layer = self.config_loader.resolve_layer(import_name, simulated_path)
 
         # If heuristics fail, user might need to define explicit layer map in config
         if not imported_layer:
