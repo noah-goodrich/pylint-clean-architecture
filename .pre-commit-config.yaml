@@ -31,9 +31,9 @@ repos:
         pass_filenames: false
         always_run: true
 
-      - id: pylint
-        name: pylint
-        entry: make lint
+      - id: clean-architecture-linter
+        name: Clean Architecture Linter
+        entry: pylint src/
         language: system
         pass_filenames: false
         always_run: true
