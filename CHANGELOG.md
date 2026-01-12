@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.2 (2026-01-12)
+
+### Bug Fixes
+
+- Final polish
+  ([`7ef4f3d`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/7ef4f3de3b289721227cf6c307b890854f49e1b7))
+
+
 ## v1.2.1 (2026-01-12)
 
 ### Bug Fixes
