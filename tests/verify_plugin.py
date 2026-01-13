@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 # Create a temporary directory for tests
-TEST_DIR = Path("/development/clean-architecture-linter-plugin/tests/temp")
+TEST_DIR = Path("/development/pylint-clean-architecture/tests/temp")
 TEST_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create a dummy pyproject.toml for config
@@ -90,7 +90,7 @@ def handler(x):
 def run_test():
     print("Running plugin verification...")
     # Ensure package is in path
-    os.environ["PYTHONPATH"] = "/development/clean-architecture-linter-plugin/src"
+    os.environ["PYTHONPATH"] = "/development/pylint-clean-architecture/src"
 
     for rel_path, content, _expected in CASES:
         file_path = TEST_DIR / rel_path

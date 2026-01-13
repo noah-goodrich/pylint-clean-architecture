@@ -1,5 +1,9 @@
 # pylint-clean-architecture
 
+![PyPI](https://img.shields.io/pypi/v/pylint-clean-architecture)
+![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture)
+![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture)
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/noah-goodrich/pylint-clean-architecture/main/assets/logo-compressed.png" width="300" alt="Clean Architecture Linter Logo">
 </p>

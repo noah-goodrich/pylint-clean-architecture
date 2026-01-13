@@ -1,4 +1,4 @@
-"""Design checks (W9007, W9009)."""
+"""Design checks (W9007, W9009, W9012)."""
 
 # AST checks often violate Demeter by design
 import astroid  # type: ignore[import-untyped]
@@ -9,10 +9,16 @@ from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class DesignChecker(BaseChecker):
-    """W9007, W9009: Design pattern enforcement."""
+    """W9007, W9009, W9012: Design pattern enforcement."""
 
     name = "clean-arch-design"
     msgs = {
+        "W9012": (
+            "Defensive None Check: '%s' checked for None in %s layer. Validation belongs in Interface layer. "
+            "Clean Fix: Ensure the value is validated before entering core logic.",
+            "defensive-none-check",
+            "Defensive 'if var is None' checks bloat logic and bypass boundary logic separation.",
+        ),
         "W9007": (
             "Naked Return: %s returned from Repository. Return Entity instead. Clean Fix: Map the raw object to a "
             "Domain Entity before returning.",
@@ -109,6 +115,44 @@ class DesignChecker(BaseChecker):
 
         except astroid.InferenceError:
             pass
+
+    def visit_if(self, node: astroid.If) -> None:
+        """W9012: Visit if statement to find defensive None checks."""
+        root = node.root()
+        file_path = getattr(root, "file", "")
+        current_module = root.name
+        layer = self.config_loader.get_layer_for_module(current_module, file_path)
+
+        # Only check UseCase and Domain
+        if layer not in (LayerRegistry.LAYER_USE_CASE, LayerRegistry.LAYER_DOMAIN):
+            return
+
+        var_name = self._match_none_check(node.test)
+        if not var_name:
+            return
+
+        # Check if the body contains a raise statement (heuristic for "defensive")
+        has_raise = any(isinstance(stmt, astroid.Raise) for stmt in node.body)
+
+        if has_raise:
+            self.add_message("defensive-none-check", node=node, args=(var_name, layer))
+
+    def _match_none_check(self, test: astroid.NodeNG) -> str | None:
+        """Match 'var is None', 'var is not None', or 'not var'."""
+        # Pattern 1: if var is None (astroid.Compare)
+        if isinstance(test, astroid.Compare) and len(test.ops) == 1:
+            op, comparator = test.ops[0]
+            if op in ("is", "is not"):
+                if isinstance(comparator, astroid.Const) and comparator.value is None:
+                    if isinstance(test.left, astroid.Name):
+                        return test.left.name
+
+        # Pattern 2: if not var (astroid.UnaryOp)
+        if isinstance(test, astroid.UnaryOp) and test.op == "not":
+            if isinstance(test.operand, astroid.Name):
+                return test.operand.name
+
+        return None
 
     def _get_inferred_type_name(self, node):
         """Get type name via inference if possible, else fallback to name."""
