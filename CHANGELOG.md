@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v1.4.0 (2026-01-15)
+
+### Bug Fixes
+
+- Ci dependencies and pytest plugins
+  ([`e4ee251`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/e4ee25184720ccf79dd72a75d03db3e5a1c0095b))
+
+### Features
+
+- Add workflow_dispatch to actions
+  ([`a5ce8af`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/a5ce8af9857d3a4b2e9018ca6631f8200f4b93ef))
+
+- Unified ui handling with shared kernel support
+  ([`26dc92b`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/26dc92b43df38b066ce7f92c774e96f81288110f))
+
+
 ## v1.3.0 (2026-01-15)
 
 ### Features
