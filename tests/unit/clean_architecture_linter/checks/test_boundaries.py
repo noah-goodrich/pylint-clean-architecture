@@ -6,7 +6,6 @@ from clean_architecture_linter.checks.boundaries import (
     VisibilityChecker,
 )
 from clean_architecture_linter.config import ConfigurationLoader
-
 from tests.linter_test_utils import run_checker
 
 

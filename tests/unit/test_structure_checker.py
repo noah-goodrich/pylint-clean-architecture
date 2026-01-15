@@ -1,6 +1,6 @@
 import pytest
-from clean_architecture_linter.checks.structure import ModuleStructureChecker
 
+from clean_architecture_linter.checks.structure import ModuleStructureChecker
 from tests.linter_test_utils import run_checker
 
 

@@ -3,7 +3,6 @@ import unittest
 from io import BytesIO
 
 from clean_architecture_linter.checks.bypass import BypassChecker
-
 from tests.linter_test_utils import MockLinter
 
 

@@ -18,7 +18,7 @@ test-all:
 	pytest tests/
 
 lint:
-	ruff check
+	ruff check --fix
 	@if pip show pylint-clean-architecture > /dev/null 2>&1 || [ -d "src/clean_architecture_linter" ]; then \
 		pylint --load-plugins=clean_architecture_linter src/; \
 	else \

@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import astroid
 from astroid import nodes
+
 from clean_architecture_linter.checks.contracts import ContractChecker
 from clean_architecture_linter.config import ConfigurationLoader
-
 from tests.linter_test_utils import MockLinter, run_checker
 
 
