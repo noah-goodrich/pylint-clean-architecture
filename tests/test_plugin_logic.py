@@ -2,31 +2,25 @@ import os
 from pathlib import Path
 
 import pytest
-import tomli_w
 
 
-# Setup temporary test environment
 @pytest.fixture(scope="module")
 def test_env(tmp_path_factory):
     root = tmp_path_factory.mktemp("snowfort_test")
 
     # Create pyproject.toml
-    config = {
-        "tool": {
-            "clean-architecture-linter": {
-                "visibility_enforcement": True,
-                "forbidden_prefixes": ["db", "requests"],
-                "layers": [
-                    {"name": "Domain", "module": "pkg.domain"},
-                    {"name": "Adapters", "module": "pkg.adapters"},
-                    {"name": "Interface", "module": "pkg.ui"},
-                ],
-            }
-        }
-    }
-
-    with open(root / "pyproject.toml", "wb") as f:
-        tomli_w.dump(config, f)
+    toml_content = """
+[tool.clean-architecture-linter]
+visibility_enforcement = true
+forbidden_prefixes = ["db", "requests"]
+layers = [
+    { name = "Domain", module = "pkg.domain" },
+    { name = "Adapters", module = "pkg.adapters" },
+    { name = "Interface", module = "pkg.ui" }
+]
+"""
+    with open(root / "pyproject.toml", "w") as f:
+        f.write(toml_content)
 
     # Create package structure
     pkg = root / "pkg"
