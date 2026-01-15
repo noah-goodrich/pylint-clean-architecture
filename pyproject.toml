@@ -30,6 +30,7 @@ clean-arch-init = "clean_architecture_linter.cli:init_command"
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "pytest-coverage-impact",
     "astroid",
 ]
 

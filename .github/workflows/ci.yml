@@ -24,8 +24,7 @@ jobs:
     - name: Docking Procedures (Install)
       run: |
         python -m pip install --upgrade pip
-        pip install -e "."
-        pip install pylint pytest
+        pip install -e ".[dev]"
 
     - name: Flight Manual (Lint)
       run: |
