@@ -23,7 +23,7 @@ repos:
     hooks:
       - id: ruff-check
         name: ruff-check
-        entry: bash -c 'pwd && ruff check "src" "tests"'
+        entry: bash -c 'pwd && ruff check "src/" "tests/"'
         language: system
         pass_filenames: false
         always_run: true
