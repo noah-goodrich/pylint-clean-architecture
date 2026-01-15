@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pylint-clean-architecture"
 version = "1.2.2"
-description = "A Pylint plugin for enforcing Clean Architecture principles and Design Patterns."
+description = "🔴 Excelsior: High-fidelity clean architecture linter for Python."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}

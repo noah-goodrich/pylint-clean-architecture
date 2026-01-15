@@ -67,7 +67,7 @@ class TestCleanArchitectureSummaryReporter(unittest.TestCase):
         out = io.StringIO()
         reporter.out = out
         reporter.display_reports(None)
-        self.assertIn("No issues found!", out.getvalue())
+        self.assertIn("Mission Accomplished: No architectural violations detected.", out.getvalue())
         reporter = CleanArchitectureSummaryReporter()
         reporter.handle_message(Message("W9001", "some-error", "src/weird/path.py"))
 

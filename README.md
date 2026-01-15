@@ -1,32 +1,45 @@
-# pylint-clean-architecture
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.png">
+  <img alt="Stellar Engineering Command Banner" src="assets/hero-light.png" width="100%">
+</picture>
 
-![PyPI](https://img.shields.io/pypi/v/pylint-clean-architecture)
-![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture)
-![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture)
+![PyPI](https://img.shields.io/pypi/v/pylint-clean-architecture?color=C41E3A&labelColor=333333)
+![Build Status](https://img.shields.io/github/actions/workflow/status/noah-goodrich/pylint-clean-architecture/ci.yml?branch=main&color=007BFF&labelColor=333333&label=Build%20Status)
+![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture?color=F9A602&labelColor=333333)
+![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture?color=F9A602&labelColor=333333)
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/noah-goodrich/pylint-clean-architecture/main/assets/logo-compressed.png" width="300" alt="Clean Architecture Linter Logo">
-</p>
+![PyPI](https://img.shields.io/pypi/v/pylint-clean-architecture?color=C41E3A&labelColor=333333)
+![Build Status](https://img.shields.io/github/actions/workflow/status/noah-goodrich/pylint-clean-architecture/ci.yml?branch=main&color=007BFF&labelColor=333333&label=Build%20Status)
+![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture?color=F9A602&labelColor=333333)
+![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture?color=F9A602&labelColor=333333)
 
-A powerful, highly-opinionated Pylint plugin for enforcing **Clean Architecture** (The Onion Architecture) principles in Python projects.
+Captain's Log: High-authority Pylint module for enforcing **Prime Directives** (Clean Architecture) and preventing **Hull Integrity Breaches** (Technical Debt) in Python projects.
 
-This linter acts as a "GPS" for your codebase, preventing technical debt by strictly enforcing architectural boundaries, dependency rules, and design patterns.
+Enforcing architectural boundaries, dependency rules, and design patterns to ensure the fleet remains operational and modular.
 
 ## Features
 
-*   **Layer Boundary Enforcement**: Prevents inner layers (Domain, UseCase) from importing outer layers (Infrastructure, Interface).
-*   **Dependency Injection Checks**: Forbids direct instantiation of infrastructure classes in UseCases.
-*   **Design Pattern Enforcement**: Detects "naked returns" from repositories, delegation anti-patterns, and more.
-*   **Law of Demeter**: Enforces loose coupling by flagging deep method chains.
-*   **Contract Integrity**: Ensures Infrastructure classes correctly implement Domain Protocols.
-*   **Anti-Bypass Guard**: Prevents "lazy" disabling of linter rules without justification.
-## Installation
+*   **Layer Boundary Enforcement**: Ensures Prime Directives are maintained between Domain, UseCase, and Infrastructure.
+*   **Dependency Injection Checks**: Forbids unauthorized instantiation of infrastructure modules within UseCases.
+*   **Design Pattern Enforcement**: Detects "naked returns" and other architectural anomalies.
+*   **Law of Demeter**: Prevents tight coupling through deep method chains.
+*   **Contract Integrity**: Verifies that Infrastructure implements Domain Protocols correctly.
+*   **Anti-Bypass Guard**: Prevents "lazy" disabling of Prime Directives without high-level authorization (Justification).
+
+## Docking Procedures
 
 ```bash
 pip install pylint-clean-architecture
 ```
 
-## Usage
+## Docking Procedures
+
+```bash
+pip install pylint-clean-architecture
+```
+
+## Flight Manual
 
 Add the plugin to your `pyproject.toml` or Pylint configuration:
 
@@ -41,7 +54,7 @@ Run Pylint as usual:
 pylint src/
 ```
 
-## AI Coding Assistant Support
+### AI Coding Assistant Support
 
 The `clean-arch-init` command generates architectural instructions for AI agents (like Cursor or GitHub Copilot) to prevent "Split Brain" issues by teaching the AI your project's rules before it writes code.
 
@@ -51,12 +64,12 @@ Usage:
 clean-arch-init
 ```
 
-Outcome: This creates a customized `.agent/instructions.md` file based on the layer names defined in the project's `pyproject.toml`.
+Outcome: This creates a customized `.agent/instructions.md` file based on the layer names defined in the project's `Console Calibration`.
 
 
-## Configuration
+## Console Calibration
 
-The linter is configured via `[tool.clean-arch]` in `pyproject.toml`.
+The module is calibrated via `[tool.clean-arch]` in `pyproject.toml`.
 
 ```toml
 [tool.clean-arch]
@@ -73,9 +86,13 @@ visibility_enforcement = true
 "domain/models" = "Domain"
 ```
 
-## Rules
+## Prime Directives
 
-See [RULES.md](RULES.md) for a complete catalog of enforced rules and "Clean Fix" examples.
+See [RULES.md](RULES.md) for a complete catalog of enforced Prime Directives and "Clean Fix" examples.
+
+## Mission Log
+
+- **[CHANGELOG.md](CHANGELOG.md)** - Mission history and architectural updates
 
 ## Contributing
 

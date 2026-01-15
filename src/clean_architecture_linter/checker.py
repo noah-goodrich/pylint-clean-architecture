@@ -18,10 +18,15 @@ from clean_architecture_linter.checks.patterns import CouplingChecker, PatternCh
 from clean_architecture_linter.checks.structure import ModuleStructureChecker
 from clean_architecture_linter.checks.testing import TestingChecker
 from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
+from clean_architecture_linter.ui import SystemUI
 
 
 def register(linter: PyLinter) -> None:
     """Register checkers."""
+    # Stellar Handshake: Excelsior Calibration
+    # JUSTIFICATION: Operational status update for user awareness (delegated to UI)
+    SystemUI.announce_initialization()
+
     linter.register_checker(VisibilityChecker(linter))
     linter.register_checker(ResourceChecker(linter))
     linter.register_checker(ContractChecker(linter))
