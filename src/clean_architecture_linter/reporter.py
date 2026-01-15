@@ -125,7 +125,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
             for i, pkg in enumerate(sorted_packages):
                 count = details.get(pkg, 0)
                 val = str(count if count > 0 else 0)
-                padded_row.append(f"{val:<{widths[3+i]}}")
+                padded_row.append(f"{val:<{widths[3 + i]}}")
 
             print(" | ".join(padded_row), file=self.out)
             total_errors += details["total"]
@@ -138,7 +138,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         totals_row.append(f"{self.BOLD}{self.GOLD}{total_errors:<{widths[2]}}{self.RESET}")
         for i, pkg in enumerate(sorted_packages):
             val = str(package_totals[pkg])
-            totals_row.append(f"{self.BOLD}{self.GOLD}{val:<{widths[3+i]}}{self.RESET}")
+            totals_row.append(f"{self.BOLD}{self.GOLD}{val:<{widths[3 + i]}}{self.RESET}")
 
         print(" | ".join(totals_row), file=self.out)
         print(file=self.out)
@@ -150,7 +150,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
             )
             print(msg, file=self.out)
         else:
-            msg = f"{self.BOLD}{self.GOLD}Prime Directives Satisfied: " f"System integrity nominal.{self.RESET}"
+            msg = f"{self.BOLD}{self.GOLD}Prime Directives Satisfied: System integrity nominal.{self.RESET}"
             print(msg, file=self.out)
 
     def _display(self, layout):

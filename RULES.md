@@ -67,6 +67,30 @@ class OrderRepository(Protocol): ...
 from domain.protocols import OrderRepository # Intra/Inner layer import
 ```
 
+### W9013: Illegal I/O Operation (The Silent Core Rule)
+**Message:** Illegal I/O Operation: '%s' called in silent layer '%s'.
+**Clean Fix:** Delegate I/O to an Interface/Port (e.g., TelemetryPort).
+
+**Bad:**
+```python
+# domain/user.py
+def deactivate(self):
+    print(f"Deactivating user {self.id}") # Illegal I/O in Domain
+    self.is_active = False
+```
+
+**Clean:**
+```python
+# domain/protocols.py
+class TelemetryPort(Protocol):
+    def log_event(self, msg: str): ...
+
+# domain/user.py
+def deactivate(self, telemetry: TelemetryPort):
+    telemetry.log_event(f"Deactivating user {self.id}")
+    self.is_active = False
+```
+
 ## Testing Rules (W91xx)
 
 ### W9101: Fragile Test Mocks

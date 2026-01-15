@@ -29,8 +29,8 @@ jobs:
 
     - name: Flight Manual (Lint)
       run: |
-        pylint src/
+        make lint
 
     - name: Sensor Analysis (Test)
       run: |
-        pytest tests/
+        make test

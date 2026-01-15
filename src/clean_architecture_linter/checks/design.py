@@ -31,6 +31,18 @@ class DesignChecker(BaseChecker):
             "missing-abstraction-violation",
             "Use Cases cannot hold references to infrastructure objects (*Client).",
         ),
+        "W9013": (
+            "Illegal I/O Operation: '%s' called in silent layer '%s'. "
+            "Clean Fix: Delegate I/O to an Interface/Port (e.g., %s).",
+            "illegal-io-operation",
+            "Domain and UseCase layers must remain silent (no print, logging, or direct console I/O).",
+        ),
+        "W9014": (
+            "Telemetry Template Drift: %s is missing or has incorrect __stellar_version__. Expected '1.0.0'. "
+            "Clean Fix: Update telemetry.py to match the unified Fleet stabilizer template.",
+            "template-drift-check",
+            "Ensures all telemetry adapters follow the standardized version for Fleet stabilization.",
+        ),
     }
 
     def __init__(self, linter=None):
@@ -136,6 +148,101 @@ class DesignChecker(BaseChecker):
 
         if has_raise:
             self.add_message("defensive-none-check", node=node, args=(var_name, layer))
+
+    def visit_module(self, node: astroid.nodes.Module) -> None:
+        """W9014: Check for template drift in telemetry.py."""
+        if not node.file or not node.file.endswith("telemetry.py"):
+            return
+
+        expected_version = "1.1.0"
+        found_version = None
+
+        # Look for __stellar_version__ = "1.0.0"
+        for child in node.body:
+            if isinstance(child, astroid.nodes.Assign):
+                if any(getattr(target, "name", "") == "__stellar_version__" for target in child.targets):
+                    if isinstance(child.value, astroid.nodes.Const):
+                        found_version = child.value.value
+                        break
+
+        if found_version != expected_version:
+            self.add_message("template-drift-check", node=node, args=(node.name,))
+
+    def visit_call(self, node: astroid.nodes.Call) -> None:
+        """W9013: Flag illegal I/O operations in silent layers."""
+        root = node.root()
+        file_path = getattr(root, "file", "")
+        current_module = root.name
+        layer = self.config_loader.get_layer_for_module(current_module, file_path)
+
+        if layer not in self.config_loader.silent_layers:
+            return
+
+        func_name = ""
+        is_method_call = False
+        caller_name = ""
+
+        if isinstance(node.func, astroid.Name):
+            func_name = node.func.name
+        elif isinstance(node.func, astroid.Attribute):
+            func_name = node.func.attrname
+            is_method_call = True
+            if isinstance(node.func.expr, astroid.Name):
+                caller_name = node.func.expr.name
+
+        # 1. Check for print()
+        if func_name == "print" and not is_method_call:
+            self._add_io_violation(node, "print()", layer)
+            return
+
+        # 2. Check for logging functions
+        logging_funcs = {"info", "error", "debug", "warning", "critical", "log", "exception"}
+        if func_name in logging_funcs:
+            # Check if it looks like a logging call
+            if caller_name in ("logging", "logger", "log"):
+                if not self._is_exempt_io(node):
+                    self._add_io_violation(node, f"{caller_name}.{func_name}()", layer)
+                    return
+
+        # 3. Check for rich
+        if caller_name == "rich" or (isinstance(node.func, astroid.Attribute) and "rich" in str(node.func.expr)):
+            if func_name in ("print", "inspect", "Console"):
+                self._add_io_violation(node, f"rich.{func_name}", layer)
+                return
+
+    def _is_exempt_io(self, node: astroid.nodes.Call) -> bool:
+        """Check if the I/O call is made on an allowed interface."""
+        if not isinstance(node.func, astroid.Attribute):
+            return False
+
+        allowed = self.config_loader.allowed_io_interfaces
+
+        # Check by variable name (heuristic)
+        if isinstance(node.func.expr, astroid.Name):
+            if node.func.expr.name in allowed:
+                return True
+
+        # Check by inferred type (precise)
+        try:
+            for inferred in node.func.expr.infer():
+                if inferred is astroid.Uninferable:
+                    continue
+                if getattr(inferred, "name", "") in allowed:
+                    return True
+                # Check ancestors
+                if hasattr(inferred, "ancestors"):
+                    for ancestor in inferred.ancestors():
+                        if ancestor.name in allowed:
+                            return True
+        except astroid.InferenceError:
+            pass
+
+        return False
+
+    def _add_io_violation(self, node, operation, layer):
+        """Add W9013 message."""
+        allowed_hint = ", ".join(list(self.config_loader.allowed_io_interfaces)[:2])
+        self.add_message("illegal-io-operation", node=node, args=(operation, layer, allowed_hint))
 
     def _match_none_check(self, test: astroid.NodeNG) -> str | None:
         """Match 'var is None', 'var is not None', or 'not var'."""

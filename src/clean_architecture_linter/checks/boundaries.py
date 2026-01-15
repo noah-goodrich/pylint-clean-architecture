@@ -123,7 +123,7 @@ class ResourceChecker(BaseChecker):
             # Check 1: Is it an internal module? (domain, dto, use_cases)
             # We assume internal modules match our layer naming conventions
             parts = name.split(".")
-            if any(p in parts for p in ("domain", "dto", "use_cases", "protocols", "models")):
+            if any(p in parts for p in ("domain", "dto", "use_cases", "protocols", "models", "telemetry")):
                 continue
 
             # Check 2: Is it in the allowed prefixes list?

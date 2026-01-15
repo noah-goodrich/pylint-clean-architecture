@@ -8,11 +8,19 @@ clean:
 	find . -name "*.pyc" -delete
 
 test:
-	pytest
+	@if pytest --help | grep -q "coverage-impact"; then \
+		pytest --coverage-impact; \
+	else \
+		pytest; \
+	fi
 
 test-all:
 	pytest tests/
 
 lint:
 	ruff check
-	pylint src/
+	@if pip show pylint-clean-architecture > /dev/null 2>&1 || [ -d "src/clean_architecture_linter" ]; then \
+		pylint --load-plugins=clean_architecture_linter src/; \
+	else \
+		pylint src/; \
+	fi

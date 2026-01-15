@@ -85,8 +85,16 @@ class DependencyChecker(BaseChecker):
 
         if current_layer == imported_layer:
             return  # Intra-layer imports are OK
+        if current_layer == imported_layer:
+            return  # Intra-layer imports are OK
 
-        # 3. Check Matrix
+        # 3. Check Shared Kernel (Configurable Exception)
+        # Allow imports if the module matches a configured shared kernel module
+        for kernel_mod in self.config_loader.shared_kernel_modules:
+            if import_name == kernel_mod or import_name.startswith(kernel_mod + "."):
+                return
+
+        # 4. Check Matrix
         allowed_layers = self.DEFAULT_RULES.get(current_layer, set())
 
         # Merge with user config overrides if any (TODO)

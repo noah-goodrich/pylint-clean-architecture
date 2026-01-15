@@ -25,12 +25,12 @@ dependencies = [
 
 [project.scripts]
 clean-arch-init = "clean_architecture_linter.cli:init_command"
+pylint-clean-architecture = "clean_architecture_linter.cli:main"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "pytest-coverage-impact",
     "astroid",
 ]
 
@@ -46,7 +46,7 @@ packages = ["clean_architecture_linter", "clean_architecture_linter.checks"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
-addopts = "--cov=clean_architecture_linter --cov-report=json --coverage-impact"
+addopts = "--cov=clean_architecture_linter --cov-report=json"
 markers = [
     "unit: mark a test as a unit test."
 ]
@@ -97,7 +97,25 @@ enable = [
     "clean-arch-testing",
     "clean-arch-immutability",
     "clean-arch-dependency",
+    "illegal-io-operation",
+    "template-drift-check",
 ]
 
 [tool.clean-arch]
 allowed_lod_roots = ["argparse", "pathlib", "astroid"]
+silent_layers = ["Domain", "UseCase"]
+allowed_io_interfaces = ["TelemetryPort", "UserInterfaceProtocol"]
+project_name = "EXCELSIOR"
+color = "red"
+welcome_msg = "Command Cruiser Online"
+shared_kernel_modules = ["clean_architecture_linter.interface.telemetry"]
+
+[tool.clean-arch.layer_map]
+"clean_architecture_linter.domain" = "Domain"
+"clean_architecture_linter.checks" = "UseCase"
+"clean_architecture_linter.interface" = "Interface"
+"clean_architecture_linter.di" = "Infrastructure"
+"clean_architecture_linter.config" = "Domain"
+"clean_architecture_linter.layer_registry" = "Domain"
+"clean_architecture_linter.checker" = "Interface"
+"clean_architecture_linter.reporter" = "Interface"

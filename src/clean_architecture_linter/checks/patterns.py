@@ -171,6 +171,11 @@ class CouplingChecker(BaseChecker):
         "is_absolute",
         "relative_to",
         "root",
+        # Telemetry
+        "handshake",
+        "step",
+        "ask",
+        "confirm",
     }
 
     def __init__(self, linter=None):

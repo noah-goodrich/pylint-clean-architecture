@@ -141,6 +141,25 @@ class ConfigurationLoader:
         """Return list of type names considered raw/infrastructure."""
         return set(self._config.get("raw_types", []))
 
+    @property
+    def silent_layers(self) -> set[str]:
+        """Return list of layers where I/O is restricted."""
+        defaults = {"Domain", "UseCase", "domain", "use_cases"}
+        config_val = self._config.get("silent_layers", [])
+        return defaults.union(set(config_val))
+
+    @property
+    def allowed_io_interfaces(self) -> set[str]:
+        """Return list of interfaces/types allowed to perform I/O in silent layers."""
+        defaults = {"TelemetryPort", "LoggerPort"}
+        config_val = self._config.get("allowed_io_interfaces", [])
+        return defaults.union(set(config_val))
+
+    @property
+    def shared_kernel_modules(self) -> set[str]:
+        """Return list of modules considered Shared Kernel (allowed to be imported anywhere)."""
+        return set(self._config.get("shared_kernel_modules", []))
+
     def get_layer_for_class_node(self, node) -> Optional[str]:
         """Delegate to registry for LoD compliance."""
         return self.registry.get_layer_for_class_node(node)

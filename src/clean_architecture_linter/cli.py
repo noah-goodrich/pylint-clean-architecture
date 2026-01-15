@@ -82,21 +82,54 @@ This project uses `pylint-clean-architecture` in **Architecture-Only Mode** (sty
 because other tools (ruff/black/flake8) are detected.
 """
 
+BANNER = r"""
+    _______  ________________   _____ ________  ____
+   / ____/ |/ / ____/ ____/ /  / ___//  _/ __ \/ __ \
+  / __/  |   / /   / __/ / /   \__ \ / // / / / /_/ /
+ / /___ /   / /___/ /___/ /______/ // // /_/ / _, _/
+/_____//_/|_\____/_____/_____/____/___/\____/_/ |_|
+"""
+
 
 def init_command() -> None:
-    """Implement clean-arch-init command."""
-    parser = argparse.ArgumentParser(description="Initialize Clean Architecture guidelines.")
+    from clean_architecture_linter.di.container import ExcelsiorContainer
+
+    container = ExcelsiorContainer()
+    telemetry = container.get("TelemetryPort")
+
+    # Custom help with banner
+    parser = argparse.ArgumentParser(
+        description=f"{BANNER}\nEXCELSIOR: Clean Architecture Governance.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "--template",
         choices=["fastapi", "sqlalchemy"],
         help="Pre-configure for specific frameworks.",
     )
+    parser.add_argument(
+        "--check-layers",
+        action="store_true",
+        help="Verify active layer configuration.",
+    )
+
+    # If -h or --help is in sys.argv, the banner will show in the help output.
+    # Otherwise, we do the interactive handshake.
+    import sys
+
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        telemetry.handshake()
+
     args = parser.parse_args()
+
+    if args.check_layers:
+        _check_layers(telemetry)
+        return
 
     agent_dir = Path(".agent")
     if not agent_dir.exists():
         agent_dir.mkdir()
-        print(f"Created directory: {agent_dir}")
+        telemetry.step(f"Created directory: {agent_dir}")
 
     # Instructions handling (existing)
     instructions_file = agent_dir / "instructions.md"
@@ -107,12 +140,13 @@ def init_command() -> None:
     if not onboarding_file.exists():
         with open(onboarding_file, "w", encoding="utf-8") as f:
             f.write(ONBOARDING_TEMPLATE)
-        print(f"Generated: {onboarding_file}")
+        telemetry.step(f"Generated: {onboarding_file}")
 
     # Tool Audit & Smart Config
     _perform_tool_audit(args.template)
 
     # AI Handover
+    telemetry.step("AI Agent Handover initialized.")
     print("\n" + "=" * 40)
     print("🤖 AI AGENT HANDOVER")
     print("=" * 40)
@@ -122,6 +156,22 @@ def init_command() -> None:
     )
     print("Start with Phase 1 in ARCHITECTURE_ONBOARDING.md to avoid being overwhelmed.")
     print("=" * 40 + "\n")
+
+
+def _check_layers(telemetry) -> None:
+    """Verify and print active layers."""
+    from clean_architecture_linter.config import ConfigurationLoader
+
+    config = ConfigurationLoader().config
+    layer_map = config.get("layer_map", {})
+
+    telemetry.step("Active Layer Configuration:")
+    if not layer_map:
+        telemetry.error("No layer_map found in pyproject.toml [tool.clean-arch].")
+        return
+
+    for pattern, layer in layer_map.items():
+        telemetry.step(f"  {pattern} -> {layer}")
 
 
 def _generate_instructions(path: Path) -> None:
@@ -238,3 +288,7 @@ enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and
 def main():
     """Main entry point."""
     init_command()
+
+
+if __name__ == "__main__":
+    main()

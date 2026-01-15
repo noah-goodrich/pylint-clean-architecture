@@ -9,11 +9,6 @@
 ![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture?color=F9A602&labelColor=333333)
 ![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture?color=F9A602&labelColor=333333)
 
-![PyPI](https://img.shields.io/pypi/v/pylint-clean-architecture?color=C41E3A&labelColor=333333)
-![Build Status](https://img.shields.io/github/actions/workflow/status/noah-goodrich/pylint-clean-architecture/ci.yml?branch=main&color=007BFF&labelColor=333333&label=Build%20Status)
-![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture?color=F9A602&labelColor=333333)
-![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture?color=F9A602&labelColor=333333)
-
 Captain's Log: High-authority Pylint module for enforcing **Prime Directives** (Clean Architecture) and preventing **Hull Integrity Breaches** (Technical Debt) in Python projects.
 
 Enforcing architectural boundaries, dependency rules, and design patterns to ensure the fleet remains operational and modular.
@@ -21,17 +16,12 @@ Enforcing architectural boundaries, dependency rules, and design patterns to ens
 ## Features
 
 *   **Layer Boundary Enforcement**: Ensures Prime Directives are maintained between Domain, UseCase, and Infrastructure.
+*   **The Silent Core Rule (W9013)**: Guarantees that Domain/UseCase layers remain free of `print`, `logging`, and console I/O, forcing delegation to Interfaces/Adapters.
 *   **Dependency Injection Checks**: Forbids unauthorized instantiation of infrastructure modules within UseCases.
 *   **Design Pattern Enforcement**: Detects "naked returns" and other architectural anomalies.
 *   **Law of Demeter**: Prevents tight coupling through deep method chains.
 *   **Contract Integrity**: Verifies that Infrastructure implements Domain Protocols correctly.
 *   **Anti-Bypass Guard**: Prevents "lazy" disabling of Prime Directives without high-level authorization (Justification).
-
-## Docking Procedures
-
-```bash
-pip install pylint-clean-architecture
-```
 
 ## Docking Procedures
 
@@ -79,7 +69,14 @@ project_type = "generic"
 # 2. Strict Visibility Enforcement
 visibility_enforcement = true
 
-# 3. Custom Layer Mapping (Map directory regex patterns to layers)
+# 3. Silent Core Calibration
+silent_layers = ["Domain", "UseCase"]
+allowed_io_interfaces = ["TelemetryPort", "LoggerPort"]
+
+# 4. Shared Kernel (Allow cross-cutting concerns anywhere)
+shared_kernel_modules = ["logging_utils", "clean_architecture_linter.interface.telemetry"]
+
+# 5. Custom Layer Mapping (Map directory regex patterns to layers)
 [tool.clean-arch.layer_map]
 "services" = "UseCase"
 "infrastructure/clients" = "Infrastructure"
