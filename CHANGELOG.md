@@ -2,6 +2,33 @@
 
 <!-- version list -->
 
+## v1.5.0 (2026-01-15)
+
+### Bug Fixes
+
+- **ci**: Ruff keeps breaking
+  ([`2e8091b`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/2e8091b2942c503d79e01ae688d4e292445a1840))
+
+- **ci**: Ruff keeps breaking v666
+  ([`757fed9`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/757fed94b2c26934c50a7b809a956b1974bbcc27))
+
+- **deps**: Add missing tomli-w for tests
+  ([`6fe3b33`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/6fe3b33e3f3a43f727dcfc3a3d7605c61dae7eb4))
+
+- **tests**: Remove tomli-w dependency from tests
+  ([`dd8361b`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/dd8361be96ccf188f69b7fc95f3ac03b61580356))
+
+### Chores
+
+- Bump version to 1.4.2
+  ([`a69ce7e`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/a69ce7ea750ca8e86d2462b99650414cb90e4dc8))
+
+### Features
+
+- **ci**: Enforce tests pass before release
+  ([`c31c363`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/c31c3633715a4d0d16ecdd8cace3bcf37bf1f918))
+
+
 ## v1.4.1 (2026-01-15)
 
 
