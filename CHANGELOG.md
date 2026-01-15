@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-01-15)
+
+### Features
+
+- Branding; badges
+  ([`3396103`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/33961031b37b5987139f046d6e416836ccb2c6bb))
+
+- Implement W9012, standardize package name, and add badges
+  ([`5415086`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/54150868378b4e4d0ca9c169bf9d321636394323))
+
+
 ## v1.2.2 (2026-01-12)
 
 ### Bug Fixes
