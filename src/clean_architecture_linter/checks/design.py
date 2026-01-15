@@ -38,7 +38,7 @@ class DesignChecker(BaseChecker):
             "Domain and UseCase layers must remain silent (no print, logging, or direct console I/O).",
         ),
         "W9014": (
-            "Telemetry Template Drift: %s is missing or has incorrect __stellar_version__. Expected '1.0.0'. "
+            "Telemetry Template Drift: %s is missing or has incorrect __stellar_version__. Expected '1.1.1'. "
             "Clean Fix: Update telemetry.py to match the unified Fleet stabilizer template.",
             "template-drift-check",
             "Ensures all telemetry adapters follow the standardized version for Fleet stabilization.",
@@ -154,7 +154,7 @@ class DesignChecker(BaseChecker):
         if not node.file or not node.file.endswith("telemetry.py"):
             return
 
-        expected_version = "1.1.0"
+        expected_version = "1.1.1"
         found_version = None
 
         # Look for __stellar_version__ = "1.0.0"

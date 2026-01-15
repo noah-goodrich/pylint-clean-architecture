@@ -5,9 +5,10 @@ from typing import Protocol, runtime_checkable
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.prompt import Confirm
 from rich.text import Text
 
-__stellar_version__ = "1.1.0"
+__stellar_version__ = "1.1.1"
 
 
 @runtime_checkable
@@ -15,9 +16,13 @@ class TelemetryPort(Protocol):
     """Unified telemetry protocol for the fleet."""
 
     def handshake(self) -> None: ...
+
     def step(self, msg: str) -> None: ...
+
     def error(self, msg: str) -> None: ...
+
     def ask(self, prompt: str, default: str | None = None, password: bool = False) -> str: ...
+
     def confirm(self, prompt: str, default: bool = True) -> bool: ...
 
 
@@ -69,6 +74,4 @@ class ProjectTelemetry(TelemetryPort):
 
     def confirm(self, prompt: str, default: bool = True) -> bool:
         """Prompt user for confirmation."""
-        from rich.prompt import Confirm
-
         return Confirm.ask(f"[{self.color}]?[/] {prompt}", default=default, console=self.console)
