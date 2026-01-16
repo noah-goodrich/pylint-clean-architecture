@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.5.1 (2026-01-16)
+
+### Bug Fixes
+
+- Broken stuff
+  ([`20c8aea`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/20c8aeaa1ec2f763ba3cf51a870ea5aa309d63aa))
+
+- **readme**: Use absolute paths for hero images
+  ([`b14d78c`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/b14d78c868241ce7d6070fe7946471ebecb30e9b))
+
+
 ## v1.5.0 (2026-01-15)
 
 ### Bug Fixes
