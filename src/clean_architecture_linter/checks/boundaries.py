@@ -1,6 +1,7 @@
 """Layer boundary checks (W9003-W9009)."""
 
 # AST checks often violate Demeter by design
+
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -11,15 +12,15 @@ class VisibilityChecker(BaseChecker):
     """W9003: Protected member access across layers."""
 
     name = "clean-arch-visibility"
-    msgs = {
-        "W9003": (
-            'Access to protected member "%s" from outer layer. Clean Fix: Expose public Interface or Use Case.',
-            "clean-arch-visibility",
-            "Protected members (_name) should not be accessed across layer boundaries.",
-        ),
-    }
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9003": (
+                'Access to protected member "%s" from outer layer. Clean Fix: Expose public Interface or Use Case.',
+                "clean-arch-visibility",
+                "Protected members (_name) should not be accessed across layer boundaries.",
+            ),
+        }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
@@ -40,16 +41,16 @@ class ResourceChecker(BaseChecker):
     """W9004: Forbidden I/O access in UseCase/Domain layers."""
 
     name = "clean-arch-resources"
-    msgs = {
-        "W9004": (
-            "Forbidden I/O access (%s) in %s layer. Clean Fix: Move logic to Infrastructure "
-            "and inject via a Domain Protocol.",
-            "clean-arch-resources",
-            "Raw I/O operations are forbidden in UseCase and Domain layers.",
-        ),
-    }
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9004": (
+                "Forbidden I/O access (%s) in %s layer. Clean Fix: Move logic to Infrastructure "
+                "and inject via a Domain Protocol.",
+                "clean-arch-resources",
+                "Raw I/O operations are forbidden in UseCase and Domain layers.",
+            ),
+        }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 

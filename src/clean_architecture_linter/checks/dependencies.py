@@ -1,5 +1,7 @@
 """Dependency checks (W9010)."""
 
+from typing import ClassVar
+
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -10,20 +12,21 @@ class DependencyChecker(BaseChecker):
     """W9010: Strict Layer Dependency enforcement."""
 
     name = "clean-arch-dependency"
-    msgs = {
-        "W9001": (
-            "Illegal Dependency: %s layer cannot import from %s layer. Clean Fix: Invert dependency using an "
-            "Interface/Protocol in the Domain layer.",
-            "clean-arch-dependency",
-            "Inner layers (Domain, UseCase) strictly cannot import from Outer layers.",
-        ),
-    }
+
+    def __init__(self, linter=None):
+        self.msgs = {
+            "W9001": (
+                "Illegal Dependency: %s layer is imported by %s layer. Clean Fix: Invert dependency using an "
+                "Interface/Protocol in the Domain layer.",
+                "clean-arch-dependency",
+                "Inner layers (Domain, UseCase) strictly cannot import from Outer layers.",
+            ),
+        }
+        super().__init__(linter)
+        self.config_loader = ConfigurationLoader()
 
     # Default Dependency Matrix (Allowed Imports)
-    # Key: Layer doing the import
-    # Value: Set of allowed layers to import from
-    # Logic: Inner layers are restrictive.
-    DEFAULT_RULES = {
+    DEFAULT_RULES: ClassVar[dict[str, set[str]]] = {
         LayerRegistry.LAYER_DOMAIN: set(),  # Domain imports NOTHING (only stdlib)
         LayerRegistry.LAYER_USE_CASE: {LayerRegistry.LAYER_DOMAIN},
         LayerRegistry.LAYER_INTERFACE: {
@@ -35,10 +38,6 @@ class DependencyChecker(BaseChecker):
             LayerRegistry.LAYER_DOMAIN,
         },
     }
-
-    def __init__(self, linter=None):
-        super().__init__(linter)
-        self.config_loader = ConfigurationLoader()
 
     def visit_import(self, node):
         """Check direct imports: import x.y"""

@@ -11,16 +11,16 @@ class ImmutabilityChecker(BaseChecker):
     """W9401: Domain Immutability enforcement."""
 
     name = "clean-arch-immutability"
-    msgs = {
-        "W9401": (
-            "Domain Mutability Violation: Class %s must be immutable. Use @dataclass(frozen=True). Clean Fix: Add "
-            "(frozen=True) to the @dataclass decorator.",
-            "domain-mutability-violation",
-            "Classes in domain/entities.py or decorated with @dataclass must use (frozen=True).",
-        ),
-    }
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9401": (
+                "Domain Mutability Violation: Class %s must be immutable. Use @dataclass(frozen=True). Clean Fix: Add "
+                "(frozen=True) to the @dataclass decorator.",
+                "domain-mutability-violation",
+                "Classes in domain/entities.py or decorated with @dataclass must use (frozen=True).",
+            ),
+        }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
@@ -84,7 +84,6 @@ class ImmutabilityChecker(BaseChecker):
             return False  # Bare @dataclass is not frozen by default
 
         for keyword in node.keywords or []:
-            if keyword.arg == "frozen":
-                if isinstance(keyword.value, astroid.nodes.Const):
-                    return bool(keyword.value.value)
+            if keyword.arg == "frozen" and isinstance(keyword.value, astroid.nodes.Const):
+                return bool(keyword.value.value)
         return False

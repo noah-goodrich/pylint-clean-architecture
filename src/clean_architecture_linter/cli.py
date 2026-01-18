@@ -1,7 +1,13 @@
 """CLI entry points for pylint-clean-architecture."""
 
 import argparse
+import json
+import sys
 from pathlib import Path
+from typing import Any
+
+from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.di.container import ExcelsiorContainer
 
 AGENT_INSTRUCTIONS_TEMPLATE = (
     """# Architecture Instructions
@@ -91,12 +97,7 @@ BANNER = r"""
 """
 
 
-def init_command() -> None:
-    from clean_architecture_linter.di.container import ExcelsiorContainer
-
-    container = ExcelsiorContainer()
-    telemetry = container.get("TelemetryPort")
-
+def init_command(telemetry: Any) -> None:
     # Custom help with banner
     parser = argparse.ArgumentParser(
         description=f"{BANNER}\nEXCELSIOR: Clean Architecture Governance.",
@@ -113,13 +114,6 @@ def init_command() -> None:
         help="Verify active layer configuration.",
     )
 
-    # If -h or --help is in sys.argv, the banner will show in the help output.
-    # Otherwise, we do the interactive handshake.
-    import sys
-
-    if "-h" not in sys.argv and "--help" not in sys.argv:
-        telemetry.handshake()
-
     args = parser.parse_args()
 
     if args.check_layers:
@@ -133,17 +127,17 @@ def init_command() -> None:
 
     # Instructions handling (existing)
     instructions_file = agent_dir / "instructions.md"
-    _generate_instructions(instructions_file)
+    _generate_instructions(telemetry, instructions_file)
 
     # Onboarding Artifact
     onboarding_file = Path("ARCHITECTURE_ONBOARDING.md")
     if not onboarding_file.exists():
-        with open(onboarding_file, "w", encoding="utf-8") as f:
+        with onboarding_file.open("w", encoding="utf-8") as f:
             f.write(ONBOARDING_TEMPLATE)
         telemetry.step(f"Generated: {onboarding_file}")
 
     # Tool Audit & Smart Config
-    _perform_tool_audit(args.template)
+    _perform_tool_audit(telemetry, args.template)
 
     # AI Handover
     telemetry.step("AI Agent Handover initialized.")
@@ -158,9 +152,8 @@ def init_command() -> None:
     print("=" * 40 + "\n")
 
 
-def _check_layers(telemetry) -> None:
+def _check_layers(telemetry: Any) -> None:
     """Verify and print active layers."""
-    from clean_architecture_linter.config import ConfigurationLoader
 
     config = ConfigurationLoader().config
     layer_map = config.get("layer_map", {})
@@ -174,13 +167,9 @@ def _check_layers(telemetry) -> None:
         telemetry.step(f"  {pattern} -> {layer}")
 
 
-def _generate_instructions(path: Path) -> None:
+def _generate_instructions(telemetry: Any, path: Path) -> None:
     # (Reuse existing logic or improved version)
     # Re-implementing logic to ensure consistency with imports if we move things around
-    # JUSTIFICATION: Lazy load to avoid circular import
-    from clean_architecture_linter.config import (  # pylint: disable=import-outside-toplevel
-        ConfigurationLoader,
-    )
 
     config = ConfigurationLoader().config
     layer_map = config.get("layer_map", {})
@@ -197,7 +186,7 @@ def _generate_instructions(path: Path) -> None:
             # Capitalize for display (e.g. services -> Services)
             display_names[layer] = f"{directory.capitalize()} ({layer})"
 
-    with open(path, "w", encoding="utf-8") as f:
+    with path.open("w", encoding="utf-8") as f:
         f.write(
             AGENT_INSTRUCTIONS_TEMPLATE.format(
                 domain_layer=display_names["Domain"],
@@ -206,28 +195,17 @@ def _generate_instructions(path: Path) -> None:
                 interface_layer=display_names["Interface"],
             )
         )
-    print(f"Generated: {path}")
+    telemetry.step(f"Generated: {path}")
 
 
-def _perform_tool_audit(template: str = None) -> None:
+def _perform_tool_audit(telemetry: Any, template: str | None = None) -> None:
     """Scan for other tools and configure Mode."""
-    # original_sys_path = sys.path.copy() # Unused
     pyproject_path = Path("pyproject.toml")
     if not pyproject_path.exists():
         return
 
-    try:
-        # JUSTIFICATION: Optional dependency lazy load
-        import tomli  # type: ignore # pylint: disable=import-outside-toplevel
-
-        with open(pyproject_path, "rb") as f:
-            data = tomli.load(f)
-    except ImportError:
-        # Fallback or strict error
-        print("Warning: tomli not installed, cannot parse pyproject.toml fully.")
-        return
-    except (OSError, ValueError) as e:  # Catch specific exceptions
-        print(f"Warning: Could not parse pyproject.toml: {e}")
+    data = _load_pyproject(pyproject_path)
+    if not data:
         return
 
     tool_section = data.get("tool", {})
@@ -235,59 +213,76 @@ def _perform_tool_audit(template: str = None) -> None:
     found_tools = style_tools.intersection(tool_section.keys())
 
     # Detect if we need to update configuration
-    updates_needed = False
     new_data = data.copy()
-
-    if "clean-arch" not in new_data["tool"]:
-        new_data["tool"]["clean-arch"] = {}
-        updates_needed = True
+    if "clean-arch" not in new_data.get("tool", {}):
+        new_data.setdefault("tool", {})["clean-arch"] = {}
 
     # Template Logic
     if template:
-        updates_needed = True
-        if template == "fastapi":
-            new_data["tool"]["clean-arch"].setdefault("layer_map", {}).update(
-                {"routers": "Interface", "services": "UseCase", "schemas": "Interface"}
-            )
-        elif template == "sqlalchemy":
-            new_data["tool"]["clean-arch"].setdefault("layer_map", {}).update(
-                {"models": "Infrastructure", "repositories": "Infrastructure"}
-            )
-            new_data["tool"]["clean-arch"].setdefault("base_class_map", {}).update(
-                {"Base": "Infrastructure", "DeclarativeBase": "Infrastructure"}
-            )
+        _apply_template_updates(new_data, template)
+        telemetry.step(f"Applied template updates for: {template}")
 
     # Architecture-Only Mode
     if found_tools:
-        print(f"Detected style tools: {', '.join(found_tools)}. Enabling Architecture-Only Mode.")
-        if "pylint" not in new_data["tool"]:
-            new_data["tool"]["pylint"] = {}
-        if "messages_control" not in new_data["tool"]["pylint"]:
-            new_data["tool"]["pylint"]["messages_control"] = {}
+        _print_architecture_only_mode_advice(telemetry, found_tools)
 
-        # We will just print instructions for now to avoid destroying user's toml formatting.
-        print("\n[RECOMMENDED ACTION] Add this to pyproject.toml to disable conflicting style checks:")
-        print(
-            """
+    if template:
+        print(f"\n[TEMPLATE CONFIG] Add the following to [tool.clean-arch] for {template}:")
+        print(json.dumps(new_data["tool"]["clean-arch"], indent=2))
+
+
+def _load_pyproject(path: Path) -> dict[str, Any] | None:
+    """Load and parse pyproject.toml."""
+    try:
+        # JUSTIFICATION: Optional dependency lazy load
+        import tomli  # noqa: PLC0415
+
+        with path.open("rb") as f:
+            return tomli.load(f)
+    except ImportError:
+        print("Warning: tomli not installed, cannot parse pyproject.toml fully.")
+    except (OSError, ValueError) as e:
+        print(f"Warning: Could not parse pyproject.toml: {e}")
+    return None
+
+
+def _apply_template_updates(data: dict[str, Any], template: str) -> None:
+    """Apply template-specific updates to the config dict."""
+    clean_arch = data["tool"]["clean-arch"]
+    if template == "fastapi":
+        clean_arch.setdefault("layer_map", {}).update(
+            {"routers": "Interface", "services": "UseCase", "schemas": "Interface"}
+        )
+    elif template == "sqlalchemy":
+        clean_arch.setdefault("layer_map", {}).update({"models": "Infrastructure", "repositories": "Infrastructure"})
+        clean_arch.setdefault("base_class_map", {}).update(
+            {"Base": "Infrastructure", "DeclarativeBase": "Infrastructure"}
+        )
+
+
+def _print_architecture_only_mode_advice(telemetry: Any, found_tools: set[str]) -> None:
+    """Print advice for Architecture-Only Mode."""
+    telemetry.step(f"Detected style tools: {', '.join(found_tools)}. Enabling Architecture-Only Mode.")
+    print("\n[RECOMMENDED ACTION] Add this to pyproject.toml to disable conflicting style checks:")
+    print(
+        """
 [tool.pylint.messages_control]
 disable = "all"
 enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and other specific checks
         """
-        )
-
-    if updates_needed and template:
-        # Here we just print because we don't have a reliable TOML writer in standard lib or common deps guaranteed
-        # Here we just print because we don't have a reliable TOML writer in standard lib or common deps guaranteed
-        print(f"\n[TEMPLATE CONFIG] Add the following to [tool.clean-arch] for {template}:")
-        # JUSTIFICATION: Lazy load used only for output formatting
-        import json  # pylint: disable=import-outside-toplevel
-
-        print(json.dumps(new_data["tool"]["clean-arch"], indent=2))
+    )
 
 
 def main():
     """Main entry point."""
-    init_command()
+
+    container = ExcelsiorContainer()
+    telemetry = container.get("TelemetryPort")
+
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        telemetry.handshake()
+
+    init_command(telemetry)
 
 
 if __name__ == "__main__":

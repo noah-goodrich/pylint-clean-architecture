@@ -1,24 +1,30 @@
 """Anti-Bypass Guard checks (W9501)."""
 
 import tokenize
+from typing import ClassVar
 
 from pylint.checkers import BaseTokenChecker
+
+_MODULE_HEADER_MAX_LINES = 20
 
 
 class BypassChecker(BaseTokenChecker):
     """W9501: Anti-Bypass Guard enforcement."""
 
     name = "clean-arch-bypass"
-    msgs = {
-        "W9501": (
-            "Anti-Bypass Violation: %s detected. %s Clean Fix: Justify with '# JUSTIFICATION: <reason>' or "
-            "resolve the architectural issue.",
-            "anti-bypass-violation",
-            "Module-level disables or unjustified complexity disables are forbidden.",
-        ),
-    }
 
-    ALLOWED_DISABLES = {
+    def __init__(self, linter=None):
+        self.msgs = {
+            "W9501": (
+                "Anti-Bypass Violation: %s detected. %s Clean Fix: Justify with '# JUSTIFICATION: <reason>' or "
+                "resolve the architectural issue.",
+                "anti-bypass-violation",
+                "Module-level disables or unjustified complexity disables are forbidden.",
+            ),
+        }
+        super().__init__(linter)
+
+    ALLOWED_DISABLES: ClassVar[set[str]] = {
         "line-too-long",
         "missing-docstring",
         "trailing-whitespace",
@@ -40,7 +46,7 @@ class BypassChecker(BaseTokenChecker):
 
         # 1. Check for module-level (global) disable
         is_standalone = not line_content.split("#")[0].strip()
-        if lineno < 20 and is_standalone:
+        if lineno < _MODULE_HEADER_MAX_LINES and is_standalone:
             self.add_message(
                 "anti-bypass-violation",
                 line=lineno,
@@ -60,7 +66,7 @@ class BypassChecker(BaseTokenChecker):
         except IndexError:
             pass
 
-    BANNED_PHRASES = {
+    BANNED_PHRASES: ClassVar[set[str]] = {
         "internal helper",
         "detailed arguments",
         "passing the linter",

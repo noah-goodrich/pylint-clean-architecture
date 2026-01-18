@@ -17,13 +17,12 @@ from clean_architecture_linter.checks.immutability import ImmutabilityChecker
 from clean_architecture_linter.checks.patterns import CouplingChecker, PatternChecker
 from clean_architecture_linter.checks.structure import ModuleStructureChecker
 from clean_architecture_linter.checks.testing import TestingChecker
+from clean_architecture_linter.constants import EXCELSIOR_BANNER
 from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
 
 
 def register(linter: PyLinter) -> None:
     """Register checkers."""
-    from clean_architecture_linter.constants import EXCELSIOR_BANNER
-
     print(EXCELSIOR_BANNER)
 
     linter.register_checker(VisibilityChecker(linter))

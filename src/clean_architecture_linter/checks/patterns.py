@@ -1,29 +1,41 @@
 """Pattern checks (W9005, W9006)."""
 
+from typing import ClassVar
+
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
+
+_MIN_CHAIN_LENGTH = 2
+_MAX_SELF_CHAIN_LENGTH = 2
 
 
 class PatternChecker(BaseChecker):
     """W9005: Delegation anti-pattern detection with prescriptive advice."""
 
     name = "clean-arch-delegation"
-    msgs = {
-        "W9005": (
-            "Delegation Anti-Pattern: %s Clean Fix: Implement logic in the delegate or use a Map/Dictionary lookup.",
-            "clean-arch-delegation",
-            "If/elif chains that only delegate should use Strategy or Handler patterns.",
-        ),
-    }
+
+    def __init__(self, linter=None):
+        self.msgs = {
+            "W9005": (
+                "Delegation Anti-Pattern: %s Clean Fix: Implement logic in the delegate or "
+                "use a Map/Dictionary lookup.",
+                "clean-arch-delegation",
+                "If/elif chains that only delegate should use Strategy or Handler patterns.",
+            ),
+        }
+        super().__init__(linter)
 
     def visit_if(self, node):
         """Check for delegation chains."""
         # Skip 'if __name__ == "__main__"' blocks
-        if isinstance(node.test, astroid.nodes.Compare):
-            if isinstance(node.test.left, astroid.nodes.Name) and node.test.left.name == "__name__":
-                return
+        if (
+            isinstance(node.test, astroid.nodes.Compare)
+            and isinstance(node.test.left, astroid.nodes.Name)
+            and node.test.left.name == "__name__"
+        ):
+            return
 
         is_delegation, advice = self._check_delegation_chain(node)
         if is_delegation:
@@ -44,9 +56,8 @@ class PatternChecker(BaseChecker):
 
         # Generate prescriptive advice based on condition type
         advice = "Refactor to Strategy/Handler pattern."
-        if isinstance(node.test, astroid.nodes.Compare):
-            if isinstance(node.test.left, astroid.nodes.Name):
-                advice = "Refactor to **Strategy Pattern** using a dictionary mapping."
+        if isinstance(node.test, astroid.nodes.Compare) and isinstance(node.test.left, astroid.nodes.Name):
+            advice = "Refactor to **Strategy Pattern** using a dictionary mapping."
 
         # If strict guard clause (no else), it is NOT a delegation CHAIN unless deep recursion
         if not node.orelse:
@@ -78,17 +89,21 @@ class CouplingChecker(BaseChecker):
     """W9006: Law of Demeter violation detection."""
 
     name = "clean-arch-demeter"
-    msgs = {
-        "W9006": (
-            "Law of Demeter: Chain access (%s) exceeds one level. Create delegated method. Clean Fix: Add a method to "
-            "the immediate object that performs the operation.",
-            "clean-arch-demeter",
-            "Object chains like a.b.c() indicate tight coupling.",
-        ),
-    }
+
+    def __init__(self, linter=None):
+        self.msgs = {
+            "W9006": (
+                "Law of Demeter: Chain access (%s) exceeds one level. Create delegated method. "
+                "Clean Fix: Add a method to the immediate object that performs the operation.",
+                "clean-arch-demeter",
+                "Objects should only talk to immediate friends (no .a.b.c chains).",
+            ),
+        }
+        super().__init__(linter)
+        self._locals_map = {}  # Map[variable_name] -> is_stranger (bool)
 
     # Common patterns that are acceptable despite chain depth
-    ALLOWED_TERMINAL_METHODS = {
+    ALLOWED_TERMINAL_METHODS: ClassVar[set[str]] = {
         # Dict/data access
         "get",
         "items",
@@ -176,11 +191,23 @@ class CouplingChecker(BaseChecker):
         "step",
         "ask",
         "confirm",
+        # Pandas/Dataframes
+        "contains",
+        "fillna",
+        "dropna",
+        "groupby",
+        "sort_values",
+        "reset_index",
+        "to_datetime",
+        # Streamlit/UI
+        "SelectColumn",
+        "TextColumn",
+        "NumberColumn",
+        "LinkColumn",
+        "metric",
     }
 
-    def __init__(self, linter=None):
-        super().__init__(linter)
-        self._locals_map = {}  # Map[variable_name] -> is_stranger (bool)
+    # Common Repository/API patterns
 
     # Common Repository/API patterns
 
@@ -248,7 +275,7 @@ class CouplingChecker(BaseChecker):
             chain.append(curr.attrname)
             curr = curr.expr
 
-        if len(chain) < 2:
+        if len(chain) < _MIN_CHAIN_LENGTH:
             return False
 
         if self._is_chain_excluded(chain, curr):
@@ -266,9 +293,12 @@ class CouplingChecker(BaseChecker):
             return True
 
         # 2. Relax Demeter for 'self' access (allow self.friend.method())
-        if isinstance(curr, astroid.nodes.Name) and curr.name in ("self", "cls"):
-            if len(chain) == 2:
-                return True
+        if (
+            isinstance(curr, astroid.nodes.Name)
+            and curr.name in ("self", "cls")
+            and len(chain) == _MAX_SELF_CHAIN_LENGTH
+        ):
+            return True
 
         # 3. Exempt Safe Roots and Safe Types
         config_loader = ConfigurationLoader()
@@ -276,16 +306,12 @@ class CouplingChecker(BaseChecker):
         safe_types = {"str", "int", "list", "dict", "set"}
 
         # Check if root is a Name (variable/module)
-        if isinstance(curr, astroid.nodes.Name):
-            if curr.name in safe_roots or curr.name in safe_types:
-                return True
+        if isinstance(curr, astroid.nodes.Name) and (curr.name in safe_roots or curr.name in safe_types):
+            return True
 
         # 4. Entity/DTO/Safe Type Exemption via Inference
         # We check the type of the object we are acting ON (which is 'curr', the head of the expr)
-        if self._is_allowed_by_inference(curr, config_loader):
-            return True
-
-        return False
+        return bool(self._is_allowed_by_inference(curr, config_loader))
 
     def _is_allowed_by_inference(self, node, config_loader):
         """Check if inferred type is allowed (e.g. Domain Entity)."""

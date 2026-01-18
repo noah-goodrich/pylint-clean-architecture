@@ -1,30 +1,34 @@
 """Test coupling checks (W9101-W9103)."""
 
 # AST checks often violate Demeter by design
+
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
+
+_MOCK_LIMIT = 4
 
 
 class TestingChecker(BaseChecker):
     """Enforce loose test coupling following Uncle Bob's TDD principles."""
 
     name = "clean-arch-testing"
-    msgs = {
-        "W9101": (
-            "Fragile Test: %d mocks exceed limit of 4. Inject single Protocol instead. Clean Fix: Use a single Fake "
-            "or Stub implementation of a Protocol rather than mocking many individual methods.",
-            "fragile-test-mocks",
-            "Tests with many mocks are tightly coupled to implementation.",
-        ),
-        "W9102": (
-            "Testing private method: %s. Test the execute() behavior instead. Clean Fix: Test the public API method "
-            "that calls this private method.",
-            "private-method-test",
-            "Tests should verify behavior, not implementation details.",
-        ),
-    }
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9101": (
+                "Fragile Test: %d mocks exceed limit of 4. Inject single Protocol instead. "
+                "Clean Fix: Use a single Fake or Stub implementation of a Protocol rather than "
+                "mocking many individual methods.",
+                "fragile-test-mocks",
+                "Tests with many mocks are tightly coupled to implementation.",
+            ),
+            "W9102": (
+                "Testing private method: %s. Test the execute() behavior instead. "
+                "Clean Fix: Test the public API method that calls this private method.",
+                "private-method-test",
+                "Tests should verify behavior, not implementation details.",
+            ),
+        }
         super().__init__(linter)
         self._mock_count = 0
         self._current_function = None
@@ -40,13 +44,16 @@ class TestingChecker(BaseChecker):
 
     def leave_functiondef(self, _):
         """Check mock count when leaving test function."""
-        if self._current_function and self._current_function.name.startswith("test_"):
-            if self._mock_count > 4:
-                self.add_message(
-                    "fragile-test-mocks",
-                    node=self._current_function,
-                    args=(self._mock_count,),
-                )
+        if (
+            self._current_function
+            and self._current_function.name.startswith("test_")
+            and self._mock_count > _MOCK_LIMIT
+        ):
+            self.add_message(
+                "fragile-test-mocks",
+                node=self._current_function,
+                args=(self._mock_count,),
+            )
         self._current_function = None
         self._mock_count = 0
 
@@ -69,10 +76,13 @@ class TestingChecker(BaseChecker):
         if not self._current_function:
             return
 
-        if call_name.startswith("_") and not call_name.startswith("__"):
+        if (
+            call_name.startswith("_")
+            and not call_name.startswith("__")
+            and isinstance(node.func, astroid.nodes.Attribute)
+        ):
             # Check if this is a method call (has receiver)
-            if isinstance(node.func, astroid.nodes.Attribute):
-                self.add_message("private-method-test", node=node, args=(call_name,))
+            self.add_message("private-method-test", node=node, args=(call_name,))
 
     def _get_full_call_name(self, node):
         """Get the full name of a call."""

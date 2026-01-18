@@ -17,20 +17,20 @@ class ModuleStructureChecker(BaseChecker):
     """
 
     name = "clean-arch-structure"
-    msgs = {
-        "W9010": (
-            "God File detected: %s. Clean Fix: Split into separate files.",
-            "clean-arch-god-file",
-            "A file should not contain multiple 'Heavy' components or mixed layers.",
-        ),
-        "W9011": (
-            "Deep Structure violation: Module '%s' in project root. Clean Fix: Move to a sub-package.",
-            "clean-arch-folder-structure",
-            "Non-boilerplate logic must reside in sub-packages (e.g. core/, gateways/).",
-        ),
-    }
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9010": (
+                "God File detected: %s. Clean Fix: Split into separate files.",
+                "clean-arch-god-file",
+                "A file should not contain multiple 'Heavy' components or mixed layers.",
+            ),
+            "W9011": (
+                "Deep Structure violation: Module '%s' in project root. Clean Fix: Move to a sub-package.",
+                "clean-arch-folder-structure",
+                "Non-boilerplate logic must reside in sub-packages (e.g. core/, gateways/).",
+            ),
+        }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
         self.current_classes = []
@@ -97,10 +97,7 @@ class ModuleStructureChecker(BaseChecker):
 
         try:
             cwd = Path.cwd()
-            if path_obj.is_absolute():
-                rel_path = path_obj.relative_to(cwd)
-            else:
-                rel_path = path_obj
+            rel_path = path_obj.relative_to(cwd) if path_obj.is_absolute() else path_obj
         except ValueError:
             return False
 
@@ -113,10 +110,7 @@ class ModuleStructureChecker(BaseChecker):
         if rel_path.name in allowed:
             return False
 
-        if rel_path.name.startswith("test_"):
-            return False
-
-        return True
+        return not rel_path.name.startswith("test_")
 
     def _is_heavy_component(self, layer, node):
         """Check if layer is considered 'Heavy'."""

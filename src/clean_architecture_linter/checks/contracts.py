@@ -12,23 +12,23 @@ class ContractChecker(BaseChecker):
     """W9201: Expert-Grade Contract Integrity enforcement."""
 
     name = "clean-arch-contracts"
-    msgs = {
-        "W9201": (
-            "Contract Integrity Violation: Infrastructure class %s "
-            "must inherit from a Domain Protocol. Clean Fix: Define a Protocol in Domain and inherit from it.",
-            "contract-integrity-violation",
-            "Infrastructure classes must inherit from a Domain Protocol "
-            "(module path contains '.domain.' and name ends with 'Protocol').",
-        ),
-        "W9202": (
-            "Concrete Method Stub: Method %s is a stub. Implement the logic. Clean Fix: Implement the method or "
-            "remove it if not needed.",
-            "concrete-method-stub",
-            "Concrete methods in infrastructure should not be empty stubs.",
-        ),
-    }
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9201": (
+                "Contract Integrity Violation: Infrastructure class %s "
+                "must inherit from a Domain Protocol. Clean Fix: Define a Protocol in Domain and inherit from it.",
+                "contract-integrity-violation",
+                "Infrastructure classes must inherit from a Domain Protocol "
+                "(module path contains '.domain.' and name ends with 'Protocol').",
+            ),
+            "W9202": (
+                "Concrete Method Stub: Method %s is a stub. Implement the logic. Clean Fix: Implement the method or "
+                "remove it if not needed.",
+                "concrete-method-stub",
+                "Concrete methods in infrastructure should not be empty stubs.",
+            ),
+        }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
@@ -120,23 +120,22 @@ class ContractChecker(BaseChecker):
         for stmt in body:
             if isinstance(stmt, nodes.Pass):
                 continue
-            if isinstance(stmt, nodes.Expr) and isinstance(stmt.value, nodes.Const):
-                if stmt.value.value is Ellipsis:
-                    continue
-            if isinstance(stmt, nodes.Return):
-                if stmt.value is None or (isinstance(stmt.value, nodes.Const) and stmt.value.value is None):
-                    continue
+            if isinstance(stmt, nodes.Expr) and isinstance(stmt.value, nodes.Const) and stmt.value.value is Ellipsis:
+                continue
+            if isinstance(stmt, nodes.Return) and (
+                stmt.value is None or (isinstance(stmt.value, nodes.Const) and stmt.value.value is None)
+            ):
+                continue
             # If we find anything else (like an IF that might be a stub, or a real call)
             # we need to decide if it's a stub.
             # The legacy tests had a 'sneaky nested branch stub':
             # if False: pass; return None
-            if isinstance(stmt, nodes.If):
-                # Recursively check if the if block is a stub?
-                # For simplicity, if it's an IF we'll check its body.
-                if all(self._is_stmt_stub(s) for s in stmt.body) and (
-                    not stmt.orelse or all(self._is_stmt_stub(s) for s in stmt.orelse)
-                ):
-                    continue
+            if (
+                isinstance(stmt, nodes.If)
+                and all(self._is_stmt_stub(s) for s in stmt.body)
+                and (not stmt.orelse or all(self._is_stmt_stub(s) for s in stmt.orelse))
+            ):
+                continue
             return False
         return True
 

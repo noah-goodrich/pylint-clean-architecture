@@ -3,7 +3,7 @@
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +13,10 @@ class LayerRegistryConfig:
     """Configuration for LayerRegistry."""
 
     project_type: str = "generic"
-    suffix_map: Optional[dict] = field(default_factory=dict)
-    directory_map: Optional[dict] = field(default_factory=dict)
-    base_class_map: Optional[dict] = field(default_factory=dict)
-    module_map: Optional[dict] = field(default_factory=dict)
+    suffix_map: dict | None = field(default_factory=dict)
+    directory_map: dict | None = field(default_factory=dict)
+    base_class_map: dict | None = field(default_factory=dict)
+    module_map: dict | None = field(default_factory=dict)
 
 
 class LayerRegistry:
@@ -36,7 +36,7 @@ class LayerRegistry:
     LAYER_INTERFACE = "Interface"
 
     # Default mappings
-    DEFAULT_SUFFIX_MAP = {
+    DEFAULT_SUFFIX_MAP: ClassVar[dict[str, str]] = {
         r".*UseCase$": LAYER_USE_CASE,
         r".*Interactor$": LAYER_USE_CASE,
         r".*Orchestrator$": LAYER_USE_CASE,
@@ -53,7 +53,7 @@ class LayerRegistry:
         r".*Command$": LAYER_INTERFACE,  # CLI commands
     }
 
-    DEFAULT_DIRECTORY_MAP = {
+    DEFAULT_DIRECTORY_MAP: ClassVar[dict[str, str]] = {
         r"(?:^|.*/)use_cases?(/.*)?$": LAYER_USE_CASE,
         r"(?:^|.*/)orchestrators?(/.*)?$": LAYER_USE_CASE,
         r"(?:^|.*/)domain(/.*)?$": LAYER_DOMAIN,
@@ -71,7 +71,7 @@ class LayerRegistry:
         r"(?:^|.*/)main\.py$": LAYER_INTERFACE,
     }
 
-    def __init__(self, config: Optional[LayerRegistryConfig] = None):
+    def __init__(self, config: LayerRegistryConfig | None = None):
         if config is None:
             config = LayerRegistryConfig()
 
@@ -113,7 +113,7 @@ class LayerRegistry:
         if self.project_type in presets:
             self.suffix_map.update(presets[self.project_type])
 
-    def get_layer_for_class_node(self, node) -> Optional[str]:
+    def get_layer_for_class_node(self, node) -> str | None:
         """
         Get layer for a class node using name and inheritance.
         1. Check suffix match on class name.
@@ -131,7 +131,7 @@ class LayerRegistry:
         # 2. Inheritance Check
         return self.resolve_by_inheritance(node)
 
-    def resolve_by_inheritance(self, node) -> Optional[str]:
+    def resolve_by_inheritance(self, node) -> str | None:
         """Resolve layer by checking base classes."""
         if not node:
             return None
@@ -147,17 +147,9 @@ class LayerRegistry:
             return None
         return None
 
-    def resolve_layer(self, node_name: str, file_path: str, node=None) -> Optional[str]:
+    def resolve_layer(self, node_name: str, file_path: str, node: Any | None = None) -> str | None:
         """
         Resolve the architectural layer for a node.
-
-        Args:
-            node_name: Class or function name
-            file_path: Full file path or module name
-            node: Optional AST node for inheritance checks
-
-        Returns:
-            Layer name or None if unresolved
         """
         # 1. Base Class Map (Inheritance)
         if node:
@@ -171,7 +163,18 @@ class LayerRegistry:
             return self.module_map[file_name]
 
         # 3. Directory Map
-        # Check path/module (Monorepo support)
+        layer = self._resolve_by_directory(file_path)
+        if layer:
+            return layer
+
+        # 4. Suffix Map
+        if node_name:
+            return self._resolve_by_suffix(node_name)
+
+        return None
+
+    def _resolve_by_directory(self, file_path: str) -> str | None:
+        """Check path/module for directory matching."""
         # Normalize: replace backslashes and dots (except for .py extension)
         normalized_path = file_path.replace("\\", "/")
         if normalized_path.endswith(".py"):
@@ -185,11 +188,11 @@ class LayerRegistry:
         for pattern, layer in self.directory_map.items():
             if re.search(pattern, normalized_path):
                 return layer
+        return None
 
-        # 4. Suffix Map
-        if node_name:
-            for pattern, layer in self.suffix_map.items():
-                if re.match(pattern, node_name):
-                    return layer
-
+    def _resolve_by_suffix(self, node_name: str) -> str | None:
+        """Check node name against suffix patterns."""
+        for pattern, layer in self.suffix_map.items():
+            if re.match(pattern, node_name):
+                return layer
         return None

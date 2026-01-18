@@ -1,5 +1,7 @@
 """Dependency Injection checks (W9301)."""
 
+from typing import ClassVar
+
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -11,20 +13,20 @@ class DIChecker(BaseChecker):
     """W9301: Dependency Injection enforcement."""
 
     name = "clean-arch-di"
-    msgs = {
-        "W9301": (
-            "DI Violation: %s instantiated directly in UseCase. Use constructor injection. Clean Fix: Pass the "
-            "dependency as an argument to __init__.",
-            "di-enforcement-violation",
-            "Infrastructure classes (Gateway, Repository, Client) must be injected into UseCases.",
-        ),
-    }
-
-    INFRA_SUFFIXES = ("Gateway", "Repository", "Client")
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9301": (
+                "DI Violation: %s instantiated directly in UseCase. Use constructor injection. Clean Fix: Pass the "
+                "dependency as an argument to __init__.",
+                "di-enforcement-violation",
+                "Infrastructure classes (Gateway, Repository, Client) must be injected into UseCases.",
+            ),
+        }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
+
+    INFRA_SUFFIXES: ClassVar[tuple[str, ...]] = ("Gateway", "Repository", "Client")
 
     def visit_call(self, node):
         """

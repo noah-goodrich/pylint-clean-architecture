@@ -1,7 +1,7 @@
 """Custom Pylint reporter for Snowarch summary table."""
 
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any
 
 from pylint.message import Message
 from pylint.reporters import BaseReporter
@@ -24,13 +24,13 @@ class CleanArchitectureSummaryReporter(BaseReporter):
 
     def __init__(self, output=None):
         super().__init__(output)
-        self.messages: List[Message] = []
+        self.messages: list[Message] = []
 
     def handle_message(self, msg: Message):
         """Collect messages for summarization."""
         self.messages.append(msg)
 
-    def display_reports(self, layout):
+    def display_reports(self, _layout):
         """Render the summary table."""
         if not self.messages:
             msg = f"{self.BOLD}{self.GOLD}Mission Accomplished: No architectural violations detected.{self.RESET}"
@@ -41,8 +41,8 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         errors, packages = self._collect_stats()
 
         # Prepare Table Data
-        sorted_packages = sorted(list(packages))
-        headers = ["Error Code", "Error Name", "Total"] + sorted_packages
+        sorted_packages = sorted(packages)
+        headers = ["Error Code", "Error Name", "Total", *sorted_packages]
 
         # Calculate column widths
         widths = self._calculate_widths(headers, errors, sorted_packages)
@@ -52,7 +52,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
 
     def _collect_stats(self):
         """Aggregate error statistics."""
-        errors: Dict[str, Dict[str, Any]] = defaultdict(lambda: defaultdict(int))
+        errors: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict(int))
         packages = set()
 
         for msg in self.messages:
@@ -96,7 +96,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         print(f"{self.BLUE}{'-|-'.join(['-' * w for w in widths])}{self.RESET}", file=self.out)
 
         total_errors = 0
-        package_totals = defaultdict(int)
+        package_totals: dict[str, int] = defaultdict(int)
 
         # Sort by total count descending
         # Sort by total count descending
@@ -120,8 +120,8 @@ class CleanArchitectureSummaryReporter(BaseReporter):
             # Re-calculating row with padding but WITHOUT colors first to get strings correct
             padded_row = []
             padded_row.append(f"{self.RED}{msg_id:<{widths[0]}}{self.RESET}")
-            padded_row.append(f"{self.WARP}{str(details['name']):<{widths[1]}}{self.RESET}")
-            padded_row.append(f"{self.BOLD}{str(details['total']):<{widths[2]}}{self.RESET}")
+            padded_row.append(f"{self.WARP}{details['name']!s:<{widths[1]}}{self.RESET}")
+            padded_row.append(f"{self.BOLD}{details['total']!s:<{widths[2]}}{self.RESET}")
             for i, pkg in enumerate(sorted_packages):
                 count = details.get(pkg, 0)
                 val = str(count if count > 0 else 0)
@@ -153,6 +153,6 @@ class CleanArchitectureSummaryReporter(BaseReporter):
             msg = f"{self.BOLD}{self.GOLD}Prime Directives Satisfied: System integrity nominal.{self.RESET}"
             print(msg, file=self.out)
 
-    def _display(self, layout):
+    def _display(self, _layout):
         """Legacy method for older Pylint versions."""
-        self.display_reports(layout)
+        self.display_reports(_layout)

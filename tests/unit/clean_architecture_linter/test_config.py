@@ -9,6 +9,8 @@ class TestConfigurationLoader(unittest.TestCase):
     def setUp(self):
         # Reset ConfigurationLoader singleton for each test
         ConfigurationLoader._instance = None
+        ConfigurationLoader._config = {}
+        ConfigurationLoader._registry = None
         self.loader = ConfigurationLoader()
 
     def test_config_loader_default_registry(self):
@@ -47,6 +49,8 @@ class TestConfigurationLoader(unittest.TestCase):
         """Test load_config when no pyproject.toml exists (graceful failure)."""
         # Reset instance to ensure we don't carry over config from setUp
         ConfigurationLoader._instance = None
+        ConfigurationLoader._config = {}
+        ConfigurationLoader._registry = None
         # We simulate this by mocking Path.exists to return False
         with patch("pathlib.Path.exists", return_value=False):
             loader = ConfigurationLoader()

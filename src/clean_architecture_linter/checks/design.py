@@ -1,6 +1,7 @@
 """Design checks (W9007, W9009, W9012)."""
 
 # AST checks often violate Demeter by design
+
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
 
@@ -12,40 +13,40 @@ class DesignChecker(BaseChecker):
     """W9007, W9009, W9012: Design pattern enforcement."""
 
     name = "clean-arch-design"
-    msgs = {
-        "W9012": (
-            "Defensive None Check: '%s' checked for None in %s layer. Validation belongs in Interface layer. "
-            "Clean Fix: Ensure the value is validated before entering core logic.",
-            "defensive-none-check",
-            "Defensive 'if var is None' checks bloat logic and bypass boundary logic separation.",
-        ),
-        "W9007": (
-            "Naked Return: %s returned from Repository. Return Entity instead. Clean Fix: Map the raw object to a "
-            "Domain Entity before returning.",
-            "naked-return-violation",
-            "Repository methods must return Domain Entities, not raw I/O objects.",
-        ),
-        "W9009": (
-            "Missing Abstraction: %s holds reference to %s. Use Domain Entity. Clean Fix: Replace the raw object "
-            "with a Domain Entity or Value Object.",
-            "missing-abstraction-violation",
-            "Use Cases cannot hold references to infrastructure objects (*Client).",
-        ),
-        "W9013": (
-            "Illegal I/O Operation: '%s' called in silent layer '%s'. "
-            "Clean Fix: Delegate I/O to an Interface/Port (e.g., %s).",
-            "illegal-io-operation",
-            "Domain and UseCase layers must remain silent (no print, logging, or direct console I/O).",
-        ),
-        "W9014": (
-            "Telemetry Template Drift: %s is missing or has incorrect __stellar_version__. Expected '1.1.1'. "
-            "Clean Fix: Update telemetry.py to match the unified Fleet stabilizer template.",
-            "template-drift-check",
-            "Ensures all telemetry adapters follow the standardized version for Fleet stabilization.",
-        ),
-    }
 
     def __init__(self, linter=None):
+        self.msgs = {
+            "W9012": (
+                "Defensive None Check: '%s' checked for None in %s layer. Validation belongs in Interface layer. "
+                "Clean Fix: Ensure the value is validated before entering core logic.",
+                "defensive-none-check",
+                "Defensive 'if var is None' checks bloat logic and bypass boundary logic separation.",
+            ),
+            "W9007": (
+                "Naked Return: %s returned from Repository. Return Entity instead. Clean Fix: Map the raw object to a "
+                "Domain Entity before returning.",
+                "naked-return-violation",
+                "Repository methods must return Domain Entities, not raw I/O objects.",
+            ),
+            "W9009": (
+                "Missing Abstraction: %s holds reference to %s. Use Domain Entity. Clean Fix: Replace the raw object "
+                "with a Domain Entity or Value Object.",
+                "missing-abstraction-violation",
+                "Use Cases cannot hold references to infrastructure objects (*Client).",
+            ),
+            "W9013": (
+                "Illegal I/O Operation: '%s' called in silent layer '%s'. "
+                "Clean Fix: Delegate I/O to an Interface/Port (e.g., %s).",
+                "illegal-io-operation",
+                "Domain and UseCase layers must remain silent (no print, logging, or direct console I/O).",
+            ),
+            "W9014": (
+                "Telemetry Template Drift: %s is missing or has incorrect __stellar_version__. Expected '1.1.1'. "
+                "Clean Fix: Update telemetry.py to match the unified Fleet stabilizer template.",
+                "template-drift-check",
+                "Ensures all telemetry adapters follow the standardized version for Fleet stabilization.",
+            ),
+        }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
@@ -82,9 +83,8 @@ class DesignChecker(BaseChecker):
             return
 
         # Check infrastructure module origin
-        if self._is_infrastructure_type(node.value):
-            if type_name:
-                self.add_message("naked-return-violation", node=node, args=(type_name,))
+        if self._is_infrastructure_type(node.value) and type_name:
+            self.add_message("naked-return-violation", node=node, args=(type_name,))
 
     def visit_assign(self, node):
         """W9009: Flag references to raw infrastructure types in UseCase layer."""
@@ -128,7 +128,7 @@ class DesignChecker(BaseChecker):
         except astroid.InferenceError:
             pass
 
-    def visit_if(self, node: astroid.If) -> None:
+    def visit_if(self, node: astroid.nodes.If) -> None:
         """W9012: Visit if statement to find defensive None checks."""
         root = node.root()
         file_path = getattr(root, "file", "")
@@ -159,11 +159,13 @@ class DesignChecker(BaseChecker):
 
         # Look for __stellar_version__ = "1.0.0"
         for child in node.body:
-            if isinstance(child, astroid.nodes.Assign):
-                if any(getattr(target, "name", "") == "__stellar_version__" for target in child.targets):
-                    if isinstance(child.value, astroid.nodes.Const):
-                        found_version = child.value.value
-                        break
+            if (
+                isinstance(child, astroid.nodes.Assign)
+                and any(getattr(target, "name", "") == "__stellar_version__" for target in child.targets)
+                and isinstance(child.value, astroid.nodes.Const)
+            ):
+                found_version = child.value.value
+                break
 
         if found_version != expected_version:
             self.add_message("template-drift-check", node=node, args=(node.name,))
@@ -196,19 +198,25 @@ class DesignChecker(BaseChecker):
             return
 
         # 2. Check for logging functions
-        logging_funcs = {"info", "error", "debug", "warning", "critical", "log", "exception"}
-        if func_name in logging_funcs:
-            # Check if it looks like a logging call
-            if caller_name in ("logging", "logger", "log"):
-                if not self._is_exempt_io(node):
-                    self._add_io_violation(node, f"{caller_name}.{func_name}()", layer)
-                    return
+        logging_funcs = {
+            "info",
+            "error",
+            "debug",
+            "warning",
+            "critical",
+            "log",
+            "exception",
+        }
+        if func_name in logging_funcs and caller_name in ("logging", "logger", "log") and not self._is_exempt_io(node):
+            self._add_io_violation(node, f"{caller_name}.{func_name}()", layer)
+            return
 
         # 3. Check for rich
-        if caller_name == "rich" or (isinstance(node.func, astroid.Attribute) and "rich" in str(node.func.expr)):
-            if func_name in ("print", "inspect", "Console"):
-                self._add_io_violation(node, f"rich.{func_name}", layer)
-                return
+        if (
+            caller_name == "rich" or (isinstance(node.func, astroid.Attribute) and "rich" in str(node.func.expr))
+        ) and func_name in ("print", "inspect", "Console"):
+            self._add_io_violation(node, f"rich.{func_name}", layer)
+            return
 
     def _is_exempt_io(self, node: astroid.nodes.Call) -> bool:
         """Check if the I/O call is made on an allowed interface."""
@@ -218,9 +226,8 @@ class DesignChecker(BaseChecker):
         allowed = self.config_loader.allowed_io_interfaces
 
         # Check by variable name (heuristic)
-        if isinstance(node.func.expr, astroid.Name):
-            if node.func.expr.name in allowed:
-                return True
+        if isinstance(node.func.expr, astroid.Name) and node.func.expr.name in allowed:
+            return True
 
         # Check by inferred type (precise)
         try:
@@ -244,20 +251,21 @@ class DesignChecker(BaseChecker):
         allowed_hint = ", ".join(list(self.config_loader.allowed_io_interfaces)[:2])
         self.add_message("illegal-io-operation", node=node, args=(operation, layer, allowed_hint))
 
-    def _match_none_check(self, test: astroid.NodeNG) -> str | None:
+    def _match_none_check(self, test: astroid.nodes.NodeNG) -> str | None:
         """Match 'var is None', 'var is not None', or 'not var'."""
         # Pattern 1: if var is None (astroid.Compare)
-        if isinstance(test, astroid.Compare) and len(test.ops) == 1:
-            op, comparator = test.ops[0]
-            if op in ("is", "is not"):
-                if isinstance(comparator, astroid.Const) and comparator.value is None:
-                    if isinstance(test.left, astroid.Name):
-                        return test.left.name
+        if isinstance(test, astroid.Compare) and len(test.ops) == 1 and test.ops[0][0] in ("is", "is not"):
+            _op, comparator = test.ops[0]
+            if (
+                isinstance(comparator, astroid.Const)
+                and comparator.value is None
+                and isinstance(test.left, astroid.Name)
+            ):
+                return test.left.name
 
         # Pattern 2: if not var (astroid.UnaryOp)
-        if isinstance(test, astroid.UnaryOp) and test.op == "not":
-            if isinstance(test.operand, astroid.Name):
-                return test.operand.name
+        if isinstance(test, astroid.UnaryOp) and test.op == "not" and isinstance(test.operand, astroid.Name):
+            return test.operand.name
 
         return None
 
@@ -288,31 +296,38 @@ class DesignChecker(BaseChecker):
             pass
         return False
 
-    def _is_infrastructure_inferred(self, inferred):
+    def _is_infrastructure_inferred(self, inferred) -> bool:
         """Check if an inferred node defines comes from infrastructure module."""
         if inferred is astroid.Uninferable:
             return False
 
-        # Check root module
-        root = inferred.root()
-        if hasattr(root, "name"):
-            root_name = root.name
-            for infra_mod in self.infrastructure_modules:
-                if root_name == infra_mod or root_name.startswith(infra_mod + "."):
-                    return True
+        # 1. Check root module
+        if self._is_infra_root(inferred.root()):
+            return True
 
-        # Check ancestors
-        if hasattr(inferred, "ancestors"):
-            for ancestor in inferred.ancestors():
-                # Checking ancestor names (heuristic)
-                if ancestor.name in self.raw_types:
-                    return True
+        # 2. Check ancestors
+        return self._has_infra_ancestor(inferred)
 
-                # Checking ancestor module definitions (precise)
-                ancestor_root = ancestor.root()
-                if hasattr(ancestor_root, "name"):
-                    anc_root_name = ancestor_root.name
-                    for infra_mod in self.infrastructure_modules:
-                        if anc_root_name == infra_mod or anc_root_name.startswith(infra_mod + "."):
-                            return True
+    def _is_infra_root(self, root) -> bool:
+        """Check if root module is in infrastructure list."""
+        if not hasattr(root, "name"):
+            return False
+        root_name = root.name
+        for infra_mod in self.infrastructure_modules:
+            if root_name == infra_mod or root_name.startswith(infra_mod + "."):
+                return True
+        return False
+
+    def _has_infra_ancestor(self, inferred) -> bool:
+        """Check if any ancestor comes from infrastructure."""
+        if not hasattr(inferred, "ancestors"):
+            return False
+        for ancestor in inferred.ancestors():
+            # Checking ancestor names (heuristic)
+            if ancestor.name in self.raw_types:
+                return True
+
+            # Checking ancestor module definitions (precise)
+            if self._is_infra_root(ancestor.root()):
+                return True
         return False
