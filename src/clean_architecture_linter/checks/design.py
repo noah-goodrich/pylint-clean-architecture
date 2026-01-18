@@ -144,7 +144,7 @@ class DesignChecker(BaseChecker):
             return
 
         # Check if the body contains a raise statement (heuristic for "defensive")
-        has_raise = any(isinstance(stmt, astroid.Raise) for stmt in node.body)
+        has_raise = any(isinstance(stmt, astroid.nodes.Raise) for stmt in node.body)
 
         if has_raise:
             self.add_message("defensive-none-check", node=node, args=(var_name, layer))
@@ -184,12 +184,12 @@ class DesignChecker(BaseChecker):
         is_method_call = False
         caller_name = ""
 
-        if isinstance(node.func, astroid.Name):
+        if isinstance(node.func, astroid.nodes.Name):
             func_name = node.func.name
-        elif isinstance(node.func, astroid.Attribute):
+        elif isinstance(node.func, astroid.nodes.Attribute):
             func_name = node.func.attrname
             is_method_call = True
-            if isinstance(node.func.expr, astroid.Name):
+            if isinstance(node.func.expr, astroid.nodes.Name):
                 caller_name = node.func.expr.name
 
         # 1. Check for print()
@@ -213,20 +213,20 @@ class DesignChecker(BaseChecker):
 
         # 3. Check for rich
         if (
-            caller_name == "rich" or (isinstance(node.func, astroid.Attribute) and "rich" in str(node.func.expr))
+            caller_name == "rich" or (isinstance(node.func, astroid.nodes.Attribute) and "rich" in str(node.func.expr))
         ) and func_name in ("print", "inspect", "Console"):
             self._add_io_violation(node, f"rich.{func_name}", layer)
             return
 
     def _is_exempt_io(self, node: astroid.nodes.Call) -> bool:
         """Check if the I/O call is made on an allowed interface."""
-        if not isinstance(node.func, astroid.Attribute):
+        if not isinstance(node.func, astroid.nodes.Attribute):
             return False
 
         allowed = self.config_loader.allowed_io_interfaces
 
         # Check by variable name (heuristic)
-        if isinstance(node.func.expr, astroid.Name) and node.func.expr.name in allowed:
+        if isinstance(node.func.expr, astroid.nodes.Name) and node.func.expr.name in allowed:
             return True
 
         # Check by inferred type (precise)
@@ -254,17 +254,20 @@ class DesignChecker(BaseChecker):
     def _match_none_check(self, test: astroid.nodes.NodeNG) -> str | None:
         """Match 'var is None', 'var is not None', or 'not var'."""
         # Pattern 1: if var is None (astroid.Compare)
-        if isinstance(test, astroid.Compare) and len(test.ops) == 1 and test.ops[0][0] in ("is", "is not"):
+        if isinstance(test, astroid.nodes.Compare) and len(test.ops) == 1 and test.ops[0][0] in ("is", "is not"):
             _op, comparator = test.ops[0]
             if (
-                isinstance(comparator, astroid.Const)
+                isinstance(comparator, astroid.nodes.Const)
                 and comparator.value is None
-                and isinstance(test.left, astroid.Name)
+                and isinstance(test.left, astroid.nodes.Name)
             ):
                 return test.left.name
 
-        # Pattern 2: if not var (astroid.UnaryOp)
-        if isinstance(test, astroid.UnaryOp) and test.op == "not" and isinstance(test.operand, astroid.Name):
+        if (
+            isinstance(test, astroid.nodes.UnaryOp)
+            and test.op == "not"
+            and isinstance(test.operand, astroid.nodes.Name)
+        ):
             return test.operand.name
 
         return None

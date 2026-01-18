@@ -19,8 +19,8 @@ class PatternChecker(BaseChecker):
     def __init__(self, linter=None):
         self.msgs = {
             "W9005": (
-                "Delegation Anti-Pattern: %s Clean Fix: Implement logic in the delegate or "
-                "use a Map/Dictionary lookup.",
+                "Delegation Anti-Pattern: %s "
+                "Clean Fix: Implement logic in the delegate or use a Map/Dictionary lookup.",
                 "clean-arch-delegation",
                 "If/elif chains that only delegate should use Strategy or Handler patterns.",
             ),
@@ -96,7 +96,7 @@ class CouplingChecker(BaseChecker):
                 "Law of Demeter: Chain access (%s) exceeds one level. Create delegated method. "
                 "Clean Fix: Add a method to the immediate object that performs the operation.",
                 "clean-arch-demeter",
-                "Objects should only talk to immediate friends (no .a.b.c chains).",
+                "OBJECTS SHOULD NOT EXPOSE INTERNALS. Violating Demeter (a.b.c) couples code to structure.",
             ),
         }
         super().__init__(linter)
