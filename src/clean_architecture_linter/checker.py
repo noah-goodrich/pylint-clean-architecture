@@ -22,6 +22,9 @@ from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
 
 def register(linter: PyLinter) -> None:
     """Register checkers."""
+    from clean_architecture_linter.constants import EXCELSIOR_BANNER
+
+    print(EXCELSIOR_BANNER)
 
     linter.register_checker(VisibilityChecker(linter))
     linter.register_checker(ResourceChecker(linter))

@@ -25,9 +25,15 @@ class TelemetryPort(Protocol):
 
     def confirm(self, prompt: str, default: bool = True) -> bool: ...
 
+    def warning(self, msg: str) -> None: ...
+
+    def debug(self, msg: str) -> None: ...
+
 
 class ProjectTelemetry(TelemetryPort):
     """Unified telemetry for use cases."""
+
+    __fleet_component__ = True
 
     def __init__(self, project_name: str, color: str, welcome_msg: str):
         self.project_name = project_name
@@ -75,3 +81,12 @@ class ProjectTelemetry(TelemetryPort):
     def confirm(self, prompt: str, default: bool = True) -> bool:
         """Prompt user for confirmation."""
         return Confirm.ask(f"[{self.color}]?[/] {prompt}", default=default, console=self.console)
+
+    def warning(self, msg: str):
+        """Log a warning."""
+        self.console.print(f"[yellow]![/] [bold yellow]Warning:[/] {msg}")
+        self.logger.warning(msg)
+
+    def debug(self, msg: str):
+        """Log a debug message."""
+        self.logger.debug(msg)

@@ -124,3 +124,10 @@ shared_kernel_modules = ["clean_architecture_linter.interface.telemetry"]
 "clean_architecture_linter.layer_registry" = "Domain"
 "clean_architecture_linter.checker" = "Interface"
 "clean_architecture_linter.reporter" = "Interface"
+
+[tool.coverage.run]
+source = ["clean_architecture_linter"]
+omit = [
+    "**/tests/**",
+    "**/telemetry.py",
+]
