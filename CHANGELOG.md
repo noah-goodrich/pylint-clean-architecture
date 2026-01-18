@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.5.2 (2026-01-18)
+
+### Bug Fixes
+
+- I honestly don't remember
+  ([`90e213c`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/90e213c4686fbdf0c77828cfb7b3f7f5b2338bf8))
+
+### Chores
+
+- Add MIT license
+  ([`c2e5870`](https://github.com/noah-goodrich/pylint-clean-architecture/commit/c2e5870f3b1e17da8b8bd563fac277b093059696))
+
+
 ## v1.5.1 (2026-01-16)
 
 ### Bug Fixes
