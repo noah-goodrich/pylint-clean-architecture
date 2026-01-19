@@ -1,7 +1,10 @@
 """Anti-Bypass Guard checks (W9501)."""
 
 import tokenize
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
+
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
 
 from pylint.checkers import BaseTokenChecker
 
@@ -13,14 +16,14 @@ class BypassChecker(BaseTokenChecker):
 
     name = "clean-arch-bypass"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9501": (
                 "Anti-Bypass Violation: %s detected. %s Clean Fix: Justify with '# JUSTIFICATION: <reason>' or "
                 "resolve the architectural issue.",
                 "anti-bypass-violation",
                 "Module-level disables or unjustified complexity disables are forbidden.",
-            ),
+            )
         }
         super().__init__(linter)
 
@@ -30,7 +33,7 @@ class BypassChecker(BaseTokenChecker):
         "trailing-whitespace",
     }
 
-    def process_tokens(self, tokens):
+    def process_tokens(self, tokens: list[tokenize.TokenInfo]) -> None:
         """Scan tokens for forbidden pylint: disable comments."""
         lines = {}
         for tok_type, tok_string, start, _, line_content in tokens:
@@ -39,7 +42,7 @@ class BypassChecker(BaseTokenChecker):
                 lines[lineno] = line_content
                 self._check_comment(tok_string, lineno, line_content, lines)
 
-    def _check_comment(self, tok_string, lineno, line_content, lines):
+    def _check_comment(self, tok_string: str, lineno: int, line_content: str, lines: dict[int, str]) -> None:
         """Check a single comment for bypass violations."""
         if "pylint:" not in tok_string or "disable=" not in tok_string:
             return
@@ -72,7 +75,7 @@ class BypassChecker(BaseTokenChecker):
         "passing the linter",
     }
 
-    def _check_justification(self, forbidden, lineno, lines):
+    def _check_justification(self, forbidden: str, lineno: int, lines: dict[int, str]) -> None:
         """Ensure forbidden disable is justified on previous line."""
         prev_lineno = lineno - 1
         justified = False

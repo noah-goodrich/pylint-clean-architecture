@@ -13,3 +13,40 @@ _EXCELSIOR_ART = r"""
 /_____//_/|_\____/_____/_____/____/___/\____/_/ |_|
 """
 EXCELSIOR_BANNER = _RED + _EXCELSIOR_ART + _RESET
+
+
+# Task 3: The Final Debt Purge - removing empty defaults as logic handles it now.
+
+DEFAULT_INTERNAL_MODULES = frozenset(
+    {
+        "domain"
+        "dto"
+        "use_cases"
+        "protocols"
+        "models"
+        "telemetry"
+        "results"
+        "entities"
+        "policies"
+        "interfaces"
+        "exceptions"
+        "types"
+    }
+)
+
+BUILTIN_TYPE_MAP = {
+    "str": "builtins.str",
+    "int": "builtins.int",
+    "float": "builtins.float",
+    "bool": "builtins.bool",
+    "bytes": "builtins.bytes",
+    "list": "builtins.list",
+    "dict": "builtins.dict",
+    "tuple": "builtins.tuple",
+    "set": "builtins.set",
+    "Optional": "builtins.Optional",
+    "Union": "builtins.Union",
+    "List": "builtins.list",
+    "Dict": "builtins.dict",
+    "Set": "builtins.set",
+}

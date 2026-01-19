@@ -2,7 +2,12 @@
 
 # AST checks often violate Demeter by design
 
+from typing import TYPE_CHECKING, Optional, Union
+
 import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -14,7 +19,7 @@ class DesignChecker(BaseChecker):
 
     name = "clean-arch-design"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9012": (
                 "Defensive None Check: '%s' checked for None in %s layer. Validation belongs in Interface layer. "
@@ -46,20 +51,32 @@ class DesignChecker(BaseChecker):
                 "template-drift-check",
                 "Ensures all telemetry adapters follow the standardized version for Fleet stabilization.",
             ),
+            "W9015": (
+                "Missing Type Hint: %s in %s signature. "
+                "Clean Fix: Add explicit type hints to all parameters and the return value.",
+                "missing-type-hint",
+                "All function and method signatures must be fully type-hinted for robust architecture checks.",
+            ),
+            "W9016": (
+                "Banned Any: Explicit use of 'Any' detected in %s. "
+                "Clean Fix: Use the Narrowest Possible Type (e.g., list[str], dict[str, set[str]]).",
+                "banned-any-usage",
+                "Engineering Excellence standards reject 'Any'. Use specific types for architectural intelligence.",
+            ),
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
     @property
-    def raw_types(self):
+    def raw_types(self) -> set[str]:
         """Get combined set of default and configured raw types."""
-        defaults = {"Cursor", "Session", "Response", "Engine", "Connection", "Result"}
+        defaults: set[str] = {"Cursor", "Session", "Response", "Engine", "Connection", "Result"}
         return defaults.union(self.config_loader.raw_types)
 
     @property
-    def infrastructure_modules(self):
+    def infrastructure_modules(self) -> set[str]:
         """Get combined set of default and configured infrastructure modules."""
-        defaults = {
+        defaults: set[str] = {
             "sqlalchemy",
             "requests",
             "psycopg2",
@@ -72,12 +89,12 @@ class DesignChecker(BaseChecker):
         }
         return defaults.union(self.config_loader.infrastructure_modules)
 
-    def visit_return(self, node):
+    def visit_return(self, node: astroid.nodes.Return) -> None:
         """W9007: Flag raw I/O object returns."""
         if not node.value:
             return
 
-        type_name = self._get_inferred_type_name(node.value)
+        type_name: Optional[str] = self._get_inferred_type_name(node.value)
         if type_name in self.raw_types:
             self.add_message("naked-return-violation", node=node, args=(type_name,))
             return
@@ -86,10 +103,10 @@ class DesignChecker(BaseChecker):
         if self._is_infrastructure_type(node.value) and type_name:
             self.add_message("naked-return-violation", node=node, args=(type_name,))
 
-    def visit_assign(self, node):
+    def visit_assign(self, node: astroid.nodes.Assign) -> None:
         """W9009: Flag references to raw infrastructure types in UseCase layer."""
         root = node.root()
-        file_path = getattr(root, "file", "")
+        file_path: str = getattr(root, "file", "")
         current_module = root.name
         layer = self.config_loader.get_layer_for_module(current_module, file_path)
 
@@ -102,7 +119,7 @@ class DesignChecker(BaseChecker):
                 if inferred is astroid.Uninferable:
                     continue
 
-                type_name = getattr(inferred, "name", "")
+                type_name: str = getattr(inferred, "name", "")
 
                 # Check for raw types by name (heuristic)
                 if type_name in self.raw_types or (type_name and type_name.endswith("Client")):
@@ -128,10 +145,99 @@ class DesignChecker(BaseChecker):
         except astroid.InferenceError:
             pass
 
+    def visit_functiondef(self, node: astroid.nodes.FunctionDef) -> None:
+        """W9015: Flag missing type hints in function signatures."""
+        # 1. Check Return Type Hint
+        if not node.returns:
+            self.add_message("missing-type-hint", node=node, args=("return type", node.name))
+
+        # 2. Check Parameter Type Hints
+        args = node.args
+        # Skip 'self' and 'cls' for methods
+        for i, arg in enumerate(args.args):
+            # Heuristic for self/cls
+            if i == 0 and node.is_method() and arg.name in ("self", "cls"):
+                continue
+
+            # Check for annotation in args.annotations
+            # astroid.Arguments.annotations corresponds to args.args index
+            arg_has_hint = False
+            if i < len(args.annotations) and args.annotations[i]:
+                arg_has_hint = True
+
+            # Fallback check on the node itself (AnnAssign/AssignName might have it)
+            if not arg_has_hint and hasattr(arg, "annotation") and arg.annotation:
+                arg_has_hint = True
+
+            if not arg_has_hint:
+                self.add_message("missing-type-hint", node=node, args=(f"parameter '{arg.name}'", node.name))
+
+        # 3. Check *args and **kwargs
+        if args.vararg and not args.varargannotation:
+            self.add_message("missing-type-hint", node=node, args=(f"vararg '*{args.vararg}'", node.name))
+        if args.kwarg and not args.kwargannotation:
+            self.add_message("missing-type-hint", node=node, args=(f"kwarg '**{args.kwarg}'", node.name))
+
+        # 4. Check for 'Any' in annotations
+        self._check_for_any_in_signature(node)
+
+    def _check_for_any_in_signature(self, node: astroid.nodes.FunctionDef) -> None:
+        """Check all annotations in a function signature for 'Any'."""
+        # Check return type
+        if node.returns:
+            self._check_node_for_any(node.returns, f"return type of '{node.name}'")
+
+        # Check arguments
+        args = node.args
+        for i, arg in enumerate(args.args):
+            if i == 0 and node.is_method() and arg.name in ("self", "cls"):
+                continue
+            if i < len(args.annotations) and args.annotations[i]:
+                self._check_node_for_any(args.annotations[i], f"parameter '{arg.name}'")
+
+        if args.varargannotation:
+            self._check_node_for_any(args.varargannotation, f"vararg '*{args.vararg}'")
+        if args.kwargannotation:
+            self._check_node_for_any(args.kwargannotation, f"kwarg '**{args.kwarg}'")
+
+    def _check_node_for_any(self, node: astroid.nodes.NodeNG, context: str) -> None:
+        """Recursively check an annotation node for 'Any'."""
+        found_any = False
+        if isinstance(node, astroid.nodes.Name) and node.name == "Any":
+            found_any = True
+        elif isinstance(node, astroid.nodes.Attribute) and node.attrname == "Any":
+            found_any = True
+        elif isinstance(node, astroid.nodes.Const) and node.value == "Any":
+            found_any = True
+        elif isinstance(node, astroid.nodes.Subscript):
+            self._check_node_for_any(node.value, context)
+            if node.slice:
+                self._check_node_for_any(node.slice, context)
+        elif isinstance(node, astroid.nodes.Tuple):
+            for element in node.elts:
+                self._check_node_for_any(element, context)
+
+        if found_any:
+            # Check for noqa exemption
+            if not self._is_any_exempted(node):
+                self.add_message("banned-any-usage", node=node, args=(context,))
+
+    def _is_any_exempted(self, node: astroid.nodes.NodeNG) -> bool:
+        """Check if W9016 is exempted via # noqa: W9016 with justification."""
+        # We need to check the comment on the same line or previous line
+        # BaseChecker doesn't give tokens easily, but we can check the source line
+        try:
+            line = node.root().stream().readlines()[node.lineno - 1].decode("utf-8")
+            if "noqa: W9016" in line and "JUSTIFICATION:" in line.upper():
+                return True
+        except (AttributeError, IndexError, IOError):
+            pass
+        return False
+
     def visit_if(self, node: astroid.nodes.If) -> None:
         """W9012: Visit if statement to find defensive None checks."""
         root = node.root()
-        file_path = getattr(root, "file", "")
+        file_path: str = getattr(root, "file", "")
         current_module = root.name
         layer = self.config_loader.get_layer_for_module(current_module, file_path)
 
@@ -173,7 +279,7 @@ class DesignChecker(BaseChecker):
     def visit_call(self, node: astroid.nodes.Call) -> None:
         """W9013: Flag illegal I/O operations in silent layers."""
         root = node.root()
-        file_path = getattr(root, "file", "")
+        file_path: str = getattr(root, "file", "")
         current_module = root.name
         layer = self.config_loader.get_layer_for_module(current_module, file_path)
 
@@ -246,12 +352,12 @@ class DesignChecker(BaseChecker):
 
         return False
 
-    def _add_io_violation(self, node, operation, layer):
+    def _add_io_violation(self, node: astroid.nodes.Call, operation: str, layer: str) -> None:
         """Add W9013 message."""
-        allowed_hint = ", ".join(list(self.config_loader.allowed_io_interfaces)[:2])
+        allowed_hint: str = ", ".join(list(self.config_loader.allowed_io_interfaces)[:2])
         self.add_message("illegal-io-operation", node=node, args=(operation, layer, allowed_hint))
 
-    def _match_none_check(self, test: astroid.nodes.NodeNG) -> str | None:
+    def _match_none_check(self, test: astroid.nodes.NodeNG) -> Optional[str]:
         """Match 'var is None', 'var is not None', or 'not var'."""
         # Pattern 1: if var is None (astroid.Compare)
         if isinstance(test, astroid.nodes.Compare) and len(test.ops) == 1 and test.ops[0][0] in ("is", "is not"):
@@ -272,7 +378,7 @@ class DesignChecker(BaseChecker):
 
         return None
 
-    def _get_inferred_type_name(self, node):
+    def _get_inferred_type_name(self, node: astroid.nodes.NodeNG) -> Optional[str]:
         """Get type name via inference if possible, else fallback to name."""
         try:
             for inferred in node.infer():
@@ -289,7 +395,7 @@ class DesignChecker(BaseChecker):
                 return node.func.attrname
         return getattr(node, "name", None)
 
-    def _is_infrastructure_type(self, node):
+    def _is_infrastructure_type(self, node: astroid.nodes.NodeNG) -> bool:
         """Check if node infers to a type defined in an infrastructure module."""
         try:
             for inferred in node.infer():
@@ -299,7 +405,7 @@ class DesignChecker(BaseChecker):
             pass
         return False
 
-    def _is_infrastructure_inferred(self, inferred) -> bool:
+    def _is_infrastructure_inferred(self, inferred: Union[astroid.nodes.NodeNG, astroid.bases.Proxy]) -> bool:
         """Check if an inferred node defines comes from infrastructure module."""
         if inferred is astroid.Uninferable:
             return False
@@ -311,17 +417,17 @@ class DesignChecker(BaseChecker):
         # 2. Check ancestors
         return self._has_infra_ancestor(inferred)
 
-    def _is_infra_root(self, root) -> bool:
+    def _is_infra_root(self, root: astroid.nodes.Module) -> bool:
         """Check if root module is in infrastructure list."""
         if not hasattr(root, "name"):
             return False
-        root_name = root.name
+        root_name: str = root.name
         for infra_mod in self.infrastructure_modules:
             if root_name == infra_mod or root_name.startswith(infra_mod + "."):
                 return True
         return False
 
-    def _has_infra_ancestor(self, inferred) -> bool:
+    def _has_infra_ancestor(self, inferred: Union[astroid.nodes.NodeNG, astroid.bases.Proxy]) -> bool:
         """Check if any ancestor comes from infrastructure."""
         if not hasattr(inferred, "ancestors"):
             return False

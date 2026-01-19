@@ -2,7 +2,12 @@
 
 # AST checks often violate Demeter by design
 
+from typing import TYPE_CHECKING, Optional
+
 import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
 _MOCK_LIMIT = 4
@@ -13,7 +18,7 @@ class TestingChecker(BaseChecker):
 
     name = "clean-arch-testing"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9101": (
                 "Fragile Test: %d mocks exceed limit of 4. Inject single Protocol instead. "
@@ -33,7 +38,7 @@ class TestingChecker(BaseChecker):
         self._mock_count = 0
         self._current_function = None
 
-    def visit_functiondef(self, node):
+    def visit_functiondef(self, node: astroid.nodes.FunctionDef) -> None:
         """Track function entry and reset mock count."""
         # Only check test functions
         if not node.name.startswith("test_"):
@@ -42,11 +47,14 @@ class TestingChecker(BaseChecker):
         self._current_function = node
         self._mock_count = 0
 
-    def leave_functiondef(self, _):
+    def leave_functiondef(self, _: astroid.nodes.FunctionDef) -> None:
         """Check mock count when leaving test function."""
+        if not self._current_function:
+            return
+
+        name: str = self._current_function.name
         if (
-            self._current_function
-            and self._current_function.name.startswith("test_")
+            name.startswith("test_")
             and self._mock_count > _MOCK_LIMIT
         ):
             self.add_message(
@@ -57,21 +65,21 @@ class TestingChecker(BaseChecker):
         self._current_function = None
         self._mock_count = 0
 
-    def visit_call(self, node):
+    def visit_call(self, node: astroid.nodes.Call) -> None:
         """Detect mock.patch calls and private method calls."""
-        call_name = self._get_full_call_name(node)
+        call_name: Optional[str] = self._get_full_call_name(node)
         if not call_name:
             return
 
         self._check_mock_usage(node, call_name)
         self._check_private_method_call(node, call_name)
 
-    def _check_mock_usage(self, _, call_name):
+    def _check_mock_usage(self, _: astroid.nodes.Call, call_name: str) -> None:
         """W9101: Check mock usage."""
         if "patch" in call_name or "Mock" in call_name:
             self._mock_count += 1
 
-    def _check_private_method_call(self, node, call_name):
+    def _check_private_method_call(self, node: astroid.nodes.Call, call_name: str) -> None:
         """W9102: Detect private method calls on SUT."""
         if not self._current_function:
             return
@@ -84,7 +92,7 @@ class TestingChecker(BaseChecker):
             # Check if this is a method call (has receiver)
             self.add_message("private-method-test", node=node, args=(call_name,))
 
-    def _get_full_call_name(self, node):
+    def _get_full_call_name(self, node: astroid.nodes.Call) -> Optional[str]:
         """Get the full name of a call."""
         if hasattr(node.func, "attrname"):
             return node.func.attrname

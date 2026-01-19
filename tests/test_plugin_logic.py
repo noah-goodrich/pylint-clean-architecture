@@ -145,4 +145,4 @@ def get_stuff(obj):
 
     output = run_pylint(f, test_env)
     assert "W9006" in output
-    assert "clean-arch-demeter" in output
+    assert "law-of-demeter" in output

@@ -1,4 +1,4 @@
-from typing import Any
+# No imports needed for Any removal if we use object
 
 from ..interface.telemetry import ProjectTelemetry
 
@@ -12,10 +12,10 @@ class ExcelsiorContainer:
         telemetry = ProjectTelemetry(project_name, color, welcome_msg)
         self.register_singleton("TelemetryPort", telemetry)
 
-    def register_singleton(self, key: str, instance: Any):
+    def register_singleton(self, key: str, instance: object):
         self._singletons[key] = instance
 
-    def get(self, key: str) -> Any:
+    def get(self, key: str) -> object:
         if key in self._singletons:
             return self._singletons[key]
         raise ValueError(f"Dependency '{key}' not registered.")

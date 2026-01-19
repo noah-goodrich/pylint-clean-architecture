@@ -1,6 +1,11 @@
 """Domain Immutability checks (W9401)."""
 
-import astroid
+from typing import TYPE_CHECKING, Optional
+
+import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -12,19 +17,19 @@ class ImmutabilityChecker(BaseChecker):
 
     name = "clean-arch-immutability"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9401": (
                 "Domain Mutability Violation: Class %s must be immutable. Use @dataclass(frozen=True). Clean Fix: Add "
                 "(frozen=True) to the @dataclass decorator.",
                 "domain-mutability-violation",
                 "Classes in domain/entities.py or decorated with @dataclass must use (frozen=True).",
-            ),
+            )
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
-    def visit_classdef(self, node):
+    def visit_classdef(self, node: astroid.nodes.ClassDef) -> None:
         """
         Check for domain entity immutability.
         """
@@ -64,7 +69,7 @@ class ImmutabilityChecker(BaseChecker):
             # Unless there is a very strong reason.
             self.add_message("domain-mutability-violation", node=node, args=(node.name,))
 
-    def _is_dataclass_decorator(self, node):
+    def _is_dataclass_decorator(self, node: astroid.nodes.NodeNG) -> bool:
         """Check if decorator is @dataclass."""
         if isinstance(node, astroid.nodes.Name):
             return node.name == "dataclass"
@@ -78,7 +83,7 @@ class ImmutabilityChecker(BaseChecker):
                 return func.attrname == "dataclass"
         return False
 
-    def _is_frozen_dataclass(self, node):
+    def _is_frozen_dataclass(self, node: astroid.nodes.NodeNG) -> bool:
         """Check if @dataclass(frozen=True) is used."""
         if not isinstance(node, astroid.nodes.Call):
             return False  # Bare @dataclass is not frozen by default

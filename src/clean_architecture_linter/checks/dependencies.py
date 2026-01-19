@@ -1,7 +1,11 @@
 """Dependency checks (W9010)."""
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
 
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
+
+import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -13,14 +17,14 @@ class DependencyChecker(BaseChecker):
 
     name = "clean-arch-dependency"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9001": (
                 "Illegal Dependency: %s layer is imported by %s layer. Clean Fix: Invert dependency using an "
                 "Interface/Protocol in the Domain layer.",
                 "clean-arch-dependency",
                 "Inner layers (Domain, UseCase) strictly cannot import from Outer layers.",
-            ),
+            )
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
@@ -39,19 +43,19 @@ class DependencyChecker(BaseChecker):
         },
     }
 
-    def visit_import(self, node):
+    def visit_import(self, node: astroid.nodes.Import) -> None:
         """Check direct imports: import x.y"""
         for name, _ in node.names:
             self._check_import(node, name)
 
-    def visit_importfrom(self, node):
+    def visit_importfrom(self, node: astroid.nodes.ImportFrom) -> None:
         """Check from imports: from x import y"""
         self._check_import(node, node.modname)
 
-    def _check_import(self, node, import_name):
+    def _check_import(self, node: astroid.nodes.Import, import_name: str) -> None:
         # 1. Determine Current Layer
         root = node.root()
-        current_file = getattr(root, "file", "")
+        current_file: str = getattr(root, "file", "")
         # Fallback to module name if file not available (e.g. in tests)
         current_module = root.name
 
@@ -82,8 +86,6 @@ class DependencyChecker(BaseChecker):
         if not imported_layer:
             return  # Library or unknown module
 
-        if current_layer == imported_layer:
-            return  # Intra-layer imports are OK
         if current_layer == imported_layer:
             return  # Intra-layer imports are OK
 

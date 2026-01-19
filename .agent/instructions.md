@@ -30,6 +30,12 @@ Inner layers (Domain, UseCase) **MUST NOT** import from Outer layers (Infrastruc
 ## Design Rules
 
 *   **Justify Bypasses**: If you must disable a linter rule, add a `# JUSTIFICATION: ...` comment.
+*   **Law of Demeter**:
+    *   Prefer Type Hints for LoD compliance.
+    *   Chaining is permitted on methods returning primitives or members of allowed modules (e.g. `pathlib`).
+    *   Avoid manual method-name overrides in configuration unless absolutely necessary.
+*   **Discovery over Hardcoding**:
+    *   **Never manually map method names to types.** Always use AST discovery or type hints to propagate types through a chain.
 
 ## Helper Command
 

@@ -2,7 +2,9 @@
 
 import sys
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar, Optional, Union
+
+import astroid  # type: ignore[import-untyped]
 
 if sys.version_info >= (3, 11):
     import tomllib as toml_lib
@@ -23,11 +25,11 @@ class ConfigurationLoader:
     Looks for [tool.clean-arch] section.
     """
 
-    _instance: ClassVar[Any] = None
-    _config: ClassVar[dict[str, Any]] = {}
-    _registry: ClassVar[LayerRegistry | None] = None
+    _instance: ClassVar[Optional["ConfigurationLoader"]] = None
+    _config: ClassVar[dict[str, object]] = {}
+    _registry: ClassVar[Optional[LayerRegistry]] = None
 
-    def __new__(cls):
+    def __new__(cls) -> "ConfigurationLoader":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.load_config()
@@ -38,8 +40,8 @@ class ConfigurationLoader:
             # Config format: [tool.clean-arch.layer_map]
             # Key = Layer Name (e.g. "Infrastructure"), Value = Directory/Suffix (e.g. "gateways")
             # We need to flip this for LayerRegistry: Pattern -> Layer Name
-            raw_layer_map = cls._config.get("layer_map", {})
-            directory_map_override = {}
+            raw_layer_map: dict[str, object] = cls._config.get("layer_map", {})
+            directory_map_override: dict[str, str] = {}
 
             for layer_name, pattern_or_list in raw_layer_map.items():
                 if isinstance(pattern_or_list, list):
@@ -90,14 +92,35 @@ class ConfigurationLoader:
 
                         # JUSTIFICATION: Internal access to static configuration singleton
                         if ConfigurationLoader._config:  # pylint: disable=clean-arch-visibility
+                            self.validate_config(ConfigurationLoader._config)
                             return
                 except OSError:
                     # Keep looking in parent dirs
                     pass
             current_path = current_path.parent
 
+    def validate_config(self, config: dict[str, object]) -> None:
+        """Validate configuration values."""
+        allowed_methods = config.get("allowed_lod_methods", [])
+        if not isinstance(allowed_methods, (list, set)):
+            return
+
+        for method in allowed_methods:
+            if not isinstance(method, str):
+                continue
+            # Task 3: Surgical FQN Overrides (Tier 3 Hardening)
+            # Every entry in allowed_lod_methods MUST be a Fully Qualified Name (FQN)
+            # with at least two dots (e.g., snowflake.snowpark.Table.collect).
+            if method.count(".") < 2:
+                error_msg = (
+                    f"Invalid LoD configuration: Method override '{method}' must use "
+                    "a Fully Qualified Name with at least two dots (e.g. 'builtins.str.split') "
+                    "to prevent global shadowing. Bare names like 'get' are rejected."
+                )
+                raise ValueError(error_msg)
+
     @property
-    def config(self) -> dict[str, Any]:
+    def config(self) -> dict[str, object]:
         """Return the loaded configuration."""
         # JUSTIFICATION: Exposing internal static configuration via instance property
         return ConfigurationLoader._config  # pylint: disable=clean-arch-visibility
@@ -118,14 +141,18 @@ class ConfigurationLoader:
     def get_layer_for_module(self, module_name: str, file_path: str = "") -> str | None:
         """Get the architectural layer for a module/file."""
         # Check explicit config first
-        if "layers" in self._config:
-            layers = sorted(
+        if "layers" in self._config and isinstance(self._config["layers"], list):
+            layers: list[dict[str, object]] = sorted(
                 self._config["layers"],
-                key=lambda x: len(x.get("module", "")),
+                key=lambda x: len(getattr(x, "get", lambda k, d: "")("module", "")),
                 reverse=True,
             )
             match = next(
-                (layer.get("name") for layer in layers if module_name.startswith(layer.get("module", ""))),
+                (
+                    getattr(layer, "get", lambda k: None)("name")
+                    for layer in layers
+                    if isinstance(layer, dict) and module_name.startswith(layer.get("module", ""))
+                ),
                 None,
             )
             if match:
@@ -146,6 +173,24 @@ class ConfigurationLoader:
         defaults = {"importlib", "pathlib", "ast", "os", "json", "yaml"}
         config_val = self._config.get("allowed_lod_roots", [])
         return defaults.union(set(config_val))
+
+    @property
+    def allowed_lod_modules(self) -> set[str]:
+        """Return allowed LoD modules from config."""
+        return set(self._config.get("allowed_lod_modules", []))
+
+    @property
+    def allowed_lod_methods(self) -> set[str]:
+        """Return allowed LoD methods from config."""
+        return set(self._config.get("allowed_lod_methods", []))
+
+    @property
+    def internal_modules(self) -> set[str]:
+        """Return list of internal modules (domain/use_cases etc) from config (merged with defaults)."""
+        from clean_architecture_linter.constants import DEFAULT_INTERNAL_MODULES
+
+        config_val = self._config.get("internal_modules", [])
+        return DEFAULT_INTERNAL_MODULES.union(set(config_val))
 
     @property
     def infrastructure_modules(self) -> set[str]:
@@ -176,18 +221,22 @@ class ConfigurationLoader:
         """Return list of modules considered Shared Kernel (allowed to be imported anywhere)."""
         return set(self._config.get("shared_kernel_modules", []))
 
-    def get_layer_for_class_node(self, node) -> str | None:
+    def get_layer_for_class_node(self, node: astroid.nodes.ClassDef) -> Optional[str]:
         """Delegate to registry for LoD compliance."""
         return self.registry.get_layer_for_class_node(node)
 
-    def resolve_layer(self, node_name: str, file_path: str, node=None) -> str | None:
+    def resolve_layer(
+        self, node_name: str, file_path: str, node: Optional[astroid.nodes.NodeNG] = None
+    ) -> Optional[str]:
         """Delegate to registry for LoD compliance."""
         return self.registry.resolve_layer(node_name, file_path, node=node)
 
 
-def _invert_map(config_map: dict[str, Any]) -> dict[str, str]:
+def _invert_map(config_map: Union[dict[str, object], object]) -> dict[str, str]:
     """Invert config map (Layer -> Items) to (Item -> Layer)."""
-    inverted = {}
+    inverted: dict[str, str] = {}
+    if not isinstance(config_map, dict):
+        return inverted
     for layer_name, item_or_list in config_map.items():
         if isinstance(item_or_list, list):
             for item in item_or_list:

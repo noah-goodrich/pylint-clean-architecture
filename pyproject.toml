@@ -90,7 +90,7 @@ load-plugins = ["clean_architecture_linter"]
 disable = ["all"]
 enable = [
     "clean-arch-delegation",
-    "clean-arch-demeter",
+    "law-of-demeter",
     "clean-arch-visibility",
     "clean-arch-resources",
     "clean-arch-bypass",
@@ -107,7 +107,6 @@ enable = [
 ]
 
 [tool.clean-arch]
-allowed_lod_roots = ["argparse", "pathlib", "astroid"]
 silent_layers = ["Domain", "UseCase"]
 allowed_io_interfaces = ["TelemetryPort", "UserInterfaceProtocol"]
 project_name = "EXCELSIOR"

@@ -3,7 +3,10 @@
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
+
+if TYPE_CHECKING:
+    import astroid
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +116,7 @@ class LayerRegistry:
         if self.project_type in presets:
             self.suffix_map.update(presets[self.project_type])
 
-    def get_layer_for_class_node(self, node) -> str | None:
+    def get_layer_for_class_node(self, node: Optional["astroid.nodes.ClassDef"]) -> str | None:
         """
         Get layer for a class node using name and inheritance.
         1. Check suffix match on class name.
@@ -131,7 +134,7 @@ class LayerRegistry:
         # 2. Inheritance Check
         return self.resolve_by_inheritance(node)
 
-    def resolve_by_inheritance(self, node) -> str | None:
+    def resolve_by_inheritance(self, node: Optional["astroid.nodes.ClassDef"]) -> str | None:
         """Resolve layer by checking base classes."""
         if not node:
             return None
@@ -147,7 +150,9 @@ class LayerRegistry:
             return None
         return None
 
-    def resolve_layer(self, node_name: str, file_path: str, node: Any | None = None) -> str | None:
+    def resolve_layer(
+        self, node_name: str, file_path: str, node: Optional["astroid.nodes.NodeNG"] = None
+    ) -> str | None:
         """
         Resolve the architectural layer for a node.
         """

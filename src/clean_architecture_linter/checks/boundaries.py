@@ -2,6 +2,12 @@
 
 # AST checks often violate Demeter by design
 
+from typing import TYPE_CHECKING, Optional
+
+import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -13,18 +19,18 @@ class VisibilityChecker(BaseChecker):
 
     name = "clean-arch-visibility"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9003": (
                 'Access to protected member "%s" from outer layer. Clean Fix: Expose public Interface or Use Case.',
                 "clean-arch-visibility",
                 "Protected members (_name) should not be accessed across layer boundaries.",
-            ),
+            )
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
-    def visit_attribute(self, node):
+    def visit_attribute(self, node: astroid.nodes.Attribute) -> None:
         """Check for protected member access."""
         if not self.config_loader.visibility_enforcement:
             return
@@ -42,20 +48,20 @@ class ResourceChecker(BaseChecker):
 
     name = "clean-arch-resources"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9004": (
                 "Forbidden I/O access (%s) in %s layer. Clean Fix: Move logic to Infrastructure "
                 "and inject via a Domain Protocol.",
                 "clean-arch-resources",
                 "Raw I/O operations are forbidden in UseCase and Domain layers.",
-            ),
+            )
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
     @property
-    def allowed_prefixes(self):
+    def allowed_prefixes(self) -> set[str]:
         """Get configured allowed prefixes."""
         # Default safe list
         defaults = {
@@ -82,18 +88,18 @@ class ResourceChecker(BaseChecker):
         configured = set(self.config_loader.config.get("allowed_prefixes", []))
         return defaults.union(configured)
 
-    def visit_import(self, node):
+    def visit_import(self, node: astroid.nodes.Import) -> None:
         """Check for forbidden imports."""
         self._check_import(node, [name for name, _ in node.names])
 
-    def visit_importfrom(self, node):
+    def visit_importfrom(self, node: astroid.nodes.ImportFrom) -> None:
         """Handle from x import y."""
         if node.modname:
             self._check_import(node, [node.modname])
 
-    def _check_import(self, node, names):
+    def _check_import(self, node: astroid.nodes.NodeNG, names: list[str]) -> None:
         root = node.root()
-        file_path = getattr(root, "file", "")
+        file_path: str = getattr(root, "file", "")
 
         # EXEMPTION: Tests are allowed to import anything
         # Check for /tests/ or /test/ in path (robust to OS separators), or module name
@@ -123,8 +129,9 @@ class ResourceChecker(BaseChecker):
         for name in names:
             # Check 1: Is it an internal module? (domain, dto, use_cases)
             # We assume internal modules match our layer naming conventions
+            # Check 1: Is it an internal module? (domain, dto, use_cases, etc)
             parts = name.split(".")
-            if any(p in parts for p in ("domain", "dto", "use_cases", "protocols", "models", "telemetry")):
+            if any(p in parts for p in self.config_loader.internal_modules):
                 continue
 
             # Check 2: Is it in the allowed prefixes list?

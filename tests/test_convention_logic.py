@@ -108,7 +108,7 @@ class SyncDataUseCase:
         # This implies we are getting a raw client instead of doing business logic via repo
         r = MockRepo()
         snowflake_client = r.get_snowflake_client()
-        snowflake_client.query("SELECT *") # pylint: disable=clean-arch-demeter
+        snowflake_client.query("SELECT *") # pylint: disable=law-of-demeter
 """
     result = run_pylint_on_snippet(f, snippet)
 

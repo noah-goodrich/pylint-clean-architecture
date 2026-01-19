@@ -4,10 +4,13 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.di.container import ExcelsiorContainer
+
+if TYPE_CHECKING:
+    from clean_architecture_linter.interface.telemetry import TelemetryPort
 
 AGENT_INSTRUCTIONS_TEMPLATE = (
     """# Architecture Instructions
@@ -52,6 +55,9 @@ Inner layers ({domain_layer}, {use_case_layer}) **MUST NOT** import from """
 
 *   **Avoid "Naked Returns"**: Repositories should return Domain Entities, not raw DB cursors or API responses.
 *   **No "Stranger" Chains**: Don't chain method calls too deeply.
+    *   *Prefer Type Hints for LoD compliance.*
+    *   *Chaining is permitted on methods returning primitives or members of allowed_lod_modules.*
+    *   *Avoid manual method-name overrides in configuration unless absolutely necessary.*
 *   **Justify Bypasses**: If you must disable a linter rule, add a `# JUSTIFICATION: ...` comment.
 
 ## Helper Command
@@ -97,7 +103,7 @@ BANNER = r"""
 """
 
 
-def init_command(telemetry: Any) -> None:
+def init_command(telemetry: "TelemetryPort") -> None:
     # Custom help with banner
     parser = argparse.ArgumentParser(
         description=f"{BANNER}\nEXCELSIOR: Clean Architecture Governance.",
@@ -152,7 +158,7 @@ def init_command(telemetry: Any) -> None:
     print("=" * 40 + "\n")
 
 
-def _check_layers(telemetry: Any) -> None:
+def _check_layers(telemetry: "TelemetryPort") -> None:
     """Verify and print active layers."""
 
     config = ConfigurationLoader().config
@@ -167,7 +173,7 @@ def _check_layers(telemetry: Any) -> None:
         telemetry.step(f"  {pattern} -> {layer}")
 
 
-def _generate_instructions(telemetry: Any, path: Path) -> None:
+def _generate_instructions(telemetry: "TelemetryPort", path: Path) -> None:
     # (Reuse existing logic or improved version)
     # Re-implementing logic to ensure consistency with imports if we move things around
 
@@ -198,7 +204,7 @@ def _generate_instructions(telemetry: Any, path: Path) -> None:
     telemetry.step(f"Generated: {path}")
 
 
-def _perform_tool_audit(telemetry: Any, template: str | None = None) -> None:
+def _perform_tool_audit(telemetry: "TelemetryPort", template: str | None = None) -> None:
     """Scan for other tools and configure Mode."""
     pyproject_path = Path("pyproject.toml")
     if not pyproject_path.exists():
@@ -231,7 +237,7 @@ def _perform_tool_audit(telemetry: Any, template: str | None = None) -> None:
         print(json.dumps(new_data["tool"]["clean-arch"], indent=2))
 
 
-def _load_pyproject(path: Path) -> dict[str, Any] | None:
+def _load_pyproject(path: Path) -> dict[str, object] | None:
     """Load and parse pyproject.toml."""
     try:
         # JUSTIFICATION: Optional dependency lazy load
@@ -246,7 +252,7 @@ def _load_pyproject(path: Path) -> dict[str, Any] | None:
     return None
 
 
-def _apply_template_updates(data: dict[str, Any], template: str) -> None:
+def _apply_template_updates(data: dict[str, object], template: str) -> None:
     """Apply template-specific updates to the config dict."""
     clean_arch = data["tool"]["clean-arch"]
     if template == "fastapi":
@@ -260,7 +266,7 @@ def _apply_template_updates(data: dict[str, Any], template: str) -> None:
         )
 
 
-def _print_architecture_only_mode_advice(telemetry: Any, found_tools: set[str]) -> None:
+def _print_architecture_only_mode_advice(telemetry: "TelemetryPort", found_tools: set[str]) -> None:
     """Print advice for Architecture-Only Mode."""
     telemetry.step(f"Detected style tools: {', '.join(found_tools)}. Enabling Architecture-Only Mode.")
     print("\n[RECOMMENDED ACTION] Add this to pyproject.toml to disable conflicting style checks:")

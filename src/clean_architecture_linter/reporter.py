@@ -1,7 +1,7 @@
 """Custom Pylint reporter for Snowarch summary table."""
 
 from collections import defaultdict
-from typing import Any
+from typing import Union
 
 from pylint.message import Message
 from pylint.reporters import BaseReporter
@@ -52,7 +52,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
 
     def _collect_stats(self):
         """Aggregate error statistics."""
-        errors: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict(int))
+        errors: dict[str, dict[str, Union[int, str]]] = defaultdict(lambda: defaultdict(int))
         packages = set()
 
         for msg in self.messages:
@@ -103,9 +103,9 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         sorted_errors = sorted(errors.items(), key=lambda x: x[1]["total"], reverse=True)
         for msg_id, details in sorted_errors:
             row = [
-                f"{self.RED}{msg_id}{self.RESET}",
-                f"{self.WARP}{details['name']}{self.RESET}",
-                f"{self.BOLD}{details['total']}{self.RESET}",
+                f"{self.RED}{msg_id}{self.RESET}"
+                f"{self.WARP}{details['name']}{self.RESET}"
+                f"{self.BOLD}{details['total']}{self.RESET}"
             ]
             for pkg in sorted_packages:
                 count = details.get(pkg, 0)

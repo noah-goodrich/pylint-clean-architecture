@@ -80,7 +80,7 @@ class DeployCommand:
     res = run_pylint(f)
     print(res.stdout)
     assert "W9006" in res.stdout
-    assert "clean-arch-demeter" in res.stdout
+    assert "law-of-demeter" in res.stdout
 
 
 def test_bad_return(tmp_path):
@@ -132,7 +132,7 @@ class SyncUseCase:
         # Ideally, we just use the classes defined above.
         r = MockRepo()
         snowflake_client = r.get_snowflake_client()
-        snowflake_client.query("SELECT 1") # pylint: disable=clean-arch-demeter
+        snowflake_client.query("SELECT 1") # pylint: disable=law-of-demeter
 """
     )
 

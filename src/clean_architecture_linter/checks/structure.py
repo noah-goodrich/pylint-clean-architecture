@@ -1,8 +1,13 @@
 """Module structure checks (W9010, W9011)."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 # AST checks often violate Demeter by design
+import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
@@ -18,7 +23,7 @@ class ModuleStructureChecker(BaseChecker):
 
     name = "clean-arch-structure"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9010": (
                 "God File detected: %s. Clean Fix: Split into separate files.",
@@ -37,11 +42,11 @@ class ModuleStructureChecker(BaseChecker):
         self.current_layer_types = set()
         self.heavy_component_count = 0
 
-    def open(self):
+    def open(self) -> None:
         """Called when starting to process a file."""
         self.config_loader.load_config()
 
-    def visit_module(self, node):
+    def visit_module(self, node: astroid.nodes.Module) -> None:
         """Process module level checks."""
         self.current_classes = []
         self.current_layer_types = set()
@@ -51,7 +56,7 @@ class ModuleStructureChecker(BaseChecker):
         if self._is_root_logic(node):
             self.add_message("clean-arch-folder-structure", node=node, args=(node.name,))
 
-    def leave_module(self, node):
+    def leave_module(self, node: astroid.nodes.Module) -> None:
         """Check accumulated stats for God File (W9020)."""
         # If we have mixed layers
         if len(self.current_layer_types) > 1:
@@ -70,7 +75,7 @@ class ModuleStructureChecker(BaseChecker):
                 args=(f"{self.heavy_component_count} Heavy components found",),
             )
 
-    def visit_classdef(self, node):
+    def visit_classdef(self, node: astroid.nodes.ClassDef) -> None:
         """Visit class definition to categorize."""
         # Resolve layer using the new inheritance-aware method
         layer = self.config_loader.get_layer_for_class_node(node)
@@ -85,7 +90,7 @@ class ModuleStructureChecker(BaseChecker):
             if self._is_heavy_component(layer, node):
                 self.heavy_component_count += 1
 
-    def _is_root_logic(self, node):
+    def _is_root_logic(self, node: astroid.nodes.Module) -> bool:
         """Check if file is in project root and not allowed boilerplate."""
         file_path = getattr(node, "file", "")
         if not file_path:
@@ -112,7 +117,7 @@ class ModuleStructureChecker(BaseChecker):
 
         return not rel_path.name.startswith("test_")
 
-    def _is_heavy_component(self, layer, node):
+    def _is_heavy_component(self, layer: str, node: astroid.nodes.ClassDef) -> bool:
         """Check if layer is considered 'Heavy'."""
         # W9020 Refinement:
         # Protocols (checking for Protocol in ancestors or name) are LIGHT.

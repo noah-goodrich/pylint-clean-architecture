@@ -1,6 +1,11 @@
 """Dependency Injection checks (W9301)."""
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
+
+import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from pylint.lint import PyLinter
 
 from pylint.checkers import BaseChecker
 
@@ -14,21 +19,21 @@ class DIChecker(BaseChecker):
 
     name = "clean-arch-di"
 
-    def __init__(self, linter=None):
+    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
         self.msgs = {
             "W9301": (
                 "DI Violation: %s instantiated directly in UseCase. Use constructor injection. Clean Fix: Pass the "
                 "dependency as an argument to __init__.",
                 "di-enforcement-violation",
                 "Infrastructure classes (Gateway, Repository, Client) must be injected into UseCases.",
-            ),
+            )
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
 
     INFRA_SUFFIXES: ClassVar[tuple[str, ...]] = ("Gateway", "Repository", "Client")
 
-    def visit_call(self, node):
+    def visit_call(self, node: astroid.nodes.Call) -> None:
         """
         Flag direct instantiation of infrastructure classes in UseCase layer.
         """
