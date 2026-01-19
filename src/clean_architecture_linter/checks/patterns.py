@@ -211,7 +211,7 @@ class CouplingChecker(BaseChecker):
 
         receiver_qname = get_return_type_qname_from_expr(receiver)
         if receiver_qname:
-             # Legacy safe type check (manual list removed, relying on stdlib detection)
+            # Legacy safe type check (manual list removed, relying on stdlib detection)
             if is_std_lib_module(receiver_qname.split(".")[0]):
                 return True
 

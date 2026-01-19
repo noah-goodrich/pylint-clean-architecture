@@ -62,5 +62,6 @@ def func(*args: str, **kwargs: int) -> None:
         # but let's see what our checker does.
         self.assertEqual(msgs, [])
 
+
 if __name__ == "__main__":
     unittest.main()

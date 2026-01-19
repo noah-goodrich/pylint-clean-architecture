@@ -67,14 +67,16 @@ def _normalize_qname(qname: Optional[str]) -> Optional[str]:
 
 
 def _get_return_type_from_method(
-    method: Union[astroid.nodes.FunctionDef, astroid.bases.BoundMethod, astroid.bases.UnboundMethod, astroid.bases.Instance]
+    method: Union[
+        astroid.nodes.FunctionDef, astroid.bases.BoundMethod, astroid.bases.UnboundMethod, astroid.bases.Instance
+    ],
 ) -> Optional[str]:
     """Helper to extract return type qname from a function/method node."""
     # Unwrap BoundMethod/UnboundMethod
     if hasattr(method, "_proxied"):
-         proxied = method._proxied
-         if proxied and proxied != method:
-             return _get_return_type_from_method(proxied)
+        proxied = method._proxied
+        if proxied and proxied != method:
+            return _get_return_type_from_method(proxied)
 
     if not hasattr(method, "returns"):
         return None
@@ -128,7 +130,7 @@ def _resolve_subscript_annotation(anno: astroid.nodes.Subscript) -> Optional[str
         if isinstance(anno.value, astroid.nodes.Name):
             name = anno.value.name
             if name in ("Optional", "Union"):
-                 return _resolve_nested_annotation(anno.slice)
+                return _resolve_nested_annotation(anno.slice)
 
         # Handle list[T], dict[K, V] generic types
         for val_inf in inferred_values:
@@ -271,9 +273,7 @@ def _get_module_and_class_from_qname(
     return root_node, qname
 
 
-def _resolve_name_type(
-    expr: Union[astroid.nodes.Name, astroid.nodes.AssignName], visited: Set[int]
-) -> Optional[str]:
+def _resolve_name_type(expr: Union[astroid.nodes.Name, astroid.nodes.AssignName], visited: Set[int]) -> Optional[str]:
     """Resolve type for Name or AssignName nodes."""
     try:
         for inf in expr.infer():
@@ -368,8 +368,6 @@ def get_return_type_qname(node: astroid.nodes.Call) -> Optional[str]:
 
     # Zero-Fallback Policy: Unresolved types return None.
     return None
-
-
 
 
 def is_std_lib_module(module_name: str) -> bool:

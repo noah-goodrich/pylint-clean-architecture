@@ -53,10 +53,7 @@ class TestingChecker(BaseChecker):
             return
 
         name: str = self._current_function.name
-        if (
-            name.startswith("test_")
-            and self._mock_count > _MOCK_LIMIT
-        ):
+        if name.startswith("test_") and self._mock_count > _MOCK_LIMIT:
             self.add_message(
                 "fragile-test-mocks",
                 node=self._current_function,

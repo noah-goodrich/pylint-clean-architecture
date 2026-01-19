@@ -18,20 +18,7 @@ EXCELSIOR_BANNER = _RED + _EXCELSIOR_ART + _RESET
 # Task 3: The Final Debt Purge - removing empty defaults as logic handles it now.
 
 DEFAULT_INTERNAL_MODULES = frozenset(
-    {
-        "domain"
-        "dto"
-        "use_cases"
-        "protocols"
-        "models"
-        "telemetry"
-        "results"
-        "entities"
-        "policies"
-        "interfaces"
-        "exceptions"
-        "types"
-    }
+    {"domaindtouse_casesprotocolsmodelstelemetryresultsentitiespoliciesinterfacesexceptionstypes"}
 )
 
 BUILTIN_TYPE_MAP = {

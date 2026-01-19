@@ -16,6 +16,7 @@ def check():
     messages = run_checker(CouplingChecker, code)
     assert "law-of-demeter" not in messages
 
+
 def test_str_split_on_hinted_stranger_passes():
     code = """
 def get_it() -> str:
@@ -28,6 +29,7 @@ def check():
 """
     messages = run_checker(CouplingChecker, code)
     assert "law-of-demeter" not in messages
+
 
 def test_str_split_chain_on_hinted_stranger_passes():
     code = """
@@ -42,6 +44,7 @@ def check():
 """
     messages = run_checker(CouplingChecker, code)
     assert "law-of-demeter" not in messages
+
 
 def test_path_read_text_splitlines_passes():
     """Verify Path('file').read_text().splitlines() is allowed (StdLib exemption)."""
