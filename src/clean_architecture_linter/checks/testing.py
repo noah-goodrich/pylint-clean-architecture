@@ -10,6 +10,9 @@ if TYPE_CHECKING:
     from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
+from clean_architecture_linter.di.container import ExcelsiorContainer
+from clean_architecture_linter.domain.protocols import AstroidProtocol
+
 _MOCK_LIMIT = 4
 
 
@@ -18,7 +21,7 @@ class TestingChecker(BaseChecker):
 
     name = "clean-arch-testing"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9101": (
                 "Fragile Test: %d mocks exceed limit of 4. Inject single Protocol instead. "
@@ -35,8 +38,11 @@ class TestingChecker(BaseChecker):
             ),
         }
         super().__init__(linter)
-        self._mock_count = 0
-        self._current_function = None
+        self._mock_count: int = 0
+        self._current_function: Optional[astroid.nodes.FunctionDef] = None
+
+        container = ExcelsiorContainer.get_instance()
+        self._ast_gateway: AstroidProtocol = container.get("AstroidGateway")
 
     def visit_functiondef(self, node: astroid.nodes.FunctionDef) -> None:
         """Track function entry and reset mock count."""
@@ -64,7 +70,7 @@ class TestingChecker(BaseChecker):
 
     def visit_call(self, node: astroid.nodes.Call) -> None:
         """Detect mock.patch calls and private method calls."""
-        call_name: Optional[str] = self._get_full_call_name(node)
+        call_name: Optional[str] = self._ast_gateway.get_call_name(node)
         if not call_name:
             return
 
@@ -88,11 +94,3 @@ class TestingChecker(BaseChecker):
         ):
             # Check if this is a method call (has receiver)
             self.add_message("private-method-test", node=node, args=(call_name,))
-
-    def _get_full_call_name(self, node: astroid.nodes.Call) -> Optional[str]:
-        """Get the full name of a call."""
-        if hasattr(node.func, "attrname"):
-            return node.func.attrname
-        if hasattr(node.func, "name"):
-            return node.func.name
-        return None

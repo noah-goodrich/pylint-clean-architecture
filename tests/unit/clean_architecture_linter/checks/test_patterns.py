@@ -44,7 +44,7 @@ def logic(obj):
     obj.a.b.c()
         """
         msgs = run_checker(CouplingChecker, code, "src/use_cases/logic.py")
-        self.assertIn("law-of-demeter", msgs)
+        self.assertIn("clean-arch-demeter", msgs)
 
     def test_demeter_stranger_violation(self):
         code = """
@@ -53,7 +53,7 @@ def logic(obj):
     stranger.do_stuff()
         """
         msgs = run_checker(CouplingChecker, code, "src/use_cases/logic.py")
-        self.assertIn("law-of-demeter", msgs)
+        self.assertIn("clean-arch-demeter", msgs)
 
     def test_demeter_allowed(self):
         code = """

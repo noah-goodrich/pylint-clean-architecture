@@ -1,8 +1,27 @@
-# Clean Architecture Linter Rules
+# 🛡️ Excelsior v2: Architectural Autopilot Rules
 
-This catalog details all the rules enforced by `pylint-clean-architecture`, along with examples of "Bad" code and the corresponding "Clean Fix".
+This catalog details all the rules enforced by `pylint-clean-architecture` (Excelsior), along with examples of "Bad" code and the corresponding "Clean Fix".
 
 ## Boundary Rules (W90xx)
+
+### W9001: Illegal Dependency
+**Message:** Illegal Dependency: %s layer is imported by %s layer.
+**Clean Fix:** Invert dependency using an Interface/Protocol in the Domain layer.
+
+**Bad:**
+```python
+# use_cases/process_order.py
+from infrastructure.db import Database # Inner layer importing Outer layer
+```
+
+**Clean:**
+```python
+# domain/protocols.py
+class OrderRepository(Protocol): ...
+
+# use_cases/process_order.py
+from domain.protocols import OrderRepository # Intra/Inner layer import
+```
 
 ### W9003: Protected Member Access
 **Message:** Access to protected member "%s" from outer layer.
@@ -48,28 +67,62 @@ def update_user(self, notifier: UserNotifier):
     notifier.notify()
 ```
 
-### W9010: Illegal Dependency
-**Message:** Illegal Dependency: %s layer cannot import from %s layer.
-**Clean Fix:** Invert dependency using an Interface/Protocol in the Domain layer.
+### W9005: Delegation Anti-Pattern
+**Message:** Delegation Anti-Pattern: %s.
+**Clean Fix:** Implement logic in the delegate or use a Map/Dictionary lookup.
 
 **Bad:**
 ```python
-# use_cases/process_order.py
-from infrastructure.db import Database # Inner layer importing Outer layer
+if action == "SAVE":
+    return repo.save(user)
+elif action == "DELETE":
+    return repo.delete(user)
 ```
 
 **Clean:**
 ```python
-# domain/protocols.py
-class OrderRepository(Protocol): ...
-
-# use_cases/process_order.py
-from domain.protocols import OrderRepository # Intra/Inner layer import
+# Use a Strategy or Command pattern
+handler = self.handlers.get(action)
+return handler.execute(user)
 ```
+
+### W9006: Law of Demeter
+**Message:** Law of Demeter: Chain access (%s) exceeds one level.
+**Clean Fix:** Add a method to the immediate object that performs the operation.
+
+**Bad:**
+```python
+user.address.coordinates.lat # Three levels of nesting
+```
+
+**Clean:**
+```python
+user.get_latitude()
+```
+
+### W9007: Naked Return
+**Message:** Naked Return: %s returned from Repository.
+**Clean Fix:** Map the raw object to a Domain Entity before returning.
+
+### W9009: Missing Abstraction
+**Message:** Missing Abstraction: %s holds reference to %s.
+**Clean Fix:** Replace the raw object with a Domain Entity or Value Object.
+
+### W9010: God File Violation
+**Message:** God File detected: %s.
+**Clean Fix:** Split into separate files. A file should not contain multiple 'Heavy' components or mixed layers.
+
+### W9011: Deep Structure Violation
+**Message:** Deep Structure violation: Module '%s' in project root.
+**Clean Fix:** Move to a sub-package (e.g., `core/`, `gateways/`).
+
+### W9012: Defensive None Check
+**Message:** Defensive None Check: '%s' checked for None in %s layer.
+**Clean Fix:** Ensure the value is validated before entering core logic. Validation belongs in the Interface layer.
 
 ### W9013: Illegal I/O Operation (The Silent Core Rule)
 **Message:** Illegal I/O Operation: '%s' called in silent layer '%s'.
-**Clean Fix:** Delegate I/O to an Interface/Port (e.g., TelemetryPort).
+**Clean Fix:** Delegate I/O to an Interface/Port (e.g., `TelemetryPort`).
 
 **Bad:**
 ```python
@@ -91,73 +144,25 @@ def deactivate(self, telemetry: TelemetryPort):
     self.is_active = False
 ```
 
+### W9015: Missing Type Hint
+**Message:** Missing Type Hint: %s in %s signature.
+**Clean Fix:** Add explicit type hints to all parameters and the return value.
+
 ## Testing Rules (W91xx)
 
 ### W9101: Fragile Test Mocks
 **Message:** Fragile Test: %d mocks exceed limit of 4.
 **Clean Fix:** Use a single Fake or Stub implementation of a Protocol rather than mocking many individual methods.
 
-**Bad:**
-```python
-def test_complex_flow(mocker):
-    m1 = mocker.patch("...")
-    m2 = mocker.patch("...")
-    m3 = mocker.patch("...")
-    m4 = mocker.patch("...")
-    m5 = mocker.patch("...")
-    # ...
-```
-
-**Clean:**
-```python
-class FakeRepository:
-    # ... implementation ...
-
-def test_complex_flow():
-    repo = FakeRepository()
-    # ...
-```
-
 ### W9102: Private Method Test
 **Message:** Testing private method: %s.
 **Clean Fix:** Test the public API method that calls this private method.
-
-**Bad:**
-```python
-def test_internal_logic():
-    service._calculate_tax()
-```
-
-**Clean:**
-```python
-def test_public_api():
-    # Implicitly tests _calculate_tax
-    service.process_order()
-```
 
 ## Contract Rules (W92xx)
 
 ### W9201: Contract Integrity
 **Message:** Infrastructure class %s must inherit from a Domain Protocol.
 **Clean Fix:** Define a Protocol in Domain and inherit from it.
-
-**Bad:**
-```python
-# infrastructure/repo.py
-class UserRepository: # implicit implementation
-    def save(self, user): ...
-```
-
-**Clean:**
-```python
-# domain/protocols.py
-class UserRepository(Protocol):
-    def save(self, user): ...
-
-# infrastructure/repo.py
-class SqlUserRepository(UserRepository):
-    def save(self, user): ...
-```
 
 ### W9202: Concrete Method Stub
 **Message:** Concrete Method Stub: Method %s is a stub.
@@ -169,55 +174,14 @@ class SqlUserRepository(UserRepository):
 **Message:** DI Violation: %s instantiated directly in UseCase.
 **Clean Fix:** Pass the dependency as an argument to __init__.
 
-**Bad:**
-```python
-class UseCase:
-    def __init__(self):
-        self.repo = SqlRepository()
-```
+## Immutability Rules (W96xx)
 
-**Clean:**
-```python
-class UseCase:
-    def __init__(self, repo: UserRepository):
-        self.repo = repo
-```
-
-## Immutability Rules (W94xx)
-
-### W9401: Domain Mutability
-**Message:** Domain Mutability Violation: Class %s must be immutable.
-**Clean Fix:** Add (frozen=True) to the @dataclass decorator.
-
-**Bad:**
-```python
-@dataclass
-class UserEntity:
-    id: str
-```
-
-**Clean:**
-```python
-@dataclass(frozen=True)
-class UserEntity:
-    id: str
-```
+### W9601: Domain Immutability
+**Message:** Domain Immutability Violation: Attribute assignment in Domain layer.
+**Clean Fix:** Use dataclasses with `frozen=True` or `namedtuples`.
 
 ## Anti-Bypass Guard (W95xx)
 
 ### W9501: Anti-Bypass Violation
 **Message:** Anti-Bypass Violation: %s detected.
 **Clean Fix:** Justify with '# JUSTIFICATION: <reason>' or resolve the architectural issue.
-
-**Bad:**
-```python
-# pylint: disable=too-many-locals
-def complex_func(): ...
-```
-
-**Clean:**
-```python
-# JUSTIFICATION: Complex legacy formula requires many local vars.
-# pylint: disable=too-many-locals
-def complex_func(): ...
-```

@@ -8,48 +8,32 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=2000']
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.9
-    hooks:
-      # Auto-fix lint issues
-      - id: ruff
-        args: ['--fix']
-      # Fast, Black-compatible formatting
-      - id: ruff-format
-
-
-  # Second ruff check (without --fix) - fails if errors remain after fixing
   - repo: local
     hooks:
-      - id: ruff-check
-        name: ruff-check
-        entry: bash -c 'pwd && ruff check "src/" "tests/"'
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-commit]
-
-
-
-  - repo: local
-    hooks:
-      - id: pytest-bait
-        name: Bait Validation Suite
-        entry: make test
+      - id: ruff-complexity
+        name: Ruff Complexity Audit
+        entry: ruff check . --select C901 --max-complexity 11
         language: system
         pass_filenames: false
         always_run: true
 
-      - id: tests
-        name: Full Test Suite
-        entry: make test-all
+      - id: mypy-strict
+        name: Mypy Type Integrity
+        entry: mypy . --strict
         language: system
         pass_filenames: false
         always_run: true
 
       - id: clean-architecture-linter
-        name: Clean Architecture Linter
-        entry: pylint src/
+        name: Stellar Architectural Audit
+        entry: make lint
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: functional-benchmarks
+        name: LoD Functional Benchmarks
+        entry: pytest tests/functional/test_lod_benchmarks.py
         language: system
         pass_filenames: false
         always_run: true

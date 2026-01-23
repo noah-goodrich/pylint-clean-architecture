@@ -9,6 +9,8 @@
 ![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture?color=F9A602&labelColor=333333)
 ![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture?color=F9A602&labelColor=333333)
 
+# 🛡️ Excelsior v2: Architectural Autopilot
+
 Captain's Log: High-authority Pylint module for enforcing **Prime Directives** (Clean Architecture) and preventing **Hull Integrity Breaches** (Technical Debt) in Python projects.
 
 Enforcing architectural boundaries, dependency rules, and design patterns to ensure the fleet remains operational and modular.
@@ -44,17 +46,23 @@ Run Pylint as usual:
 pylint src/
 ```
 
-### AI Coding Assistant Support
+### Excelsior Auto-Fix Suite
 
-The `clean-arch-init` command generates architectural instructions for AI agents (like Cursor or GitHub Copilot) to prevent "Split Brain" issues by teaching the AI your project's rules before it writes code.
+Excelsior can automatically repair several common architectural and stylistic violations.
 
 Usage:
-
 ```bash
-clean-arch-init
+excelsior fix
 ```
 
-Outcome: This creates a customized `.agent/instructions.md` file based on the layer names defined in the project's `Console Calibration`.
+Available Fixers:
+*   **Structural Integrity**: Generates missing `__init__.py` and `py.typed` markers.
+*   **Signature Correction**: Automatically adds `-> None` to `__init__` methods.
+*   **Domain Immutability**: Enforces `frozen=True` on dataclasses within the Domain layer.
+*   **Type Integrity**: Opportunistically auto-imports `Optional`, `Any`, `List`, `Dict`, etc., when used in type hints but not imported.
+*   **Redundancy Removal**: Cleans up duplicate annotations that trigger `no-redef` errors.
+
+### AI Coding Assistant Support
 
 
 ## Console Calibration

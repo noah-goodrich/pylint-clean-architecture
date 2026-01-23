@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pylint-clean-architecture"
-version = "1.5.2"
-description = "Excelsior: High-fidelity clean architecture linter for Python."
+version = "1.6.0"
+description = "Excelsior: High-fidelity AI Governance Framework for Clean Architecture."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -25,11 +25,14 @@ classifiers = [
 dependencies = [
     "pylint>=2.15.0",
     "tomli; python_version < '3.11'",
+    "typeshed-client",
+    "stellar-ui-kit @ file:///development/stellar-ui-kit",
+    "import-linter",
 ]
 
 [project.scripts]
 clean-arch-init = "clean_architecture_linter.cli:init_command"
-pylint-clean-architecture = "clean_architecture_linter.cli:main"
+excelsior = "clean_architecture_linter.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -37,6 +40,7 @@ dev = [
     "pytest-cov>=4.0",
     "astroid",
     "ruff",
+    "libcst",
 ]
 
 [tool.setuptools]
@@ -51,7 +55,7 @@ packages = ["clean_architecture_linter", "clean_architecture_linter.checks"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
-addopts = "--cov=clean_architecture_linter --cov-report=json"
+addopts = "--cov=src --cov-report=term-missing --cov-report=json --cov-fail-under=80 --coverage-impact"
 markers = [
     "unit: mark a test as a unit test."
 ]
@@ -81,7 +85,7 @@ select = [
 ignore = []
 
 [tool.ruff.lint.mccabe]
-max-complexity = 12
+max-complexity = 11
 
 [tool.pylint.main]
 load-plugins = ["clean_architecture_linter"]
@@ -90,7 +94,7 @@ load-plugins = ["clean_architecture_linter"]
 disable = ["all"]
 enable = [
     "clean-arch-delegation",
-    "law-of-demeter",
+    "clean-arch-demeter",
     "clean-arch-visibility",
     "clean-arch-resources",
     "clean-arch-bypass",
@@ -103,16 +107,21 @@ enable = [
     "clean-arch-immutability",
     "clean-arch-dependency",
     "illegal-io-operation",
-    "template-drift-check",
 ]
 
 [tool.clean-arch]
 silent_layers = ["Domain", "UseCase"]
 allowed_io_interfaces = ["TelemetryPort", "UserInterfaceProtocol"]
+allowed_lod_modules = [
+    "clean_architecture_linter.di.container",
+    "stellar_ui_kit",
+    "clean_architecture_linter.infrastructure.gateways.astroid_gateway"
+]
+allowed_lod_methods = []
 project_name = "EXCELSIOR"
 color = "red"
 welcome_msg = "Command Cruiser Online"
-shared_kernel_modules = ["clean_architecture_linter.interface.telemetry"]
+shared_kernel_modules = ["stellar_ui_kit"]
 
 [tool.clean-arch.layer_map]
 "clean_architecture_linter.domain" = "Domain"
@@ -128,5 +137,31 @@ shared_kernel_modules = ["clean_architecture_linter.interface.telemetry"]
 source = ["clean_architecture_linter"]
 omit = [
     "**/tests/**",
-    "**/telemetry.py",
+]
+
+[tool.pylint.MASTER]
+load-plugins = [
+    "clean_architecture_linter"
+]
+
+[tool.pylint.REPORTS]
+# This makes Pylint use our table reporter by default
+output-format = "colorized,clean-arch-summary"
+
+[tool.importlinter]
+root_package = "clean_architecture_linter"
+
+[[tool.importlinter.contracts]]
+name = "Clean Architecture Layers"
+type = "layers"
+layers = [
+    "clean_architecture_linter.checker",
+    "clean_architecture_linter.reporter",
+    "clean_architecture_linter.checks",
+    "clean_architecture_linter.domain",
+]
+containers = ["clean_architecture_linter"]
+ignore_imports = [
+    "clean_architecture_linter.cli -> clean_architecture_linter.infrastructure.adapters.linter_adapters",
+    "clean_architecture_linter.cli -> clean_architecture_linter.di.container",
 ]

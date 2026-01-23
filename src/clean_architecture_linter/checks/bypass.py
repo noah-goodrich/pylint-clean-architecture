@@ -16,7 +16,7 @@ class BypassChecker(BaseTokenChecker):
 
     name = "clean-arch-bypass"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9501": (
                 "Anti-Bypass Violation: %s detected. %s Clean Fix: Justify with '# JUSTIFICATION: <reason>' or "
@@ -84,7 +84,9 @@ class BypassChecker(BaseTokenChecker):
             line = lines[prev_lineno]
             if "JUSTIFICATION:" in line:
                 justified = True
-                justification_content = line.split("JUSTIFICATION:")[1].strip().lower()
+                content_part: str = line.split("JUSTIFICATION:")[1]
+                justification_raw: str = content_part.strip()
+                justification_content = justification_raw.lower()
 
         if not justified:
             self.add_message(

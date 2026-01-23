@@ -23,7 +23,7 @@ class ModuleStructureChecker(BaseChecker):
 
     name = "clean-arch-structure"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9010": (
                 "God File detected: %s. Clean Fix: Split into separate files.",
@@ -38,9 +38,9 @@ class ModuleStructureChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
-        self.current_classes = []
-        self.current_layer_types = set()
-        self.heavy_component_count = 0
+        self.current_classes: list[str] = []
+        self.current_layer_types: set[str] = set()
+        self.heavy_component_count: int = 0
 
     def open(self) -> None:
         """Called when starting to process a file."""

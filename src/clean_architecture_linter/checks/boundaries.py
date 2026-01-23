@@ -1,16 +1,17 @@
 """Layer boundary checks (W9003-W9009)."""
 
-# AST checks often violate Demeter by design
-
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List, Set
 
 import astroid  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from pylint.lint import PyLinter
+
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.di.container import ExcelsiorContainer
+from clean_architecture_linter.domain.protocols import PythonProtocol
 from clean_architecture_linter.layer_registry import LayerRegistry
 
 
@@ -19,7 +20,7 @@ class VisibilityChecker(BaseChecker):
 
     name = "clean-arch-visibility"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9003": (
                 'Access to protected member "%s" from outer layer. Clean Fix: Expose public Interface or Use Case.',
@@ -48,7 +49,7 @@ class ResourceChecker(BaseChecker):
 
     name = "clean-arch-resources"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9004": (
                 "Forbidden I/O access (%s) in %s layer. Clean Fix: Move logic to Infrastructure "
@@ -59,34 +60,20 @@ class ResourceChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
+        self._python_gateway: PythonProtocol = ExcelsiorContainer.get_instance().get("PythonGateway")
 
     @property
-    def allowed_prefixes(self) -> set[str]:
+    def allowed_prefixes(self) -> Set[str]:
         """Get configured allowed prefixes."""
-        # Default safe list
-        defaults = {
-            "typing",
-            "dataclasses",
-            "abc",
-            "enum",
-            "pathlib",
-            "logging",
-            "datetime",
-            "uuid",
-            "re",
-            "math",
-            "random",
-            "decimal",
-            "functools",
-            "itertools",
-            "collections",
-            "contextlib",
-            "json",
+        defaults: Set[str] = {
+            "typing", "dataclasses", "abc", "enum", "pathlib", "logging",
+            "datetime", "uuid", "re", "math", "random", "decimal",
+            "functools", "itertools", "collections", "contextlib", "json",
         }
-
-        # Add configured allow-list
-        configured = set(self.config_loader.config.get("allowed_prefixes", []))
-        return defaults.union(configured)
+        raw_prefixes = self.config_loader.config.get("allowed_prefixes", [])
+        if isinstance(raw_prefixes, list):
+            return defaults.union(set(str(p) for p in raw_prefixes))
+        return defaults
 
     def visit_import(self, node: astroid.nodes.Import) -> None:
         """Check for forbidden imports."""
@@ -97,58 +84,43 @@ class ResourceChecker(BaseChecker):
         if node.modname:
             self._check_import(node, [node.modname])
 
-    def _check_import(self, node: astroid.nodes.NodeNG, names: list[str]) -> None:
-        root = node.root()
-        file_path: str = getattr(root, "file", "")
-
-        # EXEMPTION: Tests are allowed to import anything
-        # Check for /tests/ or /test/ in path (robust to OS separators), or module name
-        normalized_path = file_path.replace("\\", "/")
-        module_name = root.name
-
-        is_test_path = (
-            "/tests/" in normalized_path
-            or normalized_path.startswith("tests/")
-            or "/test/" in normalized_path
-            or "tests" in normalized_path.split("/")
-        )
-
-        is_test_module = ".tests." in module_name or module_name.startswith("tests.") or module_name.startswith("test_")
-
-        if is_test_path or is_test_module:
+    def _check_import(self, node: astroid.nodes.NodeNG, names: List[str]) -> None:
+        """Core logic for resource access check."""
+        if self._is_test_file(node):
             return
 
-        current_module = root.name
-
-        layer = self.config_loader.get_layer_for_module(current_module, file_path)
-
-        # Only check UseCase and Domain
+        layer = self._python_gateway.get_node_layer(node, self.config_loader)
         if layer not in (LayerRegistry.LAYER_USE_CASE, LayerRegistry.LAYER_DOMAIN):
             return
 
         for name in names:
-            # Check 1: Is it an internal module? (domain, dto, use_cases)
-            # We assume internal modules match our layer naming conventions
-            # Check 1: Is it an internal module? (domain, dto, use_cases, etc)
-            parts = name.split(".")
-            if any(p in parts for p in self.config_loader.internal_modules):
-                continue
+            if self._is_forbidden(name):
+                self.add_message("clean-arch-resources", node=node, args=(f"import {name}", layer))
+                break
 
-            # Check 2: Is it in the allowed prefixes list?
-            # Check pure match or sub-module match (e.g. 'datetime' or 'datetime.datetime')
-            is_allowed = False
-            for allowed in self.allowed_prefixes:
-                if name == allowed or name.startswith(allowed + "."):
-                    is_allowed = True
-                    break
+    def _is_test_file(self, node: astroid.nodes.NodeNG) -> bool:
+        """Robust test file detection."""
+        root = node.root()
+        file_path: str = getattr(root, "file", "")
+        module_name: str = root.name
 
-            if is_allowed:
-                continue
+        normalized_path: str = file_path.replace("\\", "/")
+        parts: List[str] = normalized_path.split("/")
 
-            # If not internal and not allowed, it is forbidden.
-            self.add_message(
-                "clean-arch-resources",
-                node=node,
-                args=(f"import {name}", layer),
-            )
-            return
+        return (
+            "tests" in parts or
+            "test" in parts or
+            module_name.startswith("test_") or
+            ".tests." in module_name
+        )
+
+    def _is_forbidden(self, name: str) -> bool:
+        """Determine if a module import is forbidden."""
+        parts = name.split(".")
+        if any(p in parts for p in self.config_loader.internal_modules):
+            return False
+
+        for allowed in self.allowed_prefixes:
+            if name == allowed or name.startswith(allowed + "."):
+                return False
+        return True

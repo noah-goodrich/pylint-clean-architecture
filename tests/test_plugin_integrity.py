@@ -18,7 +18,7 @@ def run_pylint(file_path):
         "pylint",
         "--load-plugins=clean_architecture_linter",
         "--disable=all",
-        "--enable=W9201,W9401,W9501",
+        "--enable=W9201,W9601,W9501",
         file_path,
     ]
     # We use -f parseable to make output easier to parse if needed, but simple string search is fine
@@ -29,7 +29,7 @@ def run_pylint(file_path):
 @pytest.mark.parametrize(
     "bait_file,expected_id",
     [
-        ("domain/violation_immutability.py", "W9401"),
+        ("domain/violation_immutability.py", "W9601"),
         ("infrastructure/violation_contract.py", "W9201"),
         ("violation_bypass_lazy.py", "W9501"),
         ("violation_bypass_banned.py", "W9501"),
@@ -46,5 +46,5 @@ def test_clean_file():
     path = os.path.join(os.path.dirname(__file__), "bait", "clean_file.py")
     output = run_pylint(path)
     # Ensure no arch warnings
-    for arch_id in ["W9201", "W9401", "W9501"]:
+    for arch_id in ["W9201", "W9601", "W9501"]:
         assert arch_id not in output, f"Expected NO {arch_id} in output for clean_file.py, but got:\n{output}"

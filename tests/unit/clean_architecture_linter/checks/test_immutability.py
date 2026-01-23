@@ -17,7 +17,7 @@ class UserEntity:
     pass
         """
         msgs = run_checker(ImmutabilityChecker, code, "src/domain/entities.py")
-        self.assertIn("domain-mutability-violation", msgs)
+        self.assertIn("domain-immutability-violation", msgs)
 
     def test_domain_entity_frozen_ok(self):
         code = """

@@ -17,7 +17,7 @@ class DependencyChecker(BaseChecker):
 
     name = "clean-arch-dependency"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9001": (
                 "Illegal Dependency: %s layer is imported by %s layer. Clean Fix: Invert dependency using an "
@@ -28,6 +28,8 @@ class DependencyChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
+        from clean_architecture_linter.di.container import ExcelsiorContainer
+        self._python_gateway = ExcelsiorContainer.get_instance().get("PythonGateway")
 
     # Default Dependency Matrix (Allowed Imports)
     DEFAULT_RULES: ClassVar[dict[str, set[str]]] = {
@@ -50,37 +52,27 @@ class DependencyChecker(BaseChecker):
 
     def visit_importfrom(self, node: astroid.nodes.ImportFrom) -> None:
         """Check from imports: from x import y"""
-        self._check_import(node, node.modname)
+        if node.modname:
+            self._check_import(node, node.modname)
 
-    def _check_import(self, node: astroid.nodes.Import, import_name: str) -> None:
+    def _check_import(self, node: astroid.nodes.NodeNG, import_name: str) -> None:
         # 1. Determine Current Layer
-        root = node.root()
-        current_file: str = getattr(root, "file", "")
-        # Fallback to module name if file not available (e.g. in tests)
-        current_module = root.name
-
-        current_layer = self.config_loader.get_layer_for_module(current_module, current_file)
+        current_layer = self._python_gateway.get_node_layer(node, self.config_loader)
 
         # Skip checks for test files
+        root = node.root()
+        current_file: str = getattr(root, "file", "")
         if "tests" in current_file.split("/") or "test_" in current_file.split("/")[-1]:
             return
 
         if not current_layer:
-            return  # Unclassified file, allow for now (OR we could fail strict)
+            return
 
         # 2. Determine Imported Layer
-        # We need to resolve the imported module's layer.
-        # This is tricky because we might not have the file path for the imported module easily
-        # without full AST analysis or sys.modules.
-
-        # Simple heuristic: Check against LayerRegistry rules based on module name
-        # We simulate a "file path" from the module name to trigger directory matching in registry
         simulated_path = "/" + import_name.replace(".", "/")
         imported_layer = self.config_loader.resolve_layer(import_name, simulated_path)
 
-        # If heuristics fail, user might need to define explicit layer map in config
         if not imported_layer:
-            # Try matching package prefixes if available in config
             imported_layer = self.config_loader.get_layer_for_module(import_name)
 
         if not imported_layer:
@@ -89,16 +81,13 @@ class DependencyChecker(BaseChecker):
         if current_layer == imported_layer:
             return  # Intra-layer imports are OK
 
-        # 3. Check Shared Kernel (Configurable Exception)
-        # Allow imports if the module matches a configured shared kernel module
+        # 3. Check Shared Kernel
         for kernel_mod in self.config_loader.shared_kernel_modules:
             if import_name == kernel_mod or import_name.startswith(kernel_mod + "."):
                 return
 
         # 4. Check Matrix
         allowed_layers = self.DEFAULT_RULES.get(current_layer, set())
-
-        # Merge with user config overrides if any (TODO)
 
         if imported_layer not in allowed_layers:
             self.add_message(

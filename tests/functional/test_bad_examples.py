@@ -80,7 +80,7 @@ class DeployCommand:
     res = run_pylint(f)
     print(res.stdout)
     assert "W9006" in res.stdout
-    assert "law-of-demeter" in res.stdout
+    assert "clean-arch-demeter" in res.stdout
 
 
 def test_bad_return(tmp_path):

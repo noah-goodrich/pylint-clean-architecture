@@ -10,7 +10,8 @@ if TYPE_CHECKING:
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.helpers import get_call_name, get_node_layer
+from clean_architecture_linter.di.container import ExcelsiorContainer
+from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
 from clean_architecture_linter.layer_registry import LayerRegistry
 
 
@@ -19,7 +20,7 @@ class DIChecker(BaseChecker):
 
     name = "clean-arch-di"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9301": (
                 "DI Violation: %s instantiated directly in UseCase. Use constructor injection. Clean Fix: Pass the "
@@ -30,6 +31,9 @@ class DIChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
+        container = ExcelsiorContainer.get_instance()
+        self._python_gateway: PythonProtocol = container.get("PythonGateway")
+        self._ast_gateway: AstroidProtocol = container.get("AstroidGateway")
 
     INFRA_SUFFIXES: ClassVar[tuple[str, ...]] = ("Gateway", "Repository", "Client")
 
@@ -37,13 +41,13 @@ class DIChecker(BaseChecker):
         """
         Flag direct instantiation of infrastructure classes in UseCase layer.
         """
-        layer = get_node_layer(node, self.config_loader)
+        layer = self._python_gateway.get_node_layer(node, self.config_loader)
 
         # Only enforce on UseCase layer
         if layer != LayerRegistry.LAYER_USE_CASE:
             return
 
-        call_name = get_call_name(node)
+        call_name: Optional[str] = self._ast_gateway.get_call_name(node)
         if not call_name:
             return
 

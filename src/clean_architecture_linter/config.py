@@ -34,27 +34,32 @@ class ConfigurationLoader:
             cls._instance = super().__new__(cls)
             cls._instance.load_config()
 
-            project_type = cls._config.get("project_type", "generic")
-
             # Extract custom layer mappings from config
             # Config format: [tool.clean-arch.layer_map]
             # Key = Layer Name (e.g. "Infrastructure"), Value = Directory/Suffix (e.g. "gateways")
             # We need to flip this for LayerRegistry: Pattern -> Layer Name
-            raw_layer_map: dict[str, object] = cls._config.get("layer_map", {})
+            raw_layer_map = cls._config.get("layer_map", {})
             directory_map_override: dict[str, str] = {}
 
-            for layer_name, pattern_or_list in raw_layer_map.items():
-                if isinstance(pattern_or_list, list):
-                    for pattern in pattern_or_list:
-                        directory_map_override[pattern] = layer_name
-                else:
-                    directory_map_override[pattern_or_list] = layer_name
+            if isinstance(raw_layer_map, dict):
+                for layer_name, pattern_or_list in raw_layer_map.items():
+                    if not isinstance(layer_name, str):
+                        continue
+                    if isinstance(pattern_or_list, list):
+                        for pattern in pattern_or_list:
+                            if isinstance(pattern, str):
+                                directory_map_override[pattern] = layer_name
+                    elif isinstance(pattern_or_list, str):
+                        directory_map_override[pattern_or_list] = layer_name
+
+            base_class_map = cls._config.get("base_class_map", {})
+            module_map = cls._config.get("module_map", {})
 
             registry_config = LayerRegistryConfig(
-                project_type=project_type,
+                project_type=str(cls._config.get("project_type", "generic")),
                 directory_map=directory_map_override,
-                base_class_map=_invert_map(cls._config.get("base_class_map", {})),
-                module_map=_invert_map(cls._config.get("module_map", {})),
+                base_class_map=_invert_map(base_class_map),
+                module_map=_invert_map(module_map),
             )
 
             cls._registry = LayerRegistry(config=registry_config)
@@ -92,8 +97,9 @@ class ConfigurationLoader:
 
                         # JUSTIFICATION: Internal access to static configuration singleton
                         if ConfigurationLoader._config:  # pylint: disable=clean-arch-visibility
-                            self.validate_config(ConfigurationLoader._config)
-                            return
+                             # JUSTIFICATION: Internal access to static configuration singleton
+                             self.validate_config(ConfigurationLoader._config)  # pylint: disable=clean-arch-visibility
+                             return
                 except OSError:
                     # Keep looking in parent dirs
                     pass
@@ -138,7 +144,7 @@ class ConfigurationLoader:
         # JUSTIFICATION: Exposing internal static registry
         return ConfigurationLoader._registry  # pylint: disable=clean-arch-visibility
 
-    def get_layer_for_module(self, module_name: str, file_path: str = "") -> str | None:
+    def get_layer_for_module(self, module_name: str, file_path = "") -> str | None:
         """Get the architectural layer for a module/file."""
         # Check explicit config first
         if "layers" in self._config and isinstance(self._config["layers"], list):
@@ -149,9 +155,9 @@ class ConfigurationLoader:
             )
             match = next(
                 (
-                    getattr(layer, "get", lambda k: None)("name")
+                    str(getattr(layer, "get", lambda k: None)("name"))
                     for layer in layers
-                    if isinstance(layer, dict) and module_name.startswith(layer.get("module", ""))
+                    if isinstance(layer, dict) and module_name.startswith(str(layer.get("module", "")))
                 ),
                 None,
             )
@@ -164,62 +170,69 @@ class ConfigurationLoader:
     @property
     def visibility_enforcement(self) -> bool:
         """Whether to enforce protected member visibility."""
-        return self._config.get("visibility_enforcement", True)  # Default ON
+        val = self._config.get("visibility_enforcement", True)
+        return bool(val)
+
+    def _get_set(self, key: str, defaults: Optional[set[str]] = None) -> set[str]:
+        """Helper to safely get a set of strings from config."""
+        raw = self._config.get(key, [])
+        items: set[str] = set()
+        if isinstance(raw, (list, set)):
+            for item in raw:
+                if isinstance(item, str):
+                    items.add(item)
+        if defaults:
+            return defaults.union(items)
+        return items
 
     @property
     def allowed_lod_roots(self) -> set[str]:
         """Return allowed LoD roots from config, defaulting to SAFE_ROOTS."""
-        # Default roots
-        defaults = {"importlib", "pathlib", "ast", "os", "json", "yaml"}
-        config_val = self._config.get("allowed_lod_roots", [])
-        return defaults.union(set(config_val))
+        defaults = {"builtins", "typing", "importlib", "pathlib", "ast", "os", "json", "yaml", "logging"}
+        return self._get_set("allowed_lod_roots", defaults)
 
     @property
     def allowed_lod_modules(self) -> set[str]:
         """Return allowed LoD modules from config."""
-        return set(self._config.get("allowed_lod_modules", []))
+        return self._get_set("allowed_lod_modules")
 
     @property
     def allowed_lod_methods(self) -> set[str]:
         """Return allowed LoD methods from config."""
-        return set(self._config.get("allowed_lod_methods", []))
+        return self._get_set("allowed_lod_methods")
 
     @property
     def internal_modules(self) -> set[str]:
-        """Return list of internal modules (domain/use_cases etc) from config (merged with defaults)."""
+        """Return list of internal modules (merged with defaults)."""
         from clean_architecture_linter.constants import DEFAULT_INTERNAL_MODULES
-
-        config_val = self._config.get("internal_modules", [])
-        return DEFAULT_INTERNAL_MODULES.union(set(config_val))
+        return set(DEFAULT_INTERNAL_MODULES).union(self._get_set("internal_modules"))
 
     @property
     def infrastructure_modules(self) -> set[str]:
         """Return list of modules considered infrastructure."""
-        return set(self._config.get("infrastructure_modules", []))
+        return self._get_set("infrastructure_modules")
 
     @property
     def raw_types(self) -> set[str]:
         """Return list of type names considered raw/infrastructure."""
-        return set(self._config.get("raw_types", []))
+        return self._get_set("raw_types")
 
     @property
     def silent_layers(self) -> set[str]:
         """Return list of layers where I/O is restricted."""
         defaults = {"Domain", "UseCase", "domain", "use_cases"}
-        config_val = self._config.get("silent_layers", [])
-        return defaults.union(set(config_val))
+        return self._get_set("silent_layers", defaults)
 
     @property
     def allowed_io_interfaces(self) -> set[str]:
         """Return list of interfaces/types allowed to perform I/O in silent layers."""
         defaults = {"TelemetryPort", "LoggerPort"}
-        config_val = self._config.get("allowed_io_interfaces", [])
-        return defaults.union(set(config_val))
+        return self._get_set("allowed_io_interfaces", defaults)
 
     @property
     def shared_kernel_modules(self) -> set[str]:
-        """Return list of modules considered Shared Kernel (allowed to be imported anywhere)."""
-        return set(self._config.get("shared_kernel_modules", []))
+        """Return list of modules considered Shared Kernel."""
+        return self._get_set("shared_kernel_modules")
 
     def get_layer_for_class_node(self, node: astroid.nodes.ClassDef) -> Optional[str]:
         """Delegate to registry for LoD compliance."""
@@ -232,15 +245,18 @@ class ConfigurationLoader:
         return self.registry.resolve_layer(node_name, file_path, node=node)
 
 
-def _invert_map(config_map: Union[dict[str, object], object]) -> dict[str, str]:
+def _invert_map(config_map: object) -> dict[str, str]:
     """Invert config map (Layer -> Items) to (Item -> Layer)."""
     inverted: dict[str, str] = {}
     if not isinstance(config_map, dict):
         return inverted
     for layer_name, item_or_list in config_map.items():
+        if not isinstance(layer_name, str):
+            continue
         if isinstance(item_or_list, list):
             for item in item_or_list:
-                inverted[item] = layer_name
-        else:
+                if isinstance(item, str):
+                    inverted[item] = layer_name
+        elif isinstance(item_or_list, str):
             inverted[item_or_list] = layer_name
     return inverted

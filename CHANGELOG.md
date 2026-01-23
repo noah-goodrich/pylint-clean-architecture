@@ -1,6 +1,18 @@
 # CHANGELOG
 
 <!-- version list -->
+## v1.6.0 (2026-01-22)
+
+### Features
+- **Typeshed Integration**: Replaced manual allow-lists with automated `typeshed-client` inference for standard library types.
+- **Excelsior Auto-Fix Suite**: Implemented `excelsior fix` command to automatically resolve structural and stylistic violations (W9011, W9015, W9601).
+- **Coverage Hardening**: Increased unit test coverage to 80.4%.
+- **Enhanced LoD Checker**: Improved Law of Demeter (W9006) with trusted authority tracing (e.g., `re.Match`, `subprocess.CompletedProcess`).
+- **Configuration Optimization**: Consolidated pytest directives into `pyproject.toml`.
+
+### Bug Fixes
+- **Fixer**: Fixed regex bug in return type hint detection.
+- **Stability**: Refactored brittle unit tests to use robust mocking.
 
 ## v1.5.2 (2026-01-18)
 

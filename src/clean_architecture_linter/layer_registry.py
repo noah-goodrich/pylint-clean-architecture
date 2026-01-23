@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Optional
 
 if TYPE_CHECKING:
-    import astroid
+    import astroid  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +16,10 @@ class LayerRegistryConfig:
     """Configuration for LayerRegistry."""
 
     project_type: str = "generic"
-    suffix_map: dict | None = field(default_factory=dict)
-    directory_map: dict | None = field(default_factory=dict)
-    base_class_map: dict | None = field(default_factory=dict)
-    module_map: dict | None = field(default_factory=dict)
+    suffix_map: dict[str, str] = field(default_factory=dict)
+    directory_map: dict[str, str] = field(default_factory=dict)
+    base_class_map: dict[str, str] = field(default_factory=dict)
+    module_map: dict[str, str] = field(default_factory=dict)
 
 
 class LayerRegistry:
@@ -74,17 +74,17 @@ class LayerRegistry:
         r"(?:^|.*/)main\.py$": LAYER_INTERFACE,
     }
 
-    def __init__(self, config: LayerRegistryConfig | None = None):
+    def __init__(self, config: Optional[LayerRegistryConfig] = None) -> None:
         if config is None:
             config = LayerRegistryConfig()
 
-        self.project_type = config.project_type
+        self.project_type: str = config.project_type
 
         # Initialize with defaults copy
-        self.suffix_map = self.DEFAULT_SUFFIX_MAP.copy()
-        self.directory_map = self.DEFAULT_DIRECTORY_MAP.copy()
-        self.base_class_map = config.base_class_map or {}
-        self.module_map = config.module_map or {}
+        self.suffix_map: dict[str, str] = self.DEFAULT_SUFFIX_MAP.copy()
+        self.directory_map: dict[str, str] = self.DEFAULT_DIRECTORY_MAP.copy()
+        self.base_class_map: dict[str, str] = config.base_class_map or {}
+        self.module_map: dict[str, str] = config.module_map or {}
 
         # Update with config overrides
         if config.suffix_map:
@@ -100,7 +100,7 @@ class LayerRegistry:
 
         self._apply_preset()
 
-    def _apply_preset(self):
+    def _apply_preset(self) -> None:
         """Apply project-type-specific rules."""
         presets = {
             "fastapi_sqlalchemy": {
@@ -181,10 +181,10 @@ class LayerRegistry:
     def _resolve_by_directory(self, file_path: str) -> str | None:
         """Check path/module for directory matching."""
         # Normalize: replace backslashes and dots (except for .py extension)
-        normalized_path = file_path.replace("\\", "/")
+        normalized_path: str = file_path.replace("\\", "/")
         if normalized_path.endswith(".py"):
             normalized_path = normalized_path[:-3]
-        normalized_path = normalized_path.replace(".", "/")
+        normalized_path: str = normalized_path.replace(".", "/")
 
         # Prefix with / for pattern matching if not already
         if not normalized_path.startswith("/"):

@@ -1,6 +1,6 @@
 """Pattern checks (W9005, W9006)."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List, Dict
 
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from pylint.lint import PyLinter
 
 from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.di.container import ExcelsiorContainer
+from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
 
 _MIN_CHAIN_LENGTH = 2
 _MAX_SELF_CHAIN_LENGTH = 2
@@ -19,7 +21,7 @@ class PatternChecker(BaseChecker):
 
     name = "clean-arch-delegation"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9005": (
                 "Delegation Anti-Pattern: %s "
@@ -32,12 +34,7 @@ class PatternChecker(BaseChecker):
 
     def visit_if(self, node: astroid.nodes.If) -> None:
         """Check for delegation chains."""
-        # Skip 'if __name__ == "__main__"' blocks
-        if (
-            isinstance(node.test, astroid.nodes.Compare)
-            and isinstance(node.test.left, astroid.nodes.Name)
-            and node.test.left.name == "__name__"
-        ):
+        if self._is_main_block(node):
             return
 
         is_delegation, advice = self._check_delegation_chain(node)
@@ -48,7 +45,15 @@ class PatternChecker(BaseChecker):
                 args=(advice or "Refactor to Strategy, Handler, or Adapter pattern.",),
             )
 
-    def _check_delegation_chain(self, node: astroid.nodes.If, depth: int = 0) -> tuple[bool, Optional[str]]:
+    def _is_main_block(self, node: astroid.nodes.If) -> bool:
+        """Heuristic for 'if __name__ == "__main__"'."""
+        return (
+            isinstance(node.test, astroid.nodes.Compare)
+            and isinstance(node.test.left, astroid.nodes.Name)
+            and node.test.left.name == "__name__"
+        )
+
+    def _check_delegation_chain(self, node: astroid.nodes.If, depth = 0) -> tuple[bool, Optional[str]]:
         """Check if if/elif chain is purely delegating."""
         if len(node.body) != 1:
             return False, None
@@ -57,12 +62,10 @@ class PatternChecker(BaseChecker):
         if not self._is_delegation_call(stmt):
             return False, None
 
-        # Generate prescriptive advice based on condition type
         advice = "Refactor to Strategy/Handler pattern."
         if isinstance(node.test, astroid.nodes.Compare) and isinstance(node.test.left, astroid.nodes.Name):
             advice = "Refactor to **Strategy Pattern** using a dictionary mapping."
 
-        # If strict guard clause (no else), it is NOT a delegation CHAIN unless deep recursion
         if not node.orelse:
             # Only flag if we are already deep in a chain (depth > 0)
             # This ignores simple 'if x: do_y()' guard clauses
@@ -91,21 +94,22 @@ class PatternChecker(BaseChecker):
 class CouplingChecker(BaseChecker):
     """W9006: Law of Demeter violation detection."""
 
-    name = "law-of-demeter"
+    name = "clean-arch-demeter"
 
-    def __init__(self, linter: Optional["PyLinter"] = None) -> None:
+    def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
             "W9006": (
                 "Law of Demeter: Chain access (%s) exceeds one level. Create delegated method. "
                 "Clean Fix: Add a method to the immediate object that performs the operation.",
-                "law-of-demeter",
+                "clean-arch-demeter",
                 "OBJECTS SHOULD NOT EXPOSE INTERNALS. Violating Demeter (a.b.c) couples code to structure.",
             ),
         }
         super().__init__(linter)
-        self._locals_map: dict[str, bool] = {}  # Map[variable_name] -> is_stranger (bool)
-
-    # Common Repository/API patterns
+        self._locals_map: Dict[str, bool] = {}
+        container = ExcelsiorContainer.get_instance()
+        self._ast_gateway: AstroidProtocol = container.get("AstroidGateway")
+        self._python_gateway: PythonProtocol = container.get("PythonGateway")
 
     def visit_functiondef(self, _node: astroid.nodes.FunctionDef) -> None:
         """Reset locals map for each function."""
@@ -122,35 +126,44 @@ class CouplingChecker(BaseChecker):
 
     def visit_call(self, node: astroid.nodes.Call) -> None:
         """Check for Law of Demeter violations."""
-        # Skip checks for test files
+        if self._is_test_file(node):
+            return
+
+        if self._check_method_chain(node):
+            return
+
+        self._check_stranger_variable(node)
+
+    def _is_test_file(self, node: astroid.nodes.NodeNG) -> bool:
+        """Detect if current node resides in a test file, excluding benchmarks/samples."""
         root = node.root()
         file_path: str = getattr(root, "file", "")
-        if "tests" in file_path.split("/") or "test_" in file_path.split("/")[-1]:
-            return
+        if not file_path:
+            return False
 
-        if self._is_method_chain_violation(node):
-            return
+        # Avoid skipping our own test benchmarks/samples
+        if any(x in file_path.lower() for x in ("benchmark", "samples", "bait")):
+            return False
 
-        # Case 2: Method called on a 'stranger' variable
-        if isinstance(node.func, astroid.nodes.Attribute):
-            expr = node.func.expr
-            if isinstance(expr, astroid.nodes.Name) and self._locals_map.get(expr.name, False):
-                # It's a method call on a variable derived from another call.
-                if self._is_chain_excluded(node, [node.func.attrname], expr):
-                    return
+        parts = file_path.split("/")
+        filename = parts[-1] if parts else ""
 
-                self.add_message(
-                    "law-of-demeter",
-                    node=node,
-                    args=(f"{expr.name}.{node.func.attrname} (Stranger)",),
-                )
+        # Only skip if it's in a 'tests' directory or starts with 'test_'
+        # And NOT if it's a functional test target (usually in /tmp or snowfort_test)
+        if "tests" in parts or filename.startswith("test_"):
+             # Extra guard: if it's in /tmp/ it might be a functional test
+             if "/tmp/" in file_path or "snowfort" in file_path:
+                 return False
+             return True
 
-    def _is_method_chain_violation(self, node: astroid.nodes.Call) -> bool:
-        """Check direct method chains like a.b.c() or a().b()"""
+        return False
+
+    def _check_method_chain(self, node: astroid.nodes.Call) -> bool:
+        """Case 1: Direct method chains."""
         if not isinstance(node.func, astroid.nodes.Attribute):
             return False
 
-        chain: list[str] = []
+        chain: List[str] = []
         curr: astroid.nodes.NodeNG = node.func
         while isinstance(curr, (astroid.nodes.Attribute, astroid.nodes.Call)):
             if isinstance(curr, astroid.nodes.Attribute):
@@ -170,118 +183,202 @@ class CouplingChecker(BaseChecker):
 
         # Clean up display: replace .(). with ()
         full_chain = ".".join(reversed(chain)).replace(".()", "()")
-        self.add_message("law-of-demeter", node=node, args=(full_chain,))
+        self.add_message("clean-arch-demeter", node=node, args=(full_chain,))
         return True
 
-    def _is_chain_excluded(self, node: astroid.nodes.Call, chain: list[str], curr: astroid.nodes.NodeNG) -> bool:
-        """Check if chain is excluded from Demeter checks using tiered logic."""
+    def _check_stranger_variable(self, node: astroid.nodes.Call) -> None:
+        """Case 2: Method called on a 'stranger' variable."""
+        if isinstance(node.func, astroid.nodes.Attribute):
+            expr = node.func.expr
+            if isinstance(expr, astroid.nodes.Name) and self._locals_map.get(expr.name, False):
+                if self._is_chain_excluded(node, [node.func.attrname], expr):
+                    return
+
+                self.add_message(
+                    "clean-arch-demeter",
+                    node=node,
+                    args=(f"{expr.name}.{node.func.attrname} (Stranger)",),
+                )
+
+    def _is_chain_excluded(self, node: astroid.nodes.Call, chain: List[str], curr: astroid.nodes.NodeNG) -> bool:
+        """Tiered logic for chain exclusion."""
         config_loader = ConfigurationLoader()
-        from clean_architecture_linter.helpers import get_return_type_qname
 
-        # Tier 1 (Signature): Call get_return_type_qname (Full Chain Return Type)
-        qname = get_return_type_qname(node)
-
-        # Zero-Config Architecture: If return type is None (unresolved), it triggers a violation.
-        # This forces the developer to provide a Type Hint.
-        if qname is None:
-            return False
-
-        if qname == "builtins.NoneType":
+        # Category 6: Mocking & Testing
+        if self._is_test_file(node) or self._is_mock_involved(curr):
             return True
 
-        if self._is_safe_source(node.func.expr, config_loader):
-            return True
-
+        # User-Defined FQN Overrides (Toggled via pyproject.toml)
         if self._is_override_excluded(node, config_loader):
             return True
 
-        # Legacy/Essential exemptions
-        if (
-            isinstance(curr, astroid.nodes.Name)
-            and curr.name in ("self", "cls")
-            and len(chain) <= _MAX_SELF_CHAIN_LENGTH
+        # Continuity of Trust: If this tool belongs to a Trusted Authority, the chain stays alive.
+        if self._ast_gateway.is_trusted_authority_call(node):
+            return True
+
+        # Protocol Branch Trust: If this call is on an object produced by a Protocol, we trust it.
+        if isinstance(node.func, astroid.nodes.Attribute) and isinstance(node.func.expr, astroid.nodes.Call):
+            if self._ast_gateway.is_protocol_call(node.func.expr):
+                return True
+
+        # Fluent API Trust: If the transformation returns the same type (Transformation), it's safe.
+        if self._ast_gateway.is_fluent_call(node):
+            return True
+
+        # Transformation Trust: Collection accessors like items(), keys(), values(), union()
+        # are considered safe transformations of the object itself, not reaching into internals.
+        if isinstance(node.func, astroid.nodes.Attribute) and node.func.attrname in (
+            "items", "keys", "values", "union", "intersection", "update", "get", "setdefault", "items"
         ):
             return True
 
-        return bool(self._is_allowed_by_inference(curr, config_loader))
-
-    def _is_safe_source(self, receiver: astroid.nodes.NodeNG, config_loader: ConfigurationLoader) -> bool:
-        """Tier 2 logic: Check if receiver is a safe source (primitive or stdlib)."""
-        from clean_architecture_linter.helpers import get_return_type_qname_from_expr, is_std_lib_module
-
-        receiver_qname = get_return_type_qname_from_expr(receiver)
-        if receiver_qname:
-            # Legacy safe type check (manual list removed, relying on stdlib detection)
-            if is_std_lib_module(receiver_qname.split(".")[0]):
+        # LEGO Brick Rule: If the immediate receiver is a primitive, the call is safe.
+        if isinstance(node.func, astroid.nodes.Attribute):
+            if self._is_primitive_receiver(node.func.expr):
                 return True
 
-        # Tier 2.5: Module Origin Fallback
+        # Category 1 & 2: Safe Roots (StdLib, Builtins, friend modules)
+        if self._is_safe_source(curr, config_loader):
+            return True
+
+        if self._is_self_or_cls(curr, chain):
+            return True
+
+        # Category 4: Local Friend Objects (Factory Exemption)
+        if self._is_locally_instantiated(curr):
+            return True
+
+        # Category 7: Hinted Protocols/Interfaces
+        if self._is_hinted_protocol(curr):
+            return True
+
+        return self._is_allowed_by_inference(curr, config_loader)
+
+    def _is_primitive_receiver(self, receiver: astroid.nodes.NodeNG) -> bool:
+        """Check if the receiver of a call is a primitive type (LEGO brick)."""
+        qname = self._ast_gateway.get_return_type_qname_from_expr(receiver)
+        if qname:
+            return self._ast_gateway.is_primitive(qname)
+        return False
+
+    def _is_self_or_cls(self, curr: astroid.nodes.NodeNG, chain: List[str]) -> bool:
+        """Check if call is on self/cls within limits."""
+        return (
+            isinstance(curr, astroid.nodes.Name)
+            and curr.name in ("self", "cls")
+            and len(chain) <= _MAX_SELF_CHAIN_LENGTH
+        )
+
+    def _is_safe_source(self, receiver: astroid.nodes.NodeNG, config_loader: ConfigurationLoader) -> bool:
+        """Check if receiver is a safe source."""
+        # 1. Check Inference
+        qname: Optional[str] = self._ast_gateway.get_return_type_qname_from_expr(receiver)
+        if qname:
+            if self._ast_gateway.is_primitive(qname):
+                return True
+            if self._python_gateway.is_std_lib_module(qname.split(".")[0]):
+                return True
+
+        # 2. Check Structural/Fallbacks
+        if isinstance(receiver, astroid.nodes.Name):
+            # Check if it's a known stdlib module name being used directly
+            if self._python_gateway.is_std_lib_module(receiver.name):
+                return True
+
+        return self._is_inferred_safe(receiver, config_loader)
+
+    def _is_inferred_safe(self, receiver: astroid.nodes.NodeNG, config_loader: ConfigurationLoader) -> bool:
+        """Inference-based safety check."""
         try:
-            for inferred in list(receiver.infer()):
+            for inferred in receiver.infer():
                 if inferred is astroid.Uninferable:
                     continue
 
                 inf_qname: str = getattr(inferred, "qname", lambda: "")()
-                if inf_qname:
-                    if any(inf_qname == m or inf_qname.startswith(m + ".") for m in config_loader.allowed_lod_modules):
-                        return True
-                    if is_std_lib_module(inf_qname.split(".")[0]):
-                        return True
+                if self._check_mod_allowed(inf_qname, config_loader):
+                    return True
 
                 root_name: str = getattr(inferred.root(), "name", "")
-                if root_name:
-                    if any(root_name == m or root_name.startswith(m + ".") for m in config_loader.allowed_lod_modules):
-                        return True
-                    if is_std_lib_module(root_name.split(".")[0]):
-                        return True
-        except (astroid.InferenceError, AttributeError):
-            pass
-        return False
-
-    def _is_override_excluded(self, node: astroid.nodes.Call, config_loader: ConfigurationLoader) -> bool:
-        """Tier 3 logic: Check for explicit configuration overrides."""
-        try:
-            func = node.func
-            if not isinstance(func, astroid.nodes.Attribute):
-                return False
-
-            for inferred_method in func.infer():
-                if inferred_method is astroid.Uninferable:
-                    continue
-
-                method_qname = getattr(inferred_method, "qname", lambda: "")()
-                if method_qname and method_qname in config_loader.allowed_lod_methods:
+                if self._check_mod_allowed(root_name, config_loader):
                     return True
         except (astroid.InferenceError, AttributeError):
             pass
         return False
 
-    def _is_allowed_by_inference(self, node: astroid.nodes.NodeNG, config_loader: ConfigurationLoader) -> bool:
-        """Check if inferred type is allowed (e.g. Domain Entity)."""
-        from clean_architecture_linter.helpers import get_return_type_qname_from_expr
+    def _check_mod_allowed(self, mod_name: str, config_loader: ConfigurationLoader) -> bool:
+        """Check if module is allowed."""
+        if not mod_name:
+            return False
+        if self._python_gateway.is_std_lib_module(mod_name.split(".")[0]):
+            return True
 
-        qname = get_return_type_qname_from_expr(node)
+        allowed = config_loader.allowed_lod_modules.union(config_loader.allowed_lod_roots)
+        return any(mod_name == m or mod_name.startswith(m + ".") for m in allowed)
+
+    def _is_override_excluded(self, node: astroid.nodes.Call, config_loader: ConfigurationLoader) -> bool:
+        """Explicit config override check."""
+        try:
+            if not isinstance(node.func, astroid.nodes.Attribute):
+                return False
+
+            for inferred in node.func.infer():
+                if inferred is astroid.Uninferable:
+                    continue
+                qname = getattr(inferred, "qname", lambda: "")()
+                if qname in config_loader.allowed_lod_methods:
+                    return True
+        except (astroid.InferenceError, AttributeError):
+            pass
+        return False
+
+    def _is_allowed_by_inference(self, node: astroid.nodes.NodeNG, config_loader: "ConfigurationLoader") -> bool:
+        """Inferred layer allowance check."""
+        qname: Optional[str] = self._ast_gateway.get_return_type_qname_from_expr(node)
         if qname:
             if self._is_layer_allowed(qname, config_loader):
                 return True
             if any(qname.startswith(root) for root in config_loader.allowed_lod_roots):
                 return True
+        return False
 
+    def _is_layer_allowed(self, module_name: str, config_loader: "ConfigurationLoader") -> bool:
+        """Check if a module belongs to an allowed layer."""
+        layer: Optional[str] = config_loader.get_layer_for_module(module_name)
+        if layer and ("domain" in layer.lower() or "dto" in layer.lower()):
+            # Category 5: Domain Entities (Frozen Dataclasses)
+            return True
+        return False
+
+    def _is_locally_instantiated(self, node: astroid.nodes.NodeNG) -> bool:
+        """Detect if an object was instantiated as a local friend (Constructor Call)."""
+        if not isinstance(node, astroid.nodes.Name):
+            return False
+
+        scope = node.scope()
         try:
-            for inferred in node.infer():
-                if inferred is astroid.Uninferable:
+            for def_node in node.lookup(node.name)[1]:
+                if def_node.scope() != scope:
                     continue
-                module_name = getattr(inferred.root(), "name", "")
-                if module_name:
-                    if module_name in config_loader.allowed_lod_roots:
-                        return True
-                    if self._is_layer_allowed(module_name, config_loader):
-                        return True
-        except astroid.InferenceError:
+
+                parent = def_node.parent
+                if isinstance(parent, astroid.nodes.Assign) and isinstance(parent.value, astroid.nodes.Call):
+                    # Category 4: Factory Exemption (Must be a Class instantiation)
+                    call_node: astroid.nodes.Call = parent.value
+                    func_node = call_node.func
+                    for inf in func_node.infer():
+                        if isinstance(inf, astroid.nodes.ClassDef):
+                            return True
+        except (astroid.InferenceError, AttributeError):
             pass
         return False
 
-    def _is_layer_allowed(self, module_name: str, config_loader: ConfigurationLoader) -> bool:
-        """Check if a module belongs to an allowed layer (Domain/DTO)."""
-        layer = config_loader.get_layer_for_module(module_name)
-        return bool(layer and ("domain" in layer.lower() or "dto" in layer.lower()))
+    def _is_hinted_protocol(self, node: astroid.nodes.NodeNG) -> bool:
+        """Check if the inferred type is a Protocol or resides in a protocols module."""
+        return self._ast_gateway.is_protocol(node)
+
+    def _is_mock_involved(self, node: astroid.nodes.NodeNG) -> bool:
+        """Detect if mock objects are involved in the expression."""
+        qname = self._ast_gateway.get_return_type_qname_from_expr(node)
+        if qname and any(m in qname for m in ("unittest.mock", "pytest", "MagicMock")):
+            return True
+        return False

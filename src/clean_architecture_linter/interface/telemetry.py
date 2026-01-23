@@ -21,9 +21,9 @@ class TelemetryPort(Protocol):
 
     def error(self, msg: str) -> None: ...
 
-    def ask(self, prompt: str, default: str | None = None, password: bool = False) -> str: ...
+    def ask(self, prompt: str, default: str | None = None, password = False) -> str: ...
 
-    def confirm(self, prompt: str, default: bool = True) -> bool: ...
+    def confirm(self, prompt: str, default = True) -> bool: ...
 
     def warning(self, msg: str) -> None: ...
 
@@ -35,7 +35,7 @@ class ProjectTelemetry(TelemetryPort):
 
     __fleet_component__ = True
 
-    def __init__(self, project_name: str, color: str, welcome_msg: str):
+    def __init__(self, project_name: str, color: str, welcome_msg: str) -> None:
         self.project_name = project_name
         self.color = color
         self.welcome_msg = welcome_msg
@@ -47,10 +47,10 @@ class ProjectTelemetry(TelemetryPort):
         self.logger.setLevel(logging.INFO)
         fh = logging.FileHandler(self.log_file)
         # JUSTIFICATION: Logging configuration requires direct object manipulation
-        fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))  # pylint: disable=clean-arch-demeter
+        fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))  # pylint: disable=law-of-demeter
         self.logger.addHandler(fh)
 
-    def handshake(self):
+    def handshake(self) -> None:
         """Initial welcome banner."""
         self.console.print(
             Panel(
@@ -61,32 +61,32 @@ class ProjectTelemetry(TelemetryPort):
         )
         self.logger.info(f"Session started for {self.project_name}")
 
-    def step(self, msg: str):
+    def step(self, msg: str) -> None:
         """Log a successful step."""
         self.console.print(f"[{self.color}]•[/] {msg}")
         self.logger.info(msg)
 
-    def error(self, msg: str):
+    def error(self, msg: str) -> None:
         """Log an error."""
         self.console.print(f"[red]✖[/] [bold red]Error:[/] {msg}")
         self.logger.error(msg)
 
-    def ask(self, prompt: str, default: str | None = None, password: bool = False) -> str:
+    def ask(self, prompt: str, default: str | None = None, password = False) -> str:
         """Prompt user for input."""
         if password:
-            return self.console.input(f"[{self.color}]?[/] {prompt}: ", password=True)
-        resp = self.console.input(f"[{self.color}]?[/] {prompt} {f'({default})' if default else ''}: ")
+            return str(self.console.input(f"[{self.color}]?[/] {prompt}: ", password=True))
+        resp = str(self.console.input(f"[{self.color}]?[/] {prompt} {f'({default})' if default else ''}: "))
         return resp.strip() or (default if default else "")
 
-    def confirm(self, prompt: str, default: bool = True) -> bool:
+    def confirm(self, prompt: str, default = True) -> bool:
         """Prompt user for confirmation."""
-        return Confirm.ask(f"[{self.color}]?[/] {prompt}", default=default, console=self.console)
+        return bool(Confirm.ask(f"[{self.color}]?[/] {prompt}", default=default, console=self.console))
 
-    def warning(self, msg: str):
+    def warning(self, msg: str) -> None:
         """Log a warning."""
         self.console.print(f"[yellow]![/] [bold yellow]Warning:[/] {msg}")
         self.logger.warning(msg)
 
-    def debug(self, msg: str):
+    def debug(self, msg: str) -> None:
         """Log a debug message."""
         self.logger.debug(msg)

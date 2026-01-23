@@ -1,51 +1,99 @@
-from astroid import extract_node
+import pytest
+import astroid
+import os
 from pylint.testutils import CheckerTestCase, MessageTest
-
 from clean_architecture_linter.checks.patterns import CouplingChecker
-from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.di.container import ExcelsiorContainer
+from unittest import mock
 
+def _collect_samples():
+    """Helper to parse all benchmark files in source-data."""
+    source_dir = "tests/functional/source-data"
+    all_samples = []
 
-class TestStellarLodBenchmarks(CheckerTestCase):
+    for filename in sorted(os.listdir(source_dir)):
+        if not filename.endswith(".py"):
+            continue
+
+        path = os.path.join(source_dir, filename)
+        with open(path, "r") as f:
+            content = f.read()
+
+        node = astroid.parse(content, module_name=filename.replace(".py", ""))
+        is_violation_file = "violation" in filename
+
+        for child in node.body:
+            if isinstance(child, astroid.nodes.FunctionDef):
+                if is_violation_file and "violation" not in child.name.lower():
+                    continue
+                all_samples.append((f"{filename}::{child.name}", child, is_violation_file))
+            elif isinstance(child, astroid.nodes.ClassDef):
+                for method in child.body:
+                    if isinstance(method, astroid.nodes.FunctionDef):
+                        if is_violation_file and "violation" not in method.name.lower():
+                            continue
+                        all_samples.append((f"{filename}::{child.name}.{method.name}", method, is_violation_file))
+
+    return all_samples
+
+def get_safe_samples():
+    return [s for s in _collect_samples() if not s[2]]
+
+def get_violation_samples():
+    return [s for s in _collect_samples() if s[2]]
+
+class TestLoDExhaustive(CheckerTestCase):
     CHECKER_CLASS = CouplingChecker
 
-    def setup_method(self) -> None:
-        super().setup_method()
-        ConfigurationLoader._config = {}
-        self.checker.config_loader = ConfigurationLoader()
+    def _assert_lod_compliance(self, node, expected_violation, name):
+        """Common logic to run the checker and assert results."""
+        ExcelsiorContainer.reset()
+        container = ExcelsiorContainer.get_instance()
+        self.checker._ast_gateway = container.get("AstroidGateway")
 
-    def test_stdlib_pathlib_chain_is_permitted(self) -> None:
-        node = extract_node("""
-            from pathlib import Path
-            Path('stellar.txt').read_text().splitlines()  #@
-        """)
-        with self.assertNoMessages():
-            self.checker.visit_call(node)
+        # Only mock Domain layer for the specific category that needs it
+        mock_layer = "Domain" if "domain-entities" in name else None
 
-    def test_type_hint_propagation_allows_chaining(self) -> None:
-        node = extract_node("""
-            def get_name() -> str: return "voyager"
-            name: str = get_name()
-            name.upper().strip()  #@
-        """)
-        with self.assertNoMessages():
-            self.checker.visit_call(node)
+        with mock.patch("clean_architecture_linter.config.ConfigurationLoader.get_layer_for_module", return_value=mock_layer):
+            # Ensure the checker is reset for each node
+            if hasattr(self.linter, "release_messages"):
+                self.linter.release_messages()
 
-    def test_any_is_not_a_hall_pass(self) -> None:
-        node = extract_node("""
-            from typing import Any
-            def get_data() -> Any: return "hull_breach"
-            data = get_data()
-            data.split().lower()  #@
-        """)
-        with self.assertAddsMessages(
-            MessageTest(
-                msg_id="law-of-demeter",
-                node=node,
-                args=("split().lower",),
-                line=5,
-                col_offset=0,
-                end_line=5,
-                end_col_offset=20,
-            )
-        ):
-            self.checker.visit_call(node)
+            self._manual_walk(node)
+
+            messages = [m for m in self.linter.release_messages() if m.msg_id in ["clean-arch-demeter", "W9006"]]
+
+            if expected_violation:
+                assert len(messages) > 0, f"Expected LoD violation in '{name}', but found none."
+            else:
+                if len(messages) > 0:
+                     print(f"\nViolations in {name}:")
+                     for m in messages:
+                         print(f"  - {m.args}")
+                assert len(messages) == 0, f"Unexpected LoD violation in '{name}': {[m.args for m in messages]}."
+
+    def _manual_walk(self, node):
+        """Recursively walk the AST and call checker visit methods."""
+        # visit
+        visitor_name = f"visit_{node.__class__.__name__.lower()}"
+        if hasattr(self.checker, visitor_name):
+            getattr(self.checker, visitor_name)(node)
+
+        # children
+        for child in node.get_children():
+            self._manual_walk(child)
+
+        # leave
+        leave_name = f"leave_{node.__class__.__name__.lower()}"
+        if hasattr(self.checker, leave_name):
+            getattr(self.checker, leave_name)(node)
+
+    @pytest.mark.parametrize("name, node, _", get_safe_samples())
+    def test_safe_zone_exemptions(self, name, node, _):
+        """Verify that all architectural exemptions pass."""
+        self._assert_lod_compliance(node, expected_violation=False, name=name)
+
+    @pytest.mark.parametrize("name, node, _", get_violation_samples())
+    def test_violation_zone_enforcement(self, name, node, _):
+        """Verify that all genuine violations are caught."""
+        self._assert_lod_compliance(node, expected_violation=True, name=name)

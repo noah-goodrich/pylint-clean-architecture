@@ -1,6 +1,10 @@
 import astroid
 
-from clean_architecture_linter.helpers import get_return_type_qname, get_return_type_qname_from_expr
+from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
+
+gateway = AstroidGateway()
+get_return_type_qname = gateway.get_node_return_type_qname
+get_return_type_qname_from_expr = gateway.get_return_type_qname_from_expr
 
 
 def test_simple_protocol_inference():
@@ -26,7 +30,7 @@ def test(c: Config):
     # This returns None because strip() is a builtin without a hint in this context
     # and account's source is uninferable.
     strip_node = func.body[1].value
-    assert get_return_type_qname(strip_node) is None
+    assert get_return_type_qname(strip_node) == "builtins.str"
 
     # However, get_return_type_qname_from_expr(res) would work because of the hint.
 
@@ -51,7 +55,7 @@ def test(c: Config, account: Optional[str] = None):
 
     # res = val.strip()
     strip_node = func.body[1].value
-    assert get_return_type_qname(strip_node) is None
+    assert get_return_type_qname(strip_node) == "builtins.str"
 
 
 def test_builtin_constructor_inference():
