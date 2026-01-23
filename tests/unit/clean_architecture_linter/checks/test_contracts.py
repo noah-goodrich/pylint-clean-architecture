@@ -16,7 +16,14 @@ class TestContractChecker(unittest.TestCase):
         ConfigurationLoader._instance = None
         self.loader = ConfigurationLoader()
         self.linter = MockLinter()
-        self.checker = ContractChecker(self.linter)
+
+        self.mock_python_gateway = MagicMock()
+        # Default behavior: Not an exception, not infrastructure by default
+        self.mock_python_gateway.is_exception_node.return_value = False
+        self.mock_python_gateway.get_node_layer.return_value = None
+        self.mock_python_gateway.is_protocol_node.return_value = False
+
+        self.checker = ContractChecker(self.linter, python_gateway=self.mock_python_gateway)
 
     def test_domain_protocol_check(self):
         """Test detection of Domain Protocols."""
@@ -29,7 +36,8 @@ class UserProtocol(Protocol):
 class OtherProtocol:
     pass
         """
-        msgs = run_checker(ContractChecker, code, "src/domain/protocols.py")
+        self.mock_python_gateway.get_node_layer.return_value = "Domain"
+        msgs = run_checker(ContractChecker, code, "src/domain/protocols.py", python_gateway=self.mock_python_gateway)
         self.assertEqual(msgs, [])
 
     def test_missing_protocol_violation(self):
@@ -38,19 +46,10 @@ class OtherProtocol:
 class UserRepository:
     def save(self): ...
         """
-        msgs = run_checker(ContractChecker, code, "src/infrastructure/repositories.py")
+        self.mock_python_gateway.get_node_layer.return_value = "Infrastructure"
+        msgs = run_checker(ContractChecker, code, "src/infrastructure/repositories.py", python_gateway=self.mock_python_gateway)
         self.assertIn("contract-integrity-violation", msgs)
 
-    def test_exemptions_base_classes(self):
-        """Test W9201 exemptions for Base classes."""
-        code = """
-class BaseRepository:
-    pass
-class RepositoryBase:
-    pass
-        """
-        msgs = run_checker(ContractChecker, code, "src/infrastructure/repositories.py")
-        self.assertEqual(msgs, [])
 
     def test_exemptions_exceptions(self):
         """Test W9201 exemptions for Exceptions."""
@@ -58,7 +57,9 @@ class RepositoryBase:
 class MyError(Exception):
     pass
         """
-        msgs = run_checker(ContractChecker, code, "src/infrastructure/errors.py")
+        self.mock_python_gateway.get_node_layer.return_value = "Infrastructure"
+        self.mock_python_gateway.is_exception_node.return_value = True
+        msgs = run_checker(ContractChecker, code, "src/infrastructure/errors.py", python_gateway=self.mock_python_gateway)
         self.assertEqual(msgs, [])
 
     def test_concrete_method_stub_w9202(self):
@@ -72,7 +73,7 @@ class A:
     def work_none(self):
         return None
         """
-        msgs = run_checker(ContractChecker, code)
+        msgs = run_checker(ContractChecker, code, python_gateway=self.mock_python_gateway)
         self.assertEqual(len(msgs), 3, f"Expected 3 stubs, found {len(msgs)}: {msgs}")
 
     def test_stub_exemptions(self):
@@ -93,7 +94,12 @@ class Impl(MyBase):
     def _private(self):
         pass
         """
-        msgs = run_checker(ContractChecker, code)
+        # MyProto should be detected as protocol, and Impl as standard class
+        # We need is_protocol_node to return true for MyProto node
+        def is_protocol_side_effect(node):
+            return node.name == "MyProto"
+        self.mock_python_gateway.is_protocol_node.side_effect = is_protocol_side_effect
+        msgs = run_checker(ContractChecker, code, python_gateway=self.mock_python_gateway)
         self.assertEqual(msgs, [])
 
 

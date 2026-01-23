@@ -1,4 +1,5 @@
 from typing import Optional, Set, List, Union
+import builtins
 import astroid # type: ignore[import-untyped]
 from clean_architecture_linter.domain.protocols import AstroidProtocol
 from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
@@ -13,6 +14,9 @@ class AstroidGateway(AstroidProtocol):
         # Clear cache to ensure stubs are loaded if they exist
         astroid.MANAGER.clear_cache()
         self.typeshed = TypeshedService()
+        # JUSTIFICATION: Lazy import to avoid circular dependency
+        from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
+        self.python_gateway = PythonGateway()
 
     def get_node_return_type_qname(self, node: astroid.nodes.NodeNG) -> Optional[str]:
         """Dynamically discovers fully qualified names using AST inference and signature hints."""
@@ -381,8 +385,15 @@ class AstroidGateway(AstroidProtocol):
 
     def _normalize_primitive(self, qname: str) -> str:
         """Normalize types like 'str' to 'builtins.str'."""
-        if qname in ("str", "int", "float", "list", "dict", "set", "bool", "bytes", "tuple", "NoneType"):
-            return f"builtins.{qname}"
+        if not qname:
+             return ""
+        # Dynamic check via python gateway if needed, but for primitives simple prefixing is okay
+        # provided we don't assume the list is exhaustive for all safety checks.
+        base_name = qname.split(".")[-1]
+        # Check against actual builtins module if possible, simplified here
+        # Check against actual builtins module
+        if hasattr(builtins, base_name):
+             return f"builtins.{base_name}"
         return qname
 
     def _resolve_nested_annotation(self, slice_node: astroid.nodes.NodeNG) -> Optional[str]:
@@ -602,7 +613,10 @@ class AstroidGateway(AstroidProtocol):
         try:
             for inf in node.func.infer():
                 qname: str = getattr(inf, "qname", lambda: "")()
-                if qname.startswith(("builtins.", "typing.", "collections.", "pathlib.", "re.", "json.", "datetime.", "abc.", "os.")):
+                if not qname:
+                    continue
+                module_name = qname.split(".")[0]
+                if self.python_gateway.is_stdlib_module(module_name):
                     return True
         except (astroid.InferenceError, AttributeError):
             pass
@@ -612,23 +626,30 @@ class AstroidGateway(AstroidProtocol):
         if isinstance(node.func, astroid.nodes.Attribute):
             # a) Direct check for trusted calls (Continuity)
             if isinstance(node.func.expr, astroid.nodes.Call):
-                if self.is_trusted_authority_call(node.func.expr):
+                if self._check_trusted_authority_call_recursive(node.func.expr, set()):
                     return True
 
             # b) Check receiver type
             receiver_qname: Optional[str] = self.get_return_type_qname_from_expr(node.func.expr)
             if receiver_qname:
-                # If receiver is builtins, any method on it is considered trusted
-                authorities = ("builtins.", "typing.", "collections.", "pathlib.", "re.", "json.", "datetime.", "abc.", "os.")
-                if any(receiver_qname.startswith(p) for p in authorities):
+                module_name = receiver_qname.split(".")[0]
+                # Trust StdLib modules
+                if self.python_gateway.is_stdlib_module(module_name):
                     return True
-                # Use Typeshed to see if the receiver class belongs to stdlib
-                mod_name = receiver_qname.split(".")[0]
-                if self.typeshed.is_stdlib_module(mod_name):
+
+                # Trust Primitives (checking against builtins)
+                if receiver_qname.startswith("builtins."):
                     return True
-                # Handle bare names
-                if receiver_qname in ("str", "int", "float", "list", "dict", "set", "bool", "bytes", "tuple"):
-                    return True
+
+                # Trust External Dependencies (Infrastructure)
+                # We need a file path for this. If we inferred a node, we might have it.
+                # Complex check: find the ClassDef node for this qname and check its file.
+                receiver_node = self._find_class_node(receiver_qname, node)
+                if receiver_node and hasattr(receiver_node, "root"):
+                    file_path = str(getattr(receiver_node.root(), "file", ""))
+                    if self.python_gateway.is_external_dependency(file_path):
+                        return True
+
         return False
 
     def is_primitive(self, qname: str) -> bool:
@@ -650,4 +671,44 @@ class AstroidGateway(AstroidProtocol):
             return True
         if qname.startswith(("typing.", "collections.abc.")):
             return True
+        return False
+
+    def _check_trusted_authority_call_recursive(self, node: astroid.nodes.Call, visited: Set[int]) -> bool:
+        """Internal helper to prevent recursion loops."""
+        node_id = id(node)
+        if node_id in visited:
+            return False
+        visited.add(node_id)
+
+        # 1. Try Direct Inference
+        try:
+            for inf in node.func.infer():
+                qname: str = getattr(inf, "qname", lambda: "")()
+                if not qname:
+                    continue
+                module_name = qname.split(".")[0]
+                if self.python_gateway.is_stdlib_module(module_name):
+                    return True
+        except (astroid.InferenceError, AttributeError):
+            pass
+
+        # 2. Structural fallback
+        if isinstance(node.func, astroid.nodes.Attribute):
+            if isinstance(node.func.expr, astroid.nodes.Call):
+                if self._check_trusted_authority_call_recursive(node.func.expr, visited):
+                    return True
+
+            receiver_qname = self.get_return_type_qname_from_expr(node.func.expr)
+            if receiver_qname:
+                module_name = receiver_qname.split(".")[0]
+                if self.python_gateway.is_stdlib_module(module_name):
+                    return True
+                if receiver_qname.startswith("builtins."):
+                    return True
+
+                receiver_node = self._find_class_node(receiver_qname, node)
+                if receiver_node and hasattr(receiver_node, "root"):
+                    file_path = str(getattr(receiver_node.root(), "file", ""))
+                    if self.python_gateway.is_external_dependency(file_path):
+                        return True
         return False

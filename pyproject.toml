@@ -112,20 +112,8 @@ enable = [
 [tool.clean-arch]
 silent_layers = ["Domain", "UseCase"]
 allowed_io_interfaces = ["TelemetryPort", "UserInterfaceProtocol"]
-allowed_lod_modules = [
-    "clean_architecture_linter.di.container",
-    "stellar_ui_kit",
-    "clean_architecture_linter.infrastructure.gateways.astroid_gateway",
-    "re",
-    "json",
-    "os",
-    "pathlib",
-    "astroid",
-    "typing",
-    "argparse",
-    "clean_architecture_linter.config"
-]
-allowed_lod_methods = []
+# allowed_lod_modules removed in v3 (Dynamic Discovery Active)
+# allowed_lod_methods removed in v3 (Dynamic Discovery Active)
 project_name = "EXCELSIOR"
 color = "red"
 welcome_msg = "Command Cruiser Online"

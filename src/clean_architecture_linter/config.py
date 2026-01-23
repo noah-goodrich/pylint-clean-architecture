@@ -111,19 +111,10 @@ class ConfigurationLoader:
         if not isinstance(allowed_methods, (list, set)):
             return
 
-        for method in allowed_methods:
-            if not isinstance(method, str):
-                continue
-            # Task 3: Surgical FQN Overrides (Tier 3 Hardening)
-            # Every entry in allowed_lod_methods MUST be a Fully Qualified Name (FQN)
-            # with at least two dots (e.g., snowflake.snowpark.Table.collect).
-            if method.count(".") < 2:
-                error_msg = (
-                    f"Invalid LoD configuration: Method override '{method}' must use "
-                    "a Fully Qualified Name with at least two dots (e.g. 'builtins.str.split') "
-                    "to prevent global shadowing. Bare names like 'get' are rejected."
-                )
-                raise ValueError(error_msg)
+        if allowed_methods:
+            import logging
+            logging.warning("Configuration Warning: 'allowed_lod_methods' is deprecated. "
+                            "Excelsior v3 uses dynamic Type Inference.")
 
     @property
     def config(self) -> dict[str, object]:
@@ -201,12 +192,12 @@ class ConfigurationLoader:
 
     @property
     def allowed_lod_modules(self) -> set[str]:
-        """Return allowed LoD modules from config."""
+        """Deprecated: Return allowed LoD modules from config (Legacy Support Only)."""
         return self._get_set("allowed_lod_modules")
 
     @property
     def allowed_lod_methods(self) -> set[str]:
-        """Return allowed LoD methods from config."""
+        """Deprecated: Return allowed LoD methods from config (Legacy Support Only)."""
         return self._get_set("allowed_lod_methods")
 
     @property

@@ -1,12 +1,15 @@
 .PHONY: handshake
 handshake:
-	@echo "=== STELLAR PROTOCOL HANDSHAKE ==="
-	@ls .agent/*.md | grep -v "_" || (echo "ERROR: .agent/ files must use dashes!" && exit 1)
-	@python3 -c "import astroid; print(f'   [OK] Astroid: {astroid.__version__}')"
-	@mypy --version > /dev/null || (echo "   [FAIL] Mypy missing!" && exit 1)
-	@echo "Complexity: 11 | Typing: Strict (No Any) | Helpers: BANNED"
-	@echo "Boundary: stellar-ui-kit is IMMUTABLE"
-	@echo "Workflow: Blueprint Approval -> Tests -> Implementation -> verify-file"
+	@echo "=== STELLAR PROTOCOL HANDSHAKE (Augmented) ==="
+	@echo "1. INTERPRETER AUDIT:"
+	@python3 -c "import sys; print(f'   [INFO] StdLib Modules: {len(sys.stdlib_module_names)}');"
+	@python3 -c "import sysconfig; print(f'   [INFO] StdLib Path: {sysconfig.get_path(\"stdlib\")}')"
+	@echo "2. STUB AUDIT:"
+	@pip freeze | grep "types-astroid" > /dev/null && echo "   [OK] types-astroid found" || (echo "   [FAIL] types-astroid MISSING" && exit 1)
+	@echo "3. RULE ZERO:"
+	@echo "   HEURISTICS DELETED. DYNAMIC DISCOVERY ACTIVE."
+	@echo "   [Strict] Site-Packages = Infrastructure"
+	@echo "   [Strict] Annotation Priority = Absolute Truth"
 	@echo "=================================="
 
 .PHONY: verify-file

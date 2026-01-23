@@ -50,6 +50,7 @@ class TestLoDExhaustive(CheckerTestCase):
         ExcelsiorContainer.reset()
         container = ExcelsiorContainer.get_instance()
         self.checker._ast_gateway = container.get("AstroidGateway")
+        self.checker._python_gateway = container.get("PythonGateway")
 
         # Only mock Domain layer for the specific category that needs it
         mock_layer = "Domain" if "domain-entities" in name else None

@@ -234,12 +234,11 @@ class CouplingChecker(BaseChecker):
 
         # Transformation Trust: Collection accessors like items(), keys(), values(), union()
         # are considered safe transformations of the object itself, not reaching into internals.
-        if isinstance(node.func, astroid.nodes.Attribute) and node.func.attrname in (
-            "items", "keys", "values", "union", "intersection", "update", "get", "setdefault", "findall",
-            "startswith", "endswith", "strip", "lstrip", "rstrip", "split", "replace", "join", "group", "groups", "match", "search",
-            "lower", "upper", "title", "capitalize", "translate", "format", "isdigit", "isalpha", "isalnum"
-        ):
-            return True
+        if isinstance(node.func, astroid.nodes.Attribute):
+            # If the receiver is a trusted authority (Standard Library or Primitive), the transformation is safe.
+            # This replaces the hardcoded list of methods (split, strip, etc.) with a dynamic trust model.
+            if self._ast_gateway.is_trusted_authority_call(node):
+                return True
 
         # LEGO Brick Rule: If the immediate receiver is a primitive, the call is safe.
         if isinstance(node.func, astroid.nodes.Attribute):
@@ -285,13 +284,13 @@ class CouplingChecker(BaseChecker):
         if qname:
             if self._ast_gateway.is_primitive(qname):
                 return True
-            if self._python_gateway.is_std_lib_module(qname.split(".")[0]):
+            if self._python_gateway.is_stdlib_module(qname.split(".")[0]):
                 return True
 
         # 2. Check Structural/Fallbacks
         if isinstance(receiver, astroid.nodes.Name):
             # Check if it's a known stdlib module name being used directly
-            if self._python_gateway.is_std_lib_module(receiver.name):
+            if self._python_gateway.is_stdlib_module(receiver.name):
                 return True
 
         return self._is_inferred_safe(receiver, config_loader)
@@ -318,10 +317,15 @@ class CouplingChecker(BaseChecker):
         """Check if module is allowed."""
         if not mod_name:
             return False
-        if self._python_gateway.is_std_lib_module(mod_name.split(".")[0]):
+        if self._python_gateway.is_stdlib_module(mod_name.split(".")[0]):
             return True
 
-        allowed = config_loader.allowed_lod_modules.union(config_loader.allowed_lod_roots)
+        if self._python_gateway.is_external_dependency(getattr(self.linter.current_file, "path", "")):
+             # If we are IN infrastructure code, we might allow more things, but strictly speaking
+             # we are checking if the *imported module* is allowed.
+             pass
+
+        allowed = config_loader.allowed_lod_roots
         return any(mod_name == m or mod_name.startswith(m + ".") for m in allowed)
 
     def _is_override_excluded(self, node: astroid.nodes.Call, config_loader: ConfigurationLoader) -> bool:
@@ -334,6 +338,7 @@ class CouplingChecker(BaseChecker):
                 if inferred is astroid.Uninferable:
                     continue
                 qname = getattr(inferred, "qname", lambda: "")()
+                # Deprecated: usage of allowed_lod_methods is discouraged in v3
                 if qname in config_loader.allowed_lod_methods:
                     return True
         except (astroid.InferenceError, AttributeError):

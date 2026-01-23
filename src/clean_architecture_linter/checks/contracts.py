@@ -45,12 +45,9 @@ class ContractChecker(BaseChecker):
         if layer != LayerRegistry.LAYER_INFRASTRUCTURE:
             return
 
-        # Exempt base classes and exceptions
-        if node.name.endswith("Base") or node.name.startswith("Base"):
-            return
-        if node.name.endswith("Error") or node.name.endswith("Exception"):
-            return
-        if "Container" in node.name or "Registry" in node.name:
+        # Exempt base classes if they are purely abstract/mixins - detected via naming convention?
+        # NO. We only exempt things that are proven to be outside our jurisdiction or are Exceptions.
+        if self._python_gateway.is_exception_node(node):
             return
 
         if not node.bases:
@@ -60,19 +57,19 @@ class ContractChecker(BaseChecker):
         has_domain_base: bool = False
         domain_protos = []
         for base in node.ancestors():
-            # Builtins like Exception are safe
-            if base.name == "Exception" or base.qname() == "builtins.Exception":
-                has_domain_base: bool = True
+            # Dynamic Exception Check
+            if self._python_gateway.is_exception_node(base):
+                has_domain_base = True
                 break
 
+            # Check upstream layer dynamically
             root = base.root()
             if not hasattr(root, "name"):
                 continue
             base_layer = self.config_loader.get_layer_for_module(root.name)
             if base_layer == LayerRegistry.LAYER_DOMAIN:
-                has_domain_base: bool = True
+                has_domain_base = True
                 domain_protos.append(base)
-                # Keep going to find all protos if multiple exist
 
         if not has_domain_base:
             self.add_message("contract-integrity-violation", node=node, args=(node.name,))
@@ -114,21 +111,14 @@ class ContractChecker(BaseChecker):
         # Skip protocols
         if isinstance(node.parent, astroid.nodes.ClassDef):
             parent = node.parent
+            # Check by dynamic protocol detection
+            if self._python_gateway.is_protocol_node(parent):
+                return
+
             # Check by layer
             layer = self._python_gateway.get_node_layer(parent, self.config_loader)
             if layer == LayerRegistry.LAYER_DOMAIN:
                 return
-            # Check by name/bases as fallback for tests
-            if "Protocol" in parent.name:
-                return
-            try:
-                for base in parent.bases:
-                    if hasattr(base, "name") and "Protocol" in base.name:
-                        return
-                    if hasattr(base, "as_string") and "Protocol" in base.as_string():
-                        return
-            except:
-                pass
 
         if self._is_stub(node):
             self.add_message("concrete-method-stub", node=node, args=(node.name,))

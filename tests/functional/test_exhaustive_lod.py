@@ -8,6 +8,18 @@ from clean_architecture_linter.di.container import ExcelsiorContainer
 class TestLoDExhaustive(CheckerTestCase):
     CHECKER_CLASS = CouplingChecker
 
+    def setup_method(self):
+        super().setup_method()
+        # Inject gateways manually since CheckerTestCase doesn't know about them
+        from clean_architecture_linter.di.container import ExcelsiorContainer
+        container = ExcelsiorContainer.get_instance()
+        # Ensure we have fresh gateways
+        python_gateway = container.get("PythonGateway")
+        ast_gateway = container.get("AstroidGateway")
+
+        # Re-initialize checker with dependencies
+        self.checker = self.CHECKER_CLASS(self.linter, ast_gateway=ast_gateway, python_gateway=python_gateway)
+
     def test_safe_zone_passes(self):
         """Verify 0 messages for SAFE_ZONE."""
         # Mock LayerRegistry to return 'Domain' for the current file to satisfy Category 5

@@ -6,7 +6,7 @@ import pytest
 from clean_architecture_linter.config import ConfigurationLoader
 
 
-def test_config_validation_penalty():
+def test_config_validation_penalty(caplog):
     """Providing a bare name in pyproject.toml triggers a configuration error."""
     with tempfile.TemporaryDirectory() as tmpdir:
         pyproject = Path(tmpdir) / "pyproject.toml"
@@ -23,8 +23,11 @@ allowed_lod_methods = ["strip"]
         try:
             # Singleton reset
             ConfigurationLoader._instance = None
-            with pytest.raises(ValueError, match="must use a Fully Qualified Name with at least two dots"):
+            import logging
+            with caplog.at_level(logging.WARNING):
                 ConfigurationLoader()
+            assert "deprecated" in caplog.text
+            assert "dynamic Type Inference" in caplog.text
         finally:
             os.chdir(old_cwd)
             ConfigurationLoader._instance = None

@@ -41,7 +41,16 @@ class AstroidProtocol(Protocol):
 
 
 class PythonProtocol(Protocol):
-    def is_std_lib_module(self, module_name: str) -> bool:
+    def is_stdlib_module(self, module_name: str) -> bool:
+        ...
+
+    def is_external_dependency(self, file_path: Optional[str]) -> bool:
+        ...
+
+    def is_exception_node(self, node: "astroid.nodes.ClassDef") -> bool:
+        ...
+
+    def is_protocol_node(self, node: "astroid.nodes.ClassDef") -> bool:
         ...
 
     def get_node_layer(self, node: "astroid.nodes.NodeNG", config_loader: "ConfigurationLoader") -> Optional[str]:

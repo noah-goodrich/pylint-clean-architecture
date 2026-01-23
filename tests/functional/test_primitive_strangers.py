@@ -1,6 +1,10 @@
 from clean_architecture_linter.checks.patterns import CouplingChecker
+from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
+from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
 from tests.linter_test_utils import run_checker
 
+ast_gateway = AstroidGateway()
+python_gateway = PythonGateway()
 
 def test_str_startswith_on_hinted_stranger_passes():
     code = """
@@ -13,7 +17,7 @@ def check():
         return True
     return False
 """
-    messages = run_checker(CouplingChecker, code)
+    messages = run_checker(CouplingChecker, code, ast_gateway=ast_gateway, python_gateway=python_gateway)
     assert "law-of-demeter" not in messages
 
 
@@ -27,7 +31,7 @@ def check():
     parts = val.split(",")
     return parts[0]
 """
-    messages = run_checker(CouplingChecker, code)
+    messages = run_checker(CouplingChecker, code, ast_gateway=ast_gateway, python_gateway=python_gateway)
     assert "law-of-demeter" not in messages
 
 
@@ -42,7 +46,7 @@ def check():
         return True
     return False
 """
-    messages = run_checker(CouplingChecker, code)
+    messages = run_checker(CouplingChecker, code, ast_gateway=ast_gateway, python_gateway=python_gateway)
     assert "law-of-demeter" not in messages
 
 
@@ -54,5 +58,5 @@ def process():
     lines = Path('file.txt').read_text().splitlines()
     return lines
 """
-    messages = run_checker(CouplingChecker, code)
+    messages = run_checker(CouplingChecker, code, ast_gateway=ast_gateway, python_gateway=python_gateway)
     assert "law-of-demeter" not in messages

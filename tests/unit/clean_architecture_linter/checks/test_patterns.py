@@ -37,13 +37,24 @@ def process(x):
 class TestCouplingChecker(unittest.TestCase):
     def setUp(self):
         ConfigurationLoader._instance = None
+        from unittest.mock import MagicMock
+        self.mock_ast_gateway = MagicMock()
+        self.mock_py_gateway = MagicMock()
+
+        # Default defaults to avoid crashes
+        self.mock_ast_gateway.get_return_type_qname_from_expr.return_value = None
+        self.mock_ast_gateway.is_trusted_authority_call.return_value = False
+        self.mock_ast_gateway.is_primitive.return_value = False
+        self.mock_ast_gateway.is_fluent_call.return_value = False
+        self.mock_ast_gateway.is_protocol.return_value = False
+        self.mock_py_gateway.is_stdlib_module.return_value = False
 
     def test_demeter_chain_violation(self):
         code = """
 def logic(obj):
     obj.a.b.c()
         """
-        msgs = run_checker(CouplingChecker, code, "src/use_cases/logic.py")
+        msgs = run_checker(CouplingChecker, code, "src/use_cases/logic.py", ast_gateway=self.mock_ast_gateway, python_gateway=self.mock_py_gateway)
         self.assertIn("clean-arch-demeter", msgs)
 
     def test_demeter_stranger_violation(self):
@@ -52,7 +63,7 @@ def logic(obj):
     stranger = obj.get_thing()
     stranger.do_stuff()
         """
-        msgs = run_checker(CouplingChecker, code, "src/use_cases/logic.py")
+        msgs = run_checker(CouplingChecker, code, "src/use_cases/logic.py", ast_gateway=self.mock_ast_gateway, python_gateway=self.mock_py_gateway)
         self.assertIn("clean-arch-demeter", msgs)
 
     def test_demeter_allowed(self):

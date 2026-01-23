@@ -82,7 +82,7 @@ class TestingChecker(BaseChecker):
     def _count_mocks(self, node: astroid.nodes.Call) -> None:
         """Check if call is a mock instantiation or usage."""
         call_str = node.as_string()
-        if "Mock(" in call_str or "MagicMock(" in call_str:
+        if "Mock(" in call_str or "MagicMock(" in call_str or "patch(" in call_str:
             self._mock_count += 1
 
     def _check_private_method_call(self, node: astroid.nodes.Call, call_name: str) -> None:

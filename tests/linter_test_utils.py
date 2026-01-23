@@ -15,9 +15,9 @@ class MockLinter:
         pass
 
 
-def run_checker(checker_cls, code, filename="test.py"):
+def run_checker(checker_cls, code, filename="test.py", **checker_kwargs):
     linter = MockLinter()
-    checker = checker_cls(linter)
+    checker = checker_cls(linter, **checker_kwargs)
     tree = astroid.parse(code)
     tree.file = filename
 

@@ -14,36 +14,68 @@ class PythonGateway(PythonProtocol):
     def __init__(self) -> None:
         self._stdlib_path = sysconfig.get_path("stdlib")
 
-    def is_std_lib_module(self, module_name: str) -> bool:
-        """Dynamic detection of StdLib modules without hardcoded lists."""
+    def is_stdlib_module(self, module_name: str) -> bool:
+        """Dynamic detection of StdLib modules using sys.stdlib_module_names and environment paths."""
         if not module_name:
             return False
         if module_name == "builtins":
             return True
-        if module_name in sys.builtin_module_names:
-            return True
 
-        # Hardcoded trust list for common stdlib modules to handle edge cases
-        if module_name in ("sys", "os", "pathlib", "json", "typing", "collections", "datetime", "ast", "abc", "builtins"):
-            return True
+        # 1. Check against the authoritative list (Python 3.10+)
+        if hasattr(sys, "stdlib_module_names"):
+            if module_name in sys.stdlib_module_names:
+                return True
+        else:
+            # Fallback for older python, though Excelsior targets modern stacks
+            if module_name in sys.builtin_module_names:
+                return True
 
+        # 2. Check path location for bundled modules that might not be in the set
         try:
-            # Use astroid.MANAGER to find the module's file path
             module_node = astroid.MANAGER.ast_from_module_name(module_name)
             if hasattr(module_node, "file") and module_node.file:
-                # Normalizing paths for cross-platform comparison
                 mod_file = str(module_node.file)
-                # JUSTIFICATION: Simple path comparison for stdlib detection.
-                prefixes = [self._stdlib_path]
-                if hasattr(sys, "base_prefix"):
-                    prefixes.append(sys.base_prefix)
-                if hasattr(sys, "prefix"):
-                    prefixes.append(sys.prefix)
-
-                return any(mod_file.startswith(p) for p in prefixes)
+                # If it's in the stdlib directory and NOT in site-packages
+                if mod_file.startswith(self._stdlib_path) and "site-packages" not in mod_file:
+                    return True
         except (astroid.AstroidBuildingError, AttributeError):
             pass
 
+        return False
+
+    def is_external_dependency(self, file_path: Optional[str]) -> bool:
+        """Check if a file resides in site-packages (Infrastructure)."""
+        if not file_path:
+            return False
+        # Universal heuristics for installed packages
+        return "site-packages" in file_path or "dist-packages" in file_path
+
+    def is_exception_node(self, node: astroid.nodes.ClassDef) -> bool:
+        """Check if class inherits from builtins.Exception."""
+        try:
+            for ancestor in node.ancestors():
+                if ancestor.qname() == "builtins.Exception":
+                    return True
+        except (AttributeError, astroid.InferenceError):
+            pass
+        return False
+
+    def is_protocol_node(self, node: astroid.nodes.ClassDef) -> bool:
+        """Check if class inherits from typing.Protocol."""
+        if not node.bases:
+            return False
+        try:
+            # Quick check on bases first
+            for base in node.bases:
+                if hasattr(base, "name") and "Protocol" in base.name:
+                    return True
+
+            # Deep check
+            for ancestor in node.ancestors():
+                if ancestor.qname() in ("typing.Protocol", "typing_extensions.Protocol"):
+                    return True
+        except (AttributeError, astroid.InferenceError):
+            pass
         return False
 
 
