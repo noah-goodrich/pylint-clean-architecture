@@ -8,13 +8,13 @@ if TYPE_CHECKING:
 
 from pylint.checkers import BaseTokenChecker
 
-_MODULE_HEADER_MAX_LINES = 20
+_MODULE_HEADER_MAX_LINES: int = 20
 
 
 class BypassChecker(BaseTokenChecker):
     """W9501: Anti-Bypass Guard enforcement."""
 
-    name = "clean-arch-bypass"
+    name: str = "clean-arch-bypass"
 
     def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
@@ -78,12 +78,12 @@ class BypassChecker(BaseTokenChecker):
     def _check_justification(self, forbidden: str, lineno: int, lines: dict[int, str]) -> None:
         """Ensure forbidden disable is justified on previous line."""
         prev_lineno = lineno - 1
-        justified = False
-        justification_content = ""
+        justified: bool = False
+        justification_content: str = ""
         if prev_lineno in lines:
             line = lines[prev_lineno]
             if "JUSTIFICATION:" in line:
-                justified = True
+                justified: bool = True
                 content_part: str = line.split("JUSTIFICATION:")[1]
                 justification_raw: str = content_part.strip()
                 justification_content = justification_raw.lower()

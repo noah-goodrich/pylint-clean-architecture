@@ -10,16 +10,16 @@ if TYPE_CHECKING:
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.di.container import ExcelsiorContainer
+from clean_architecture_linter.domain.protocols import PythonProtocol
 from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class ImmutabilityChecker(BaseChecker):
     """W9601: Domain Immutability enforcement."""
 
-    name = "clean-arch-immutability"
+    name: str = "clean-arch-immutability"
 
-    def __init__(self, linter: "PyLinter") -> None:
+    def __init__(self, linter: "PyLinter", python_gateway: Optional[PythonProtocol] = None) -> None:
         self.msgs = {
             "W9601": (
                 "Domain Immutability Violation: Attribute assignment in %s layer. "
@@ -30,7 +30,7 @@ class ImmutabilityChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
-        self._python_gateway = ExcelsiorContainer.get_instance().get("PythonGateway")
+        self._python_gateway = python_gateway
 
     def visit_assignattr(self, node: astroid.nodes.AssignAttr) -> None:
         """Flag attribute assignments in the Domain layer."""
@@ -55,12 +55,12 @@ class ImmutabilityChecker(BaseChecker):
         if not node.decorators:
             return
 
-        is_dataclass = False
-        is_frozen = False
+        is_dataclass: bool = False
+        is_frozen: bool = False
 
         for decorator in node.decorators.nodes:
             # Helper to check name
-            def is_dataclass_name(n):
+            def is_dataclass_name(n: astroid.nodes.NodeNG) -> bool:
                 if isinstance(n, astroid.nodes.Name):
                     return n.name == "dataclass"
                 if isinstance(n, astroid.nodes.Attribute):
@@ -68,15 +68,15 @@ class ImmutabilityChecker(BaseChecker):
                 return False
 
             if is_dataclass_name(decorator):
-                is_dataclass = True
+                is_dataclass: bool = True
             elif isinstance(decorator, astroid.nodes.Call):
                 if is_dataclass_name(decorator.func):
-                    is_dataclass = True
+                    is_dataclass: bool = True
                     # Check for frozen=True
                     if decorator.keywords:
                         for kw in decorator.keywords:
                             if kw.arg == "frozen" and isinstance(kw.value, astroid.nodes.Const) and kw.value.value is True:
-                                is_frozen = True
+                                is_frozen: bool = True
                                 break
 
         if is_dataclass and not is_frozen:

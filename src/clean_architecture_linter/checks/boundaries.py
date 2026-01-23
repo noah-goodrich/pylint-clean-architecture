@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.di.container import ExcelsiorContainer
 from clean_architecture_linter.domain.protocols import PythonProtocol
 from clean_architecture_linter.layer_registry import LayerRegistry
 
@@ -18,7 +17,7 @@ from clean_architecture_linter.layer_registry import LayerRegistry
 class VisibilityChecker(BaseChecker):
     """W9003: Protected member access across layers."""
 
-    name = "clean-arch-visibility"
+    name: str = "clean-arch-visibility"
 
     def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
@@ -47,9 +46,9 @@ class VisibilityChecker(BaseChecker):
 class ResourceChecker(BaseChecker):
     """W9004: Forbidden I/O access in UseCase/Domain layers."""
 
-    name = "clean-arch-resources"
+    name: str = "clean-arch-resources"
 
-    def __init__(self, linter: "PyLinter") -> None:
+    def __init__(self, linter: "PyLinter", python_gateway: Optional[PythonProtocol] = None) -> None:
         self.msgs = {
             "W9004": (
                 "Forbidden I/O access (%s) in %s layer. Clean Fix: Move logic to Infrastructure "
@@ -60,7 +59,7 @@ class ResourceChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
-        self._python_gateway: PythonProtocol = ExcelsiorContainer.get_instance().get("PythonGateway")
+        self._python_gateway = python_gateway
 
     @property
     def allowed_prefixes(self) -> Set[str]:
@@ -86,6 +85,9 @@ class ResourceChecker(BaseChecker):
 
     def _check_import(self, node: astroid.nodes.NodeNG, names: List[str]) -> None:
         """Core logic for resource access check."""
+        if not self._python_gateway:
+            return
+
         if self._is_test_file(node):
             return
 
@@ -104,7 +106,7 @@ class ResourceChecker(BaseChecker):
         file_path: str = getattr(root, "file", "")
         module_name: str = root.name
 
-        normalized_path: str = file_path.replace("\\", "/")
+        normalized_path = file_path.replace("\\", "/")
         parts: List[str] = normalized_path.split("/")
 
         return (

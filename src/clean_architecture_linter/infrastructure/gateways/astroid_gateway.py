@@ -100,7 +100,7 @@ class AstroidGateway(AstroidProtocol):
                      lookup_res = expr.lookup(expr.name)
                      mod_lookup = lookup_res[1]
                      if mod_lookup and isinstance(mod_lookup[0], (astroid.nodes.Import, astroid.nodes.ImportFrom)):
-                          mod_name = ""
+                          mod_name: str = ""
                           if isinstance(mod_lookup[0], astroid.nodes.Import):
                                mod_name = mod_lookup[0].names[0][0]
                           elif isinstance(mod_lookup[0], astroid.nodes.ImportFrom):
@@ -130,9 +130,7 @@ class AstroidGateway(AstroidProtocol):
                   return "builtins.str" # Propagate safety
 
         return None
-    def get_return_type_qname_from_expr(
-        self, expr: astroid.nodes.NodeNG, visited: Optional[Set[int]] = None
-    ) -> Optional[str]:
+    def get_return_type_qname_from_expr(self, expr: astroid.nodes.NodeNG, visited: Optional[Set[int]] = None) -> Optional[str]:
         """Recursive resolution for complex expressions."""
         if expr is None:
             return None
@@ -257,14 +255,14 @@ class AstroidGateway(AstroidProtocol):
             root_name = getattr(root, "name", "")
 
             clean_name = class_qname
-            is_local = False
+            is_local: bool = False
 
             if class_qname.startswith(".") or "." not in class_qname:
                 clean_name = class_qname.lstrip(".")
-                is_local = True
+                is_local: bool = True
             elif root_name and class_qname.startswith(root_name + "."):
                 clean_name = class_qname[len(root_name)+1:]
-                is_local = True
+                is_local: bool = True
 
             if is_local and hasattr(root, "lookup"):
                 # JUSTIFICATION: Core AST traversal.
@@ -533,14 +531,14 @@ class AstroidGateway(AstroidProtocol):
 
             # 1. Local Lookup (handle relative, bare names, and same-module names)
             clean_name = qname
-            is_local = False
+            is_local: bool = False
 
             if qname.startswith(".") or "." not in qname:
                 clean_name = qname.lstrip(".")
-                is_local = True
+                is_local: bool = True
             elif root_name and qname.startswith(root_name + "."):
                 clean_name = qname[len(root_name)+1:]
-                is_local = True
+                is_local: bool = True
 
             if is_local and hasattr(root, "lookup"):
                 lookup_res = root.lookup(clean_name)
@@ -604,7 +602,7 @@ class AstroidGateway(AstroidProtocol):
         try:
             for inf in node.func.infer():
                 qname: str = getattr(inf, "qname", lambda: "")()
-                if qname.startswith(("builtins.", "typing.", "collections.", "pathlib.")):
+                if qname.startswith(("builtins.", "typing.", "collections.", "pathlib.", "re.", "json.", "datetime.", "abc.", "os.")):
                     return True
         except (astroid.InferenceError, AttributeError):
             pass
@@ -621,7 +619,8 @@ class AstroidGateway(AstroidProtocol):
             receiver_qname: Optional[str] = self.get_return_type_qname_from_expr(node.func.expr)
             if receiver_qname:
                 # If receiver is builtins, any method on it is considered trusted
-                if any(receiver_qname.startswith(p) for p in ("builtins.", "typing.", "collections.", "pathlib.")):
+                authorities = ("builtins.", "typing.", "collections.", "pathlib.", "re.", "json.", "datetime.", "abc.", "os.")
+                if any(receiver_qname.startswith(p) for p in authorities):
                     return True
                 # Use Typeshed to see if the receiver class belongs to stdlib
                 mod_name = receiver_qname.split(".")[0]

@@ -10,16 +10,13 @@ if TYPE_CHECKING:
     from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
-from clean_architecture_linter.di.container import ExcelsiorContainer
-from clean_architecture_linter.domain.protocols import AstroidProtocol
-
-_MOCK_LIMIT = 4
+_MOCK_LIMIT: int = 4
 
 
 class TestingChecker(BaseChecker):
     """Enforce loose test coupling following Uncle Bob's TDD principles."""
 
-    name = "clean-arch-testing"
+    name: str = "clean-arch-testing"
 
     def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
@@ -41,9 +38,6 @@ class TestingChecker(BaseChecker):
         self._mock_count: int = 0
         self._current_function: Optional[astroid.nodes.FunctionDef] = None
 
-        container = ExcelsiorContainer.get_instance()
-        self._ast_gateway: AstroidProtocol = container.get("AstroidGateway")
-
     def visit_functiondef(self, node: astroid.nodes.FunctionDef) -> None:
         """Track function entry and reset mock count."""
         # Only check test functions
@@ -58,28 +52,37 @@ class TestingChecker(BaseChecker):
         if not self._current_function:
             return
 
-        name: str = self._current_function.name
-        if name.startswith("test_") and self._mock_count > _MOCK_LIMIT:
+        if self._mock_count > _MOCK_LIMIT:
             self.add_message(
                 "fragile-test-mocks",
                 node=self._current_function,
                 args=(self._mock_count,),
             )
+
         self._current_function = None
-        self._mock_count = 0
 
     def visit_call(self, node: astroid.nodes.Call) -> None:
-        """Detect mock.patch calls and private method calls."""
-        call_name: Optional[str] = self._ast_gateway.get_call_name(node)
-        if not call_name:
+        """Identity mock usage and private method tests."""
+        if not self._current_function:
             return
 
-        self._check_mock_usage(node, call_name)
-        self._check_private_method_call(node, call_name)
+        # 1. Count mocks
+        self._count_mocks(node)
 
-    def _check_mock_usage(self, _: astroid.nodes.Call, call_name: str) -> None:
-        """W9101: Check mock usage."""
-        if "patch" in call_name or "Mock" in call_name:
+        # 2. Check for private method testing
+        call_name: str = ""
+        if isinstance(node.func, astroid.nodes.Attribute):
+            call_name = node.func.attrname
+        elif isinstance(node.func, astroid.nodes.Name):
+            call_name = node.func.name
+
+        if call_name:
+            self._check_private_method_call(node, call_name)
+
+    def _count_mocks(self, node: astroid.nodes.Call) -> None:
+        """Check if call is a mock instantiation or usage."""
+        call_str = node.as_string()
+        if "Mock(" in call_str or "MagicMock(" in call_str:
             self._mock_count += 1
 
     def _check_private_method_call(self, node: astroid.nodes.Call, call_name: str) -> None:
@@ -92,5 +95,9 @@ class TestingChecker(BaseChecker):
             and not call_name.startswith("__")
             and isinstance(node.func, astroid.nodes.Attribute)
         ):
+            # Exempt calls on 'self' or 'cls' within the same test class
+            if isinstance(node.func.expr, astroid.nodes.Name) and node.func.expr.name in ("self", "cls"):
+                return
+
             # Check if this is a method call (has receiver)
             self.add_message("private-method-test", node=node, args=(call_name,))

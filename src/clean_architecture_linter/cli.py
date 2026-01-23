@@ -29,7 +29,7 @@ BANNER = r"""
 /_____//_/|_\____/_____/_____/____/___/\____/_/ |_|
 """
 
-AGENT_INSTRUCTIONS_TEMPLATE = """# Architecture Instructions
+AGENT_INSTRUCTIONS_TEMPLATE: str = """# Architecture Instructions
 
 This project adheres to **Clean Architecture** principles enforced by the `pylint-clean-architecture` plugin.
 
@@ -74,7 +74,7 @@ Inner layers ({domain_layer}, {use_case_layer}) **MUST NOT** import from Outer l
 *   **Justify Bypasses**: If you must disable a linter rule, add a `# JUSTIFICATION: ...` comment.
 """
 
-ONBOARDING_TEMPLATE = """# Architecture Onboarding Strategy
+ONBOARDING_TEMPLATE: str = """# Architecture Onboarding Strategy
 
 This project is moving towards a strict Clean Architecture.
 Follow this 3-Phase Refactor Plan to achieve compliance without stopping development.
@@ -100,7 +100,7 @@ This project uses `pylint-clean-architecture` in **Architecture-Only Mode** (sty
 because other tools (ruff/black/flake8) are detected.
 """
 
-PRE_FLIGHT_WORKFLOW_TEMPLATE = """# Stellar Pre-Flight Checklist
+PRE_FLIGHT_WORKFLOW_TEMPLATE: str = """# Stellar Pre-Flight Checklist
 You MUST complete this checklist for EVERY file changed before proceeding.
 
 1.  **Handshake**: `make handshake` (Confirming compliance).
@@ -111,7 +111,7 @@ You MUST complete this checklist for EVERY file changed before proceeding.
 6.  **Self-Audit**: Pylint score MUST be 10.0/10.
 """
 
-HANDSHAKE_SNIPPET = """
+HANDSHAKE_SNIPPET: str = """
 # --- Agent Handshake Protocol ---
 .PHONY: handshake
 handshake:
@@ -345,7 +345,7 @@ def init_command(telemetry: "TelemetryPort") -> None:
 def _update_makefile(telemetry: "TelemetryPort") -> None:
     """Inject Stellar Handshake targets into Makefile."""
     makefile_path = Path("Makefile")
-    content = ""
+    content: str = ""
     if makefile_path.exists():
         # JUSTIFICATION: Simple file read for Makefile check.
         with makefile_path.open("r", encoding="utf-8") as f:
@@ -501,7 +501,7 @@ def _print_architecture_only_mode_advice(telemetry: "TelemetryPort", found_tools
     print(
         """
 [tool.pylint.messages_control]
-disable = "all"
+disable: str = "all"
 enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and other specific checks
         """
     )

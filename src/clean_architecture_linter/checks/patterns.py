@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from pylint.lint import PyLinter
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.di.container import ExcelsiorContainer
 from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
 
 _MIN_CHAIN_LENGTH = 2
@@ -53,7 +52,7 @@ class PatternChecker(BaseChecker):
             and node.test.left.name == "__name__"
         )
 
-    def _check_delegation_chain(self, node: astroid.nodes.If, depth = 0) -> tuple[bool, Optional[str]]:
+    def _check_delegation_chain(self, node: astroid.nodes.If, depth: int = 0) -> tuple[bool, Optional[str]]:
         """Check if if/elif chain is purely delegating."""
         if len(node.body) != 1:
             return False, None
@@ -96,7 +95,12 @@ class CouplingChecker(BaseChecker):
 
     name = "clean-arch-demeter"
 
-    def __init__(self, linter: "PyLinter") -> None:
+    def __init__(
+        self,
+        linter: "PyLinter",
+        ast_gateway: Optional[AstroidProtocol] = None,
+        python_gateway: Optional[PythonProtocol] = None,
+    ) -> None:
         self.msgs = {
             "W9006": (
                 "Law of Demeter: Chain access (%s) exceeds one level. Create delegated method. "
@@ -107,9 +111,8 @@ class CouplingChecker(BaseChecker):
         }
         super().__init__(linter)
         self._locals_map: Dict[str, bool] = {}
-        container = ExcelsiorContainer.get_instance()
-        self._ast_gateway: AstroidProtocol = container.get("AstroidGateway")
-        self._python_gateway: PythonProtocol = container.get("PythonGateway")
+        self._ast_gateway = ast_gateway
+        self._python_gateway = python_gateway
 
     def visit_functiondef(self, _node: astroid.nodes.FunctionDef) -> None:
         """Reset locals map for each function."""
@@ -118,6 +121,10 @@ class CouplingChecker(BaseChecker):
     def visit_assign(self, node: astroid.nodes.Assign) -> None:
         """Track if a local variable is created from a method call (likely a stranger)."""
         if not isinstance(node.value, astroid.nodes.Call):
+            return
+
+        # If it's a trusted call, it's NOT a stranger
+        if self._ast_gateway.is_trusted_authority_call(node.value):
             return
 
         for target in node.targets:
@@ -228,7 +235,9 @@ class CouplingChecker(BaseChecker):
         # Transformation Trust: Collection accessors like items(), keys(), values(), union()
         # are considered safe transformations of the object itself, not reaching into internals.
         if isinstance(node.func, astroid.nodes.Attribute) and node.func.attrname in (
-            "items", "keys", "values", "union", "intersection", "update", "get", "setdefault", "items"
+            "items", "keys", "values", "union", "intersection", "update", "get", "setdefault", "findall",
+            "startswith", "endswith", "strip", "lstrip", "rstrip", "split", "replace", "join", "group", "groups", "match", "search",
+            "lower", "upper", "title", "capitalize", "translate", "format", "isdigit", "isalpha", "isalnum"
         ):
             return True
 

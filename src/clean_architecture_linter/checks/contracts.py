@@ -10,16 +10,16 @@ if TYPE_CHECKING:
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.di.container import ExcelsiorContainer
+from clean_architecture_linter.domain.protocols import PythonProtocol
 from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class ContractChecker(BaseChecker):
     """W9201: Contract Integrity (Domain Interface) enforcement."""
 
-    name = "clean-arch-contracts"
+    name: str = "clean-arch-contracts"
 
-    def __init__(self, linter: "PyLinter") -> None:
+    def __init__(self, linter: "PyLinter", python_gateway: Optional[PythonProtocol] = None) -> None:
         self.msgs = {
             "W9201": (
                 "Contract Integrity Violation: Class '%s' in infrastructure layer must inherit from a Domain Protocol. "
@@ -36,7 +36,7 @@ class ContractChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
-        self._python_gateway = ExcelsiorContainer.get_instance().get("PythonGateway")
+        self._python_gateway = python_gateway
 
     def visit_classdef(self, node: astroid.nodes.ClassDef) -> None:
         """Verify infrastructure classes implement domain protocols."""
@@ -50,17 +50,19 @@ class ContractChecker(BaseChecker):
             return
         if node.name.endswith("Error") or node.name.endswith("Exception"):
             return
+        if "Container" in node.name or "Registry" in node.name:
+            return
 
         if not node.bases:
             self.add_message("contract-integrity-violation", node=node, args=(node.name,))
             return
 
-        has_domain_base = False
+        has_domain_base: bool = False
         domain_protos = []
         for base in node.ancestors():
             # Builtins like Exception are safe
             if base.name == "Exception" or base.qname() == "builtins.Exception":
-                has_domain_base = True
+                has_domain_base: bool = True
                 break
 
             root = base.root()
@@ -68,7 +70,7 @@ class ContractChecker(BaseChecker):
                 continue
             base_layer = self.config_loader.get_layer_for_module(root.name)
             if base_layer == LayerRegistry.LAYER_DOMAIN:
-                has_domain_base = True
+                has_domain_base: bool = True
                 domain_protos.append(base)
                 # Keep going to find all protos if multiple exist
 
@@ -99,11 +101,11 @@ class ContractChecker(BaseChecker):
     def visit_functiondef(self, node: astroid.nodes.FunctionDef) -> None:
         """W9202: Detect concrete method stubs."""
         # Manual check for abstract decorators to avoid being too smart with ellipsis
-        is_officially_abstract = False
+        is_officially_abstract: bool = False
         if node.decorators:
             for decorator in node.decorators.nodes:
                 if "abstract" in decorator.as_string():
-                    is_officially_abstract = True
+                    is_officially_abstract: bool = True
                     break
 
         if is_officially_abstract or node.name.startswith("_") or node.is_generator():

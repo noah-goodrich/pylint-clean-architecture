@@ -144,7 +144,7 @@ class ConfigurationLoader:
         # JUSTIFICATION: Exposing internal static registry
         return ConfigurationLoader._registry  # pylint: disable=clean-arch-visibility
 
-    def get_layer_for_module(self, module_name: str, file_path = "") -> str | None:
+    def get_layer_for_module(self, module_name: str, file_path: str = "") -> str | None:
         """Get the architectural layer for a module/file."""
         # Check explicit config first
         if "layers" in self._config and isinstance(self._config["layers"], list):
@@ -163,6 +163,14 @@ class ConfigurationLoader:
             )
             if match:
                 return match
+
+        # Check layer_map (Modern)
+        if "layer_map" in self._config and isinstance(self._config["layer_map"], dict):
+            # Sort by longest prefix first to ensure precision
+            sorted_prefixes = sorted(self._config["layer_map"].keys(), key=len, reverse=True)
+            for prefix in sorted_prefixes:
+                if module_name.startswith(prefix):
+                    return str(self._config["layer_map"][prefix])
 
         # Fall back to convention registry
         return self.registry.resolve_layer("", file_path or module_name)
@@ -238,9 +246,7 @@ class ConfigurationLoader:
         """Delegate to registry for LoD compliance."""
         return self.registry.get_layer_for_class_node(node)
 
-    def resolve_layer(
-        self, node_name: str, file_path: str, node: Optional[astroid.nodes.NodeNG] = None
-    ) -> Optional[str]:
+    def resolve_layer(self, node_name: str, file_path: str, node: Optional[astroid.nodes.NodeNG] = None) -> Optional[str]:
         """Delegate to registry for LoD compliance."""
         return self.registry.resolve_layer(node_name, file_path, node=node)
 

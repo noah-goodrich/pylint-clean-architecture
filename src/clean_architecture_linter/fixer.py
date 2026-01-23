@@ -37,7 +37,7 @@ def excelsior_fix(telemetry: "TelemetryPort", target_path: str) -> None:
         new_content = content
 
         # Apply fixers
-        new_content = _fix_init_return_type(new_content)
+        new_content = _fix_lifecycle_return_types(new_content)
         new_content = _fix_deterministic_type_hints(new_content)
         new_content = _fix_domain_immutability(file_path, new_content)
         new_content = _fix_type_integrity(new_content)
@@ -101,12 +101,13 @@ def _find_package_root(path: Path) -> Optional[Path]:
             return child
     return None
 
-def _fix_init_return_type(content: str) -> str:
-    """Add '-> None' to __init__ methods missing it."""
-    # Matches: def __init__(self, ...) -> None: but not def __init__(self, ...) -> None:
+def _fix_lifecycle_return_types(content: str) -> str:
+    """Add '-> None' to lifecycle and test methods missing it."""
+    # Matches: def __init__, setUp, tearDown, test_... missing -> ...:
     # Use a negative lookahead to avoid double-adding
-    pattern = r"def __init__\(([^)]*)\)(?!\s*->\s*[^:]+):"
-    replacement = r"def __init__(\1) -> None:"
+    methods = r"(__init__|setUp|tearDown|test_\w+)"
+    pattern = rf"def\s+{methods}\(([^)]*)\)(?!\s*->\s*[^:]+):"
+    replacement = r"def \1(\2) -> None:"
     return re.sub(pattern, replacement, content)
 
 def _fix_domain_immutability(file_path: Path, content: str) -> str:
@@ -162,15 +163,15 @@ def _fix_type_integrity(content: str) -> str:
 
 def _fix_no_redef(content: str) -> str:
     """Remove redundant type annotations that cause no-redef errors."""
-    return content.replace("normalized_path: str = ", "normalized_path = ")
+    return content.replace("normalized_path = ", "normalized_path = ")
 
 def _fix_deterministic_type_hints(content: str) -> str:
     """Stage 1: Auto-fix deterministic type hints (literals)."""
     # Stage 1: Var assignments (anchored to start of line or indentation)
-    content = re.sub(r'(?m)^(\s*)(\w+)\s*=\s*"([^"]*)"(?!\s*:)', r'\1\2: str = "\3"', content)
-    content = re.sub(r"(?m)^(\s*)(\w+)\s*=\s*'([^']*)'(?!\s*:)", r"\1\2: str = '\3'", content)
-    content = re.sub(r"(?m)^(\s*)(\w+)\s*=\s*(\d+)(?!\s*:)", r"\1\2: int = \3", content)
-    content = re.sub(r"(?m)^(\s*)(\w+)\s*=\s*(True|False)(?!\s*:)", r"\1\2: bool = \3", content)
+    content = re.sub(r'(?m)^(\s*)(\w+)\s*=\s*"([^"]*)"(?!\s*:)(?![^#\n]*,)', r'\1\2: str = "\3"', content)
+    content = re.sub(r"(?m)^(\s*)(\w+)\s*=\s*'([^']*)'(?!\s*:)(?![^#\n]*,)", r"\1\2: str = '\3'", content)
+    content = re.sub(r"(?m)^(\s*)(\w+)\s*=\s*(\d+)(?!\s*:)(?![^#\n]*,)", r"\1\2: int = \3", content)
+    content = re.sub(r"(?m)^(\s*)(\w+)\s*=\s*(True|False)(?!\s*:)(?![^#\n]*,)", r"\1\2: bool = \3", content)
 
     # Stage 1: Function parameters with defaults
     # Matches: def name(..., param=literal, ...)
@@ -186,24 +187,29 @@ def _fix_deterministic_type_hints(content: str) -> str:
                 name_val = p_strip.split("=", 1)
                 name = name_val[0].strip()
                 val = name_val[1].strip()
+
+                typed_param = None
                 if val.startswith(('"', "'")):
-                    new_params.append(f"{name}: str = {val}")
+                    typed_param = f"{name}: str = {val}"
                 elif val.isdigit():
-                    new_params.append(f"{name}: int = {val}")
+                    typed_param = f"{name}: int = {val}"
                 elif val in ("True", "False"):
-                    new_params.append(f"{name}: bool = {val}")
+                    typed_param = f"{name}: bool = {val}"
+
+                if typed_param:
+                    new_params.append(typed_param)
                 else:
                     new_params.append(p_strip)
             else:
                 new_params.append(p_strip)
         return f"{prefix}({', '.join(new_params)}){suffix}"
 
-    # Match def function_name(params)[: \n]
-    content = re.sub(r"(def\s+\w+\s*)\((.*?)\)(\s*[:\-])", fix_fn_params, content, flags=re.DOTALL)
+    # Match def function_name(params) -> return_type: or def name(params):
+    content = re.sub(r"(def\s+\w+\s*)\((.*?)\)(\s*(?:->.*?)?:)", fix_fn_params, content, flags=re.DOTALL)
 
     return content
 
-def _generate_fix_manifest(telemetry: "TelemetryPort", audit_data: Optional[Dict[str, Any]]) -> None:
+def _generate_fix_manifest(telemetry: "TelemetryPort", audit_data: Optional[dict[str, object]]) -> None:
     """Stage 3: Record ambiguous violations in a fix manifest."""
     if not audit_data:
         return
@@ -245,7 +251,7 @@ def _generate_fix_manifest(telemetry: "TelemetryPort", audit_data: Optional[Dict
 
     telemetry.step(f"📝 Fix Manifest generated: {manifest_path}")
 
-def _load_audit_trail() -> Optional[Dict[str, Any]]:
+def _load_audit_trail() -> Optional[dict[str, object]]:
     """Load the latest audit trail from .excelsior/last_audit.json."""
     path = Path(".excelsior/last_audit.json")
     if not path.exists():

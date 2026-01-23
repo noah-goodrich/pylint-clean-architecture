@@ -2,33 +2,41 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 from clean_architecture_linter.fixer import (
-    _fix_init_return_type,
+    _fix_lifecycle_return_types,
     _fix_domain_immutability,
     _fix_type_integrity,
     _fix_structural_integrity,
     excelsior_fix
 )
 
-def test_fix_init_return_type():
+def test_fix_lifecycle_return_types():
     content: str = """
 class Foo:
-    def __init__(self, x) -> None:
+    def __init__(self, x):
         self.x = x
-    def other(self):
+    def setUp(self):
+        pass
+    def tearDown(self):
+        pass
+    def test_logic(self):
         pass
 """
     expected: str = """
 class Foo:
     def __init__(self, x) -> None:
         self.x = x
-    def other(self):
+    def setUp(self) -> None:
+        pass
+    def tearDown(self) -> None:
+        pass
+    def test_logic(self) -> None:
         pass
 """
-    assert _fix_init_return_type(content) == expected
+    assert _fix_lifecycle_return_types(content).strip() == expected.strip()
 
-def test_fix_init_return_type_already_present():
+def test_fix_lifecycle_return_types_already_present():
     content: str = "def __init__(self) -> None: pass"
-    assert _fix_init_return_type(content) == content
+    assert _fix_lifecycle_return_types(content) == content
 
 def test_fix_domain_immutability():
     # Only applies if file path contains 'domain'

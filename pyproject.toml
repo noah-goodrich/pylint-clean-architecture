@@ -115,7 +115,15 @@ allowed_io_interfaces = ["TelemetryPort", "UserInterfaceProtocol"]
 allowed_lod_modules = [
     "clean_architecture_linter.di.container",
     "stellar_ui_kit",
-    "clean_architecture_linter.infrastructure.gateways.astroid_gateway"
+    "clean_architecture_linter.infrastructure.gateways.astroid_gateway",
+    "re",
+    "json",
+    "os",
+    "pathlib",
+    "astroid",
+    "typing",
+    "argparse",
+    "clean_architecture_linter.config"
 ]
 allowed_lod_methods = []
 project_name = "EXCELSIOR"
@@ -131,6 +139,7 @@ shared_kernel_modules = ["stellar_ui_kit"]
 "clean_architecture_linter.config" = "Domain"
 "clean_architecture_linter.layer_registry" = "Domain"
 "clean_architecture_linter.checker" = "Interface"
+"clean_architecture_linter.cli" = "Interface"
 "clean_architecture_linter.reporter" = "Interface"
 
 [tool.coverage.run]

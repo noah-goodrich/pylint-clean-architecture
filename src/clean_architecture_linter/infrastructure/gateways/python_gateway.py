@@ -46,16 +46,7 @@ class PythonGateway(PythonProtocol):
 
         return False
 
-    def get_call_name(self, node: astroid.nodes.Call) -> Optional[str]:
-        """Extract the name of the function or method being called."""
-        if not isinstance(node, astroid.nodes.Call):
-            return None
 
-        if isinstance(node.func, astroid.nodes.Name):
-            return str(node.func.name)
-        if isinstance(node.func, astroid.nodes.Attribute):
-            return str(node.func.attrname)
-        return None
 
     def get_node_layer(self, node: astroid.nodes.NodeNG, config_loader: "ConfigurationLoader") -> Optional[str]:
         """Resolve architectural layer."""

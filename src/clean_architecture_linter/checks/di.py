@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.di.container import ExcelsiorContainer
 from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
 from clean_architecture_linter.layer_registry import LayerRegistry
 
@@ -18,9 +17,14 @@ from clean_architecture_linter.layer_registry import LayerRegistry
 class DIChecker(BaseChecker):
     """W9301: Dependency Injection enforcement."""
 
-    name = "clean-arch-di"
+    name: str = "clean-arch-di"
 
-    def __init__(self, linter: "PyLinter") -> None:
+    def __init__(
+        self,
+        linter: "PyLinter",
+        ast_gateway: Optional[AstroidProtocol] = None,
+        python_gateway: Optional[PythonProtocol] = None,
+    ) -> None:
         self.msgs = {
             "W9301": (
                 "DI Violation: %s instantiated directly in UseCase. Use constructor injection. Clean Fix: Pass the "
@@ -31,9 +35,8 @@ class DIChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
-        container = ExcelsiorContainer.get_instance()
-        self._python_gateway: PythonProtocol = container.get("PythonGateway")
-        self._ast_gateway: AstroidProtocol = container.get("AstroidGateway")
+        self._python_gateway = python_gateway
+        self._ast_gateway = ast_gateway
 
     INFRA_SUFFIXES: ClassVar[tuple[str, ...]] = ("Gateway", "Repository", "Client")
 

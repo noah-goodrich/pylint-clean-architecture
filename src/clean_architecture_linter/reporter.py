@@ -12,15 +12,15 @@ class CleanArchitectureSummaryReporter(BaseReporter):
     grouped by error code/name and package.
     """
 
-    name = "clean-arch-summary"
+    name: str = "clean-arch-summary"
 
     # Stellar Engineering Command Cinematic Palette (24-bit ANSI)
-    RED = "\033[38;2;196;30;58m"
-    BLUE = "\033[38;2;0;123;255m"
-    GOLD = "\033[38;2;249;166;2m"
-    WARP = "\033[38;2;0;238;255m"
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
+    RED: str = "\033[38;2;196;30;58m"
+    BLUE: str = "\033[38;2;0;123;255m"
+    GOLD: str = "\033[38;2;249;166;2m"
+    WARP: str = "\033[38;2;0;238;255m"
+    RESET: str = "\033[0m"
+    BOLD: str = "\033[1m"
 
     # JUSTIFICATION: BaseReporter __init__ uses Any for output
     def __init__(self, output: Optional[Any] = None) -> None:  # pylint: disable=banned-any-usage
@@ -60,7 +60,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         for msg in self.messages:
             path = msg.path
             parts: list[str] = path.split("/")
-            package = "unknown"
+            package: str = "unknown"
             if "packages" in parts:
                 try:
                     idx = parts.index("packages")
@@ -83,9 +83,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
 
         return dict(errors), packages
 
-    def _calculate_widths(
-        self, headers: list[str], errors: dict[str, dict[str, Union[str, int]]], sorted_packages: list[str]
-    ) -> list[int]:
+    def _calculate_widths(self, headers: list[str], errors: dict[str, dict[str, Union[str, int]]], sorted_packages: list[str]) -> list[int]:
         """Calculate dynamic column widths."""
         widths = [len(h) for h in headers]
         for msg_id, details in errors.items():
@@ -96,11 +94,9 @@ class CleanArchitectureSummaryReporter(BaseReporter):
                 widths[3 + i] = max(widths[3 + i], len(str(details.get(pkg, 0))))
         return widths
 
-    def _print_table(
-        self, headers: list[str], widths: list[int], errors: dict[str, dict[str, Union[str, int]]], sorted_packages: list[str]
-    ) -> None:
+    def _print_table(self, headers: list[str], widths: list[int], errors: dict[str, dict[str, Union[str, int]]], sorted_packages: list[str]) -> None:
         """Print the formatted table."""
-        fmt = " | ".join([f"{{:<{w}}}" for w in widths])
+        fmt: str = " | ".join([f"{{:<{w}}}" for w in widths])
         print(file=self.out)  # Empty line
 
         # Header with Science Blue
@@ -109,7 +105,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         line_parts = ["-" * w for w in widths]
         print(f"{self.BLUE}{'-|-'.join(line_parts)}{self.RESET}", file=self.out)
 
-        total_errors = 0
+        total_errors: int = 0
         package_totals: dict[str, int] = defaultdict(int)
 
         # Sort by total count descending

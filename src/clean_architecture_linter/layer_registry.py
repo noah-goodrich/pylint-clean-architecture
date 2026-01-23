@@ -33,10 +33,10 @@ class LayerRegistry:
     """
 
     # Pre-defined layer constants
-    LAYER_USE_CASE = "UseCase"
-    LAYER_DOMAIN = "Domain"
-    LAYER_INFRASTRUCTURE = "Infrastructure"
-    LAYER_INTERFACE = "Interface"
+    LAYER_USE_CASE: str = "UseCase"
+    LAYER_DOMAIN: str = "Domain"
+    LAYER_INFRASTRUCTURE: str = "Infrastructure"
+    LAYER_INTERFACE: str = "Interface"
 
     # Default mappings
     DEFAULT_SUFFIX_MAP: ClassVar[dict[str, str]] = {
@@ -150,9 +150,7 @@ class LayerRegistry:
             return None
         return None
 
-    def resolve_layer(
-        self, node_name: str, file_path: str, node: Optional["astroid.nodes.NodeNG"] = None
-    ) -> str | None:
+    def resolve_layer(self, node_name: str, file_path: str, node: Optional["astroid.nodes.NodeNG"] = None) -> str | None:
         """
         Resolve the architectural layer for a node.
         """
@@ -181,10 +179,10 @@ class LayerRegistry:
     def _resolve_by_directory(self, file_path: str) -> str | None:
         """Check path/module for directory matching."""
         # Normalize: replace backslashes and dots (except for .py extension)
-        normalized_path: str = file_path.replace("\\", "/")
+        normalized_path = file_path.replace("\\", "/")
         if normalized_path.endswith(".py"):
             normalized_path = normalized_path[:-3]
-        normalized_path: str = normalized_path.replace(".", "/")
+        normalized_path = normalized_path.replace(".", "/")
 
         # Prefix with / for pattern matching if not already
         if not normalized_path.startswith("/"):

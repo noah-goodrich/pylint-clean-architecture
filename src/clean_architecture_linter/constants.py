@@ -3,8 +3,8 @@ Stellar Engineering Command: Visual Telemetry Constants
 """
 
 # EXCELSIOR: ANSI Red (\033[31m)
-_RED = "\033[31m"
-_RESET = "\033[0m"
+_RED: str = "\033[31m"
+_RESET: str = "\033[0m"
 _EXCELSIOR_ART = r"""
     _______  ________________   _____ ________  ____
    / ____/ |/ / ____/ ____/ /  / ___//  _/ __ \/ __ \
@@ -29,6 +29,9 @@ DEFAULT_INTERNAL_MODULES: frozenset[str] = frozenset(
         "interfaces",
         "exceptions",
         "types",
+        "layer_registry",
+        "config",
+        "gateways",
     }
 )
 

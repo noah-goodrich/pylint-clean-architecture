@@ -9,15 +9,16 @@ import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
 
 from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.domain.protocols import PythonProtocol
 from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class DependencyChecker(BaseChecker):
     """W9010: Strict Layer Dependency enforcement."""
 
-    name = "clean-arch-dependency"
+    name: str = "clean-arch-dependency"
 
-    def __init__(self, linter: "PyLinter") -> None:
+    def __init__(self, linter: "PyLinter", python_gateway: Optional[PythonProtocol] = None) -> None:
         self.msgs = {
             "W9001": (
                 "Illegal Dependency: %s layer is imported by %s layer. Clean Fix: Invert dependency using an "
@@ -28,8 +29,7 @@ class DependencyChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
-        from clean_architecture_linter.di.container import ExcelsiorContainer
-        self._python_gateway = ExcelsiorContainer.get_instance().get("PythonGateway")
+        self._python_gateway = python_gateway
 
     # Default Dependency Matrix (Allowed Imports)
     DEFAULT_RULES: ClassVar[dict[str, set[str]]] = {
@@ -42,6 +42,7 @@ class DependencyChecker(BaseChecker):
         LayerRegistry.LAYER_INFRASTRUCTURE: {
             LayerRegistry.LAYER_USE_CASE,
             LayerRegistry.LAYER_DOMAIN,
+            LayerRegistry.LAYER_INTERFACE,
         },
     }
 

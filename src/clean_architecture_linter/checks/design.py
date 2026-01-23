@@ -9,17 +9,16 @@ if TYPE_CHECKING:
     from pylint.lint import PyLinter
 
 from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.layer_registry import LayerRegistry
-from clean_architecture_linter.di.container import ExcelsiorContainer
 from clean_architecture_linter.domain.protocols import AstroidProtocol
+from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class DesignChecker(BaseChecker):
     """Design pattern enforcement."""
 
-    name = "clean-arch-design"
+    name: str = "clean-arch-design"
 
-    def __init__(self, linter: "PyLinter") -> None:
+    def __init__(self, linter: "PyLinter", ast_gateway: Optional[AstroidProtocol] = None) -> None:
         self.msgs = {
             "W9012": (
                 "Defensive None Check: '%s' checked for None in %s layer. Validation belongs in Interface layer. "
@@ -60,8 +59,7 @@ class DesignChecker(BaseChecker):
         }
         super().__init__(linter)
         self.config_loader = ConfigurationLoader()
-        container = ExcelsiorContainer.get_instance()
-        self._ast_gateway: AstroidProtocol = container.get("AstroidGateway")
+        self._ast_gateway = ast_gateway
 
     @property
     def raw_types(self) -> Set[str]:
@@ -151,11 +149,11 @@ class DesignChecker(BaseChecker):
             if i == 0 and node.is_method() and arg.name in ("self", "cls"):
                 continue
 
-            has_hint = False
+            has_hint: bool = False
             if i < len(args.annotations) and args.annotations[i]:
-                has_hint = True
+                has_hint: bool = True
             elif hasattr(arg, "annotation") and arg.annotation:
-                has_hint = True
+                has_hint: bool = True
 
             if not has_hint:
                 self.add_message("missing-type-hint", node=node, args=(f"parameter '{arg.name}'", node.name))
@@ -181,11 +179,11 @@ class DesignChecker(BaseChecker):
 
     def _recursive_check_any(self, node: astroid.nodes.NodeNG, context: str) -> None:
         """Logic for detecting 'Any' usage."""
-        found_any = False
+        found_any: bool = False
         if isinstance(node, astroid.nodes.Name) and node.name == "Any":
-            found_any = True
+            found_any: bool = True
         elif isinstance(node, astroid.nodes.Attribute) and node.attrname == "Any":
-            found_any = True
+            found_any: bool = True
         elif isinstance(node, astroid.nodes.Subscript):
             self._recursive_check_any(node.value, context)
             self._recursive_check_any(node.slice, context)

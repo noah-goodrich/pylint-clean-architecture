@@ -21,7 +21,7 @@ class ModuleStructureChecker(BaseChecker):
     W9011: Deep Structure Violation (Root Logic)
     """
 
-    name = "clean-arch-structure"
+    name: str = "clean-arch-structure"
 
     def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
@@ -60,7 +60,7 @@ class ModuleStructureChecker(BaseChecker):
         """Check accumulated stats for God File (W9020)."""
         # If we have mixed layers
         if len(self.current_layer_types) > 1:
-            layers_str = ", ".join(sorted(self.current_layer_types))
+            layers_str: str = ", ".join(sorted(self.current_layer_types))
             self.add_message(
                 "clean-arch-god-file",
                 node=node,
