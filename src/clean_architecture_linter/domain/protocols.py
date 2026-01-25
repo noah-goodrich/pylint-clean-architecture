@@ -1,10 +1,11 @@
-from typing import Protocol, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Protocol
 
 if TYPE_CHECKING:
     # JUSTIFICATION: Type checking imports for Domain Protocol definitions
-    import astroid # type: ignore[import-untyped] # pylint: disable=clean-arch-resources
+    import astroid  # type: ignore[import-untyped] # pylint: disable=clean-arch-resources
+
     # JUSTIFICATION: Type checking imports for Domain Protocol definitions
-    from clean_architecture_linter.config import ConfigurationLoader # pylint: disable=clean-arch-resources
+    from clean_architecture_linter.config import ConfigurationLoader  # pylint: disable=clean-arch-resources
     from clean_architecture_linter.domain.entities import LinterResult
 
 
@@ -59,3 +60,15 @@ class PythonProtocol(Protocol):
 class LinterAdapterProtocol(Protocol):
     """Protocol for linter adapters."""
     def gather_results(self, target_path: str) -> list["LinterResult"]: ...
+
+class FixerGatewayProtocol(Protocol):
+    """Protocol for applying code fixes via LibCST."""
+    def apply_fixes(self, file_path: str, fixes: list[any]) -> bool:
+        """Apply a list of fix suggestions to a file. Returns True if modified."""
+        ...
+
+class TelemetryPort(Protocol):
+    """Protocol for telemetry/UI updates."""
+    def step(self, message: str) -> None: ...
+    def error(self, message: str) -> None: ...
+    def handshake(self) -> None: ...

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Union
+from typing import Dict, List, Union
+
 
 @dataclass(frozen = True)
 class LinterResult:

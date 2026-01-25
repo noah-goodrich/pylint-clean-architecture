@@ -1,7 +1,9 @@
 import sys
 import sysconfig
-from typing import Optional, TYPE_CHECKING
-import astroid # type: ignore[import-untyped]
+from typing import TYPE_CHECKING, Optional
+
+import astroid  # type: ignore[import-untyped]
+
 from clean_architecture_linter.domain.protocols import PythonProtocol
 
 if TYPE_CHECKING:
@@ -48,7 +50,7 @@ class PythonGateway(PythonProtocol):
         if not file_path:
             return False
         # Universal heuristics for installed packages
-        return "site-packages" in file_path or "dist-packages" in file_path
+        return "site-packages" in file_path or "dist-packages" in file_path or ".venv" in file_path
 
     def is_exception_node(self, node: astroid.nodes.ClassDef) -> bool:
         """Check if class inherits from builtins.Exception."""

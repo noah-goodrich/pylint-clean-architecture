@@ -1,8 +1,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from clean_architecture_linter.config import ConfigurationLoader
 
 

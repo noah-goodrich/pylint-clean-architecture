@@ -1,6 +1,8 @@
-from typing import Optional, Set, List, Union
 import builtins
-import astroid # type: ignore[import-untyped]
+from typing import List, Optional, Set, Union
+
+import astroid  # type: ignore[import-untyped]
+
 from clean_architecture_linter.domain.protocols import AstroidProtocol
 from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
 
@@ -60,63 +62,70 @@ class AstroidGateway(AstroidProtocol):
         visited.add(id(node))
 
         try:
-            # 1. Name Resolution
             if isinstance(node, astroid.nodes.Name):
-                stmts = node.lookup(node.name)[1]
-                if not stmts:
-                    return None
-                stmt = stmts[0]
-                return self._trace_safety(stmt, visited)
-
-            # 2. Assignment Handling (AssignName)
+                return self._trace_safety_name(node, visited)
             if isinstance(node, astroid.nodes.AssignName):
-                parent = node.parent
-
-                # Case A: Loop Variable (for x in ...)
-                if isinstance(parent, astroid.nodes.For):
-                     # x in iterator
-                     iter_node = parent.iter
-                     return self._check_iterator_safety(iter_node, visited)
-
-                # Case B: Tuple Unpacking in Loop (for x, y in ...)
-                if isinstance(parent, (astroid.nodes.Tuple, astroid.nodes.List)) and isinstance(parent.parent, astroid.nodes.For):
-                     iter_node = parent.parent.iter
-                     return self._check_iterator_safety(iter_node, visited)
-
-                # Case C: Standard Assignment (x = ...)
-                if isinstance(parent, astroid.nodes.Assign):
-                     return self._trace_safety(parent.value, visited)
-
-            # 3. Attribute/Subscript Propagation
+                return self._trace_safety_assignname(node, visited)
             if isinstance(node, astroid.nodes.Attribute):
-                 return self._trace_safety(node.expr, visited)
-
+                return self._trace_safety(node.expr, visited)
             if isinstance(node, astroid.nodes.Subscript):
-                 return self._trace_safety(node.value, visited)
-
-            # 4. Call Handling (The Source)
+                return self._trace_safety(node.value, visited)
             if isinstance(node, astroid.nodes.Call):
-                func = node.func
-                # Resolve function qname
-                if isinstance(func, astroid.nodes.Attribute) and isinstance(func.expr, astroid.nodes.Name):
-                     # Fast path for module.func()
-                     expr = func.expr
-                     lookup_res = expr.lookup(expr.name)
-                     mod_lookup = lookup_res[1]
-                     if mod_lookup and isinstance(mod_lookup[0], (astroid.nodes.Import, astroid.nodes.ImportFrom)):
-                          mod_name: str = ""
-                          if isinstance(mod_lookup[0], astroid.nodes.Import):
-                               mod_name = mod_lookup[0].names[0][0]
-                          elif isinstance(mod_lookup[0], astroid.nodes.ImportFrom):
-                               mod_name = mod_lookup[0].modname
-
-                          if mod_name:
-                               full_name = f"{mod_name}.{func.attrname}"
-                               if self.typeshed.is_stdlib_qname(full_name):
-                                    return "builtins.object" # Safe
-
+                return self._trace_safety_call(node, visited)
         except Exception:
-             pass
+            pass
+        return None
+
+    def _trace_safety_name(
+        self, node: astroid.nodes.Name, visited: Set[int]
+    ) -> Optional[str]:
+        """Resolve Name via lookup and recurse."""
+        stmts = node.lookup(node.name)[1]
+        if not stmts:
+            return None
+        return self._trace_safety(stmts[0], visited)
+
+    def _trace_safety_assignname(
+        self, node: astroid.nodes.AssignName, visited: Set[int]
+    ) -> Optional[str]:
+        """Handle AssignName: loop variable, tuple unpacking, or standard assignment."""
+        parent = node.parent
+        if isinstance(parent, astroid.nodes.For):
+            return self._check_iterator_safety(parent.iter, visited)
+        if isinstance(parent, (astroid.nodes.Tuple, astroid.nodes.List)) and isinstance(
+            parent.parent, astroid.nodes.For
+        ):
+            return self._check_iterator_safety(parent.parent.iter, visited)
+        if isinstance(parent, astroid.nodes.Assign):
+            return self._trace_safety(parent.value, visited)
+        return None
+
+    def _trace_safety_call(
+        self, node: astroid.nodes.Call, visited: Set[int]
+    ) -> Optional[str]:
+        """Check module.func() calls against typeshed; return safe qname if stdlib."""
+        func = node.func
+        if not isinstance(func, astroid.nodes.Attribute):
+            return None
+        if not isinstance(func.expr, astroid.nodes.Name):
+            return None
+        expr = func.expr
+        lookup_res = expr.lookup(expr.name)
+        mod_lookup = lookup_res[1]
+        if not mod_lookup or not isinstance(
+            mod_lookup[0], (astroid.nodes.Import, astroid.nodes.ImportFrom)
+        ):
+            return None
+        mod_name = ""
+        if isinstance(mod_lookup[0], astroid.nodes.Import):
+            mod_name = mod_lookup[0].names[0][0]
+        elif isinstance(mod_lookup[0], astroid.nodes.ImportFrom):
+            mod_name = mod_lookup[0].modname
+        if not mod_name:
+            return None
+        full_name = f"{mod_name}.{func.attrname}"
+        if self.typeshed.is_stdlib_qname(full_name):
+            return "builtins.object"
         return None
 
     def _check_iterator_safety(self, iter_node: astroid.nodes.NodeNG, visited: Set[int]) -> Optional[str]:
@@ -134,7 +143,11 @@ class AstroidGateway(AstroidProtocol):
                   return "builtins.str" # Propagate safety
 
         return None
-    def get_return_type_qname_from_expr(self, expr: astroid.nodes.NodeNG, visited: Optional[Set[int]] = None) -> Optional[str]:
+    def get_return_type_qname_from_expr(
+        self,
+        expr: astroid.nodes.NodeNG,
+        visited: Optional[Set[int]] = None,
+    ) -> Optional[str]:
         """Recursive resolution for complex expressions."""
         if expr is None:
             return None
@@ -251,7 +264,12 @@ class AstroidGateway(AstroidProtocol):
             pass
         return None
 
-    def _find_method_in_class_hierarchy(self, class_qname: str, method_name: str, context: astroid.nodes.NodeNG) -> Optional[str]:
+    def _find_method_in_class_hierarchy(
+        self,
+        class_qname: str,
+        method_name: str,
+        context: astroid.nodes.NodeNG,
+    ) -> Optional[str]:
         """Look up a method in a class by its fully qualified name with local context."""
         try:
             # 1. Local Lookup (handle relative and bare names)
@@ -401,7 +419,7 @@ class AstroidGateway(AstroidProtocol):
         # Handle Index wrapper
         real_slice = slice_node
         if hasattr(slice_node, "value") and not isinstance(slice_node, (astroid.nodes.Tuple, astroid.nodes.Const)):
-             real_slice = getattr(slice_node, "value")
+             real_slice = slice_node.value
 
         nodes: List[astroid.nodes.NodeNG] = []
         if isinstance(real_slice, (astroid.nodes.Tuple, astroid.nodes.List)):
@@ -452,86 +470,95 @@ class AstroidGateway(AstroidProtocol):
 
     def is_protocol(self, node: astroid.nodes.NodeNG) -> bool:
         """Robust detection of Protocols using inference and gateways."""
-        # NEW: If we already have a ClassDef, check it directly
         if isinstance(node, astroid.nodes.ClassDef):
-            if node.qname().endswith(".Protocol"):
-                return True
-            try:
-                for ancestor in node.ancestors():
-                    if ancestor.qname() in ("typing.Protocol", "_typing.Protocol"):
-                        return True
-            except (astroid.InferenceError, AttributeError):
-                pass
-            return False
-
-        # 1. Try to get qname from our logic (handles hints)
+            return self._is_protocol_classdef(node)
         qname: Optional[str] = self.get_return_type_qname_from_expr(node)
-        if qname:
-            if qname.endswith(".Protocol") or qname == "Protocol":
-                return True
-            if ".protocols." in qname.lower():
-                return True
+        if qname and self._is_protocol_via_qname(qname, node):
+            return True
+        return self._is_protocol_via_infer(node)
 
-            # Structural lookup for hinted types that fail direct inference
-            class_node = self._find_class_node(qname, node)
-            if class_node and isinstance(class_node, astroid.nodes.ClassDef):
-                try:
-                    if any(a.qname() in ("typing.Protocol", "_typing.Protocol") for a in class_node.ancestors()):
-                        return True
-                except (astroid.InferenceError, AttributeError):
-                    pass
-
-        # 2. Try raw inference and ancestor check (Fallback)
+    def _is_protocol_classdef(self, node: astroid.nodes.ClassDef) -> bool:
+        """Check if a ClassDef is or inherits from Protocol."""
+        if node.qname().endswith(".Protocol"):
+            return True
         try:
-            for inf in node.infer():
-                if isinstance(inf, astroid.nodes.ClassDef):
-                    inf_qname: str = inf.qname()
-                    if inf_qname.endswith(".Protocol"):
-                        return True
-                    for ancestor in inf.ancestors():
-                        anc_qname: str = ancestor.qname()
-                        if anc_qname in ("typing.Protocol", "_typing.Protocol"):
-                            return True
+            for ancestor in node.ancestors():
+                if ancestor.qname() in ("typing.Protocol", "_typing.Protocol"):
+                    return True
         except (astroid.InferenceError, AttributeError):
             pass
+        return False
 
+    def _is_protocol_via_qname(
+        self, qname: str, context: astroid.nodes.NodeNG
+    ) -> bool:
+        """Check Protocol via qname string and optional class lookup."""
+        if qname.endswith(".Protocol") or qname == "Protocol":
+            return True
+        if ".protocols." in qname.lower():
+            return True
+        class_node = self._find_class_node(qname, context)
+        if not class_node or not isinstance(class_node, astroid.nodes.ClassDef):
+            return False
+        try:
+            return any(
+                a.qname() in ("typing.Protocol", "_typing.Protocol")
+                for a in class_node.ancestors()
+            )
+        except (astroid.InferenceError, AttributeError):
+            return False
+
+    def _is_protocol_via_infer(self, node: astroid.nodes.NodeNG) -> bool:
+        """Check Protocol via raw inference and ancestor traversal."""
+        try:
+            for inf in node.infer():
+                if not isinstance(inf, astroid.nodes.ClassDef):
+                    continue
+                if inf.qname().endswith(".Protocol"):
+                    return True
+                for ancestor in inf.ancestors():
+                    if ancestor.qname() in ("typing.Protocol", "_typing.Protocol"):
+                        return True
+        except (astroid.InferenceError, AttributeError):
+            pass
         return False
 
     def is_protocol_call(self, node: astroid.nodes.Call) -> bool:
         """Check if the call is being made on a Protocol's method."""
         if not isinstance(node, astroid.nodes.Call):
             return False
+        if self._is_protocol_call_via_infer(node):
+            return True
+        if self._is_protocol_call_via_receiver(node):
+            return True
+        return False
 
-        # 1. Direct Inference
+    def _is_protocol_call_via_infer(self, node: astroid.nodes.Call) -> bool:
+        """Direct inference: func.infer -> parent ClassDef -> is_protocol."""
         try:
             for inf in node.func.infer():
                 if inf is astroid.Uninferable:
                     continue
-                # If the function is a method, check its parent class
                 parent = getattr(inf, "parent", None)
-                if isinstance(parent, astroid.nodes.ClassDef):
-                    if self.is_protocol(parent):
-                        return True
+                if isinstance(parent, astroid.nodes.ClassDef) and self.is_protocol(parent):
+                    return True
         except (astroid.InferenceError, AttributeError):
             pass
+        return False
 
-        # 2. Continuity: If the receiver was a Protocol call, the member is trusted.
-        if isinstance(node.func, astroid.nodes.Attribute) and isinstance(node.func.expr, astroid.nodes.Call):
-            if self.is_protocol_call(node.func.expr):
-                return True
-
-        # 3. Receiver-based Fallback (for hinted parameters where infer() fails)
+    def _is_protocol_call_via_receiver(self, node: astroid.nodes.Call) -> bool:
+        """Continuity (receiver is Protocol call) or receiver-based fallback."""
         if isinstance(node.func, astroid.nodes.Attribute):
-            receiver_qname: Optional[str] = self.get_return_type_qname_from_expr(node.func.expr)
+            if isinstance(node.func.expr, astroid.nodes.Call):
+                if self.is_protocol_call(node.func.expr):
+                    return True
+            receiver_qname = self.get_return_type_qname_from_expr(node.func.expr)
             if receiver_qname:
-                # Use class lookup to check if it's a Protocol
-                class_node: Optional[astroid.nodes.ClassDef] = self._find_class_node(receiver_qname, node)
+                class_node = self._find_class_node(receiver_qname, node)
                 if class_node and self.is_protocol(class_node):
                     return True
-
                 if receiver_qname.endswith(".Protocol") or "Protocol" in receiver_qname:
                     return True
-
         return False
 
     def _find_class_node(self, qname: str, context: astroid.nodes.NodeNG) -> Optional[astroid.nodes.ClassDef]:
@@ -608,8 +635,20 @@ class AstroidGateway(AstroidProtocol):
         """Check if the call's method belongs to a Trusted Authority."""
         if not isinstance(node, astroid.nodes.Call):
             return False
+        if self._trusted_authority_via_infer(node):
+            return True
+        if not isinstance(node.func, astroid.nodes.Attribute):
+            return False
+        if isinstance(node.func.expr, astroid.nodes.Call):
+            if self._check_trusted_authority_call_recursive(node.func.expr, set()):
+                return True
+        receiver_qname = self.get_return_type_qname_from_expr(node.func.expr)
+        if receiver_qname and self._trusted_authority_via_receiver(node, receiver_qname):
+            return True
+        return False
 
-        # 1. Try Direct Inference
+    def _trusted_authority_via_infer(self, node: astroid.nodes.Call) -> bool:
+        """Check trust via func.infer() -> qname -> stdlib module."""
         try:
             for inf in node.func.infer():
                 qname: str = getattr(inf, "qname", lambda: "")()
@@ -620,41 +659,27 @@ class AstroidGateway(AstroidProtocol):
                     return True
         except (astroid.InferenceError, AttributeError):
             pass
+        return False
 
-        # 2. Structural/Authority Trust Fallback
-        # If we know the receiver is a primitive/stdlib type, we trust the call.
-        if isinstance(node.func, astroid.nodes.Attribute):
-            # a) Direct check for trusted calls (Continuity)
-            if isinstance(node.func.expr, astroid.nodes.Call):
-                if self._check_trusted_authority_call_recursive(node.func.expr, set()):
-                    return True
-
-            # b) Check receiver type
-            receiver_qname: Optional[str] = self.get_return_type_qname_from_expr(node.func.expr)
-            if receiver_qname:
-                module_name = receiver_qname.split(".")[0]
-                # Trust StdLib modules
-                if self.python_gateway.is_stdlib_module(module_name):
-                    return True
-
-                # Trust Primitives (checking against builtins)
-                if receiver_qname.startswith("builtins."):
-                    return True
-
-                # Trust External Dependencies (Infrastructure)
-                # We need a file path for this. If we inferred a node, we might have it.
-                # Complex check: find the ClassDef node for this qname and check its file.
-                receiver_node = self._find_class_node(receiver_qname, node)
-                if receiver_node and hasattr(receiver_node, "root"):
-                    file_path = str(getattr(receiver_node.root(), "file", ""))
-                    if self.python_gateway.is_external_dependency(file_path):
-                        return True
-
+    def _trusted_authority_via_receiver(
+        self, node: astroid.nodes.Call, receiver_qname: str
+    ) -> bool:
+        """Check trust via receiver type: stdlib, builtins, or external dependency."""
+        module_name = receiver_qname.split(".")[0]
+        if self.python_gateway.is_stdlib_module(module_name):
+            return True
+        if receiver_qname.startswith("builtins."):
+            return True
+        receiver_node = self._find_class_node(receiver_qname, node)
+        if receiver_node and hasattr(receiver_node, "root"):
+            file_path = str(getattr(receiver_node.root(), "file", ""))
+            if self.python_gateway.is_external_dependency(file_path):
+                return True
         return False
 
     def is_primitive(self, qname: str) -> bool:
         """Identify if a type belongs to the primitive trust circle."""
-        if not qname:
+        if not isinstance(qname, str) or not qname:
             return False
 
         # Handle Unions: all parts must be primitive
@@ -673,42 +698,22 @@ class AstroidGateway(AstroidProtocol):
             return True
         return False
 
-    def _check_trusted_authority_call_recursive(self, node: astroid.nodes.Call, visited: Set[int]) -> bool:
+    def _check_trusted_authority_call_recursive(
+        self, node: astroid.nodes.Call, visited: Set[int]
+    ) -> bool:
         """Internal helper to prevent recursion loops."""
         node_id = id(node)
         if node_id in visited:
             return False
         visited.add(node_id)
-
-        # 1. Try Direct Inference
-        try:
-            for inf in node.func.infer():
-                qname: str = getattr(inf, "qname", lambda: "")()
-                if not qname:
-                    continue
-                module_name = qname.split(".")[0]
-                if self.python_gateway.is_stdlib_module(module_name):
-                    return True
-        except (astroid.InferenceError, AttributeError):
-            pass
-
-        # 2. Structural fallback
-        if isinstance(node.func, astroid.nodes.Attribute):
-            if isinstance(node.func.expr, astroid.nodes.Call):
-                if self._check_trusted_authority_call_recursive(node.func.expr, visited):
-                    return True
-
-            receiver_qname = self.get_return_type_qname_from_expr(node.func.expr)
-            if receiver_qname:
-                module_name = receiver_qname.split(".")[0]
-                if self.python_gateway.is_stdlib_module(module_name):
-                    return True
-                if receiver_qname.startswith("builtins."):
-                    return True
-
-                receiver_node = self._find_class_node(receiver_qname, node)
-                if receiver_node and hasattr(receiver_node, "root"):
-                    file_path = str(getattr(receiver_node.root(), "file", ""))
-                    if self.python_gateway.is_external_dependency(file_path):
-                        return True
+        if self._trusted_authority_via_infer(node):
+            return True
+        if not isinstance(node.func, astroid.nodes.Attribute):
+            return False
+        if isinstance(node.func.expr, astroid.nodes.Call):
+            if self._check_trusted_authority_call_recursive(node.func.expr, visited):
+                return True
+        receiver_qname = self.get_return_type_qname_from_expr(node.func.expr)
+        if receiver_qname and self._trusted_authority_via_receiver(node, receiver_qname):
+            return True
         return False

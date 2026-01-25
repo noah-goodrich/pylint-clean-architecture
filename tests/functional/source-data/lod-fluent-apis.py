@@ -1,5 +1,6 @@
 from typing import Self
 
+
 class DataFrame:
     def select(self, *args: str) -> Self:
         return self

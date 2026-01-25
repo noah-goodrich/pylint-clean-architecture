@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
+
 
 class TestTypeshedService(unittest.TestCase):
     def setUp(self):

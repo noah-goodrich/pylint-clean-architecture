@@ -1,7 +1,7 @@
 """Custom Pylint reporter for Snowarch summary table."""
 
 from collections import defaultdict
-from typing import Union, Any, Optional
+from typing import Any, Optional, Union
 
 from pylint.message import Message
 from pylint.reporters import BaseReporter
@@ -83,7 +83,12 @@ class CleanArchitectureSummaryReporter(BaseReporter):
 
         return dict(errors), packages
 
-    def _calculate_widths(self, headers: list[str], errors: dict[str, dict[str, Union[str, int]]], sorted_packages: list[str]) -> list[int]:
+    def _calculate_widths(
+        self,
+        headers: list[str],
+        errors: dict[str, dict[str, Union[str, int]]],
+        sorted_packages: list[str],
+    ) -> list[int]:
         """Calculate dynamic column widths."""
         widths = [len(h) for h in headers]
         for msg_id, details in errors.items():
@@ -94,7 +99,13 @@ class CleanArchitectureSummaryReporter(BaseReporter):
                 widths[3 + i] = max(widths[3 + i], len(str(details.get(pkg, 0))))
         return widths
 
-    def _print_table(self, headers: list[str], widths: list[int], errors: dict[str, dict[str, Union[str, int]]], sorted_packages: list[str]) -> None:
+    def _print_table(
+        self,
+        headers: list[str],
+        widths: list[int],
+        errors: dict[str, dict[str, Union[str, int]]],
+        sorted_packages: list[str],
+    ) -> None:
         """Print the formatted table."""
         fmt: str = " | ".join([f"{{:<{w}}}" for w in widths])
         print(file=self.out)  # Empty line

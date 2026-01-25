@@ -1,7 +1,7 @@
 """Anti-Bypass Guard checks (W9501)."""
 
 import tokenize
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from pylint.lint import PyLinter

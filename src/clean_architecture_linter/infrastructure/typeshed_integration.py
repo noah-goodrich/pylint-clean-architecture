@@ -1,9 +1,11 @@
 
-from typing import Optional, Set
 import logging
+from typing import Optional, Set
+
 from typeshed_client import finder
 
 from clean_architecture_linter.domain.protocols import TypeshedProtocol
+
 
 class TypeshedService(TypeshedProtocol):
     """Service to interact with typeshed stubs via typeshed-client."""
@@ -23,7 +25,7 @@ class TypeshedService(TypeshedProtocol):
         try:
              # typeshed-client finder can list all modules in stdlib
              # We iterate known stdlib versions or just check 'stdlib' folder
-             search_context = finder.get_search_context()
+             _ = finder.get_search_context()  # Reserved for future use
              # This is a bit implementation dependent, but we want to know
              # if a module is in the stdlib search path.
              pass

@@ -4,8 +4,9 @@ Used by test_lod_benchmarks.py for True Inference verification.
 """
 
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 
 # 1. ALLOWED: Standard Library Chaining (str, Path, json, etc.)
 def allowed_str_chain(name: str) -> str:

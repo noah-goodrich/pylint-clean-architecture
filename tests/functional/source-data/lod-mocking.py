@@ -1,5 +1,6 @@
-from unittest.mock import MagicMock
 from typing import Any
+from unittest.mock import MagicMock
+
 
 def testing_mock_exemption() -> None:
     mock: Any = MagicMock()

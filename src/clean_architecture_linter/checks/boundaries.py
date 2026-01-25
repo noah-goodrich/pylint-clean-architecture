@@ -1,6 +1,6 @@
 """Layer boundary checks (W9003-W9009)."""
 
-from typing import TYPE_CHECKING, Optional, List, Set
+from typing import TYPE_CHECKING, List, Optional, Set
 
 import astroid  # type: ignore[import-untyped]
 

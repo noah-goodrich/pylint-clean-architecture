@@ -1,10 +1,13 @@
-import pytest
-import astroid
 import os
-from pylint.testutils import CheckerTestCase, MessageTest
+from unittest import mock
+
+import astroid
+import pytest
+from pylint.testutils import CheckerTestCase
+
 from clean_architecture_linter.checks.patterns import CouplingChecker
 from clean_architecture_linter.di.container import ExcelsiorContainer
-from unittest import mock
+
 
 def _collect_samples():
     """Helper to parse all benchmark files in source-data."""
@@ -55,7 +58,8 @@ class TestLoDExhaustive(CheckerTestCase):
         # Only mock Domain layer for the specific category that needs it
         mock_layer = "Domain" if "domain-entities" in name else None
 
-        with mock.patch("clean_architecture_linter.config.ConfigurationLoader.get_layer_for_module", return_value=mock_layer):
+        patch_target = "clean_architecture_linter.config.ConfigurationLoader.get_layer_for_module"
+        with mock.patch(patch_target, return_value=mock_layer):
             # Ensure the checker is reset for each node
             if hasattr(self.linter, "release_messages"):
                 self.linter.release_messages()

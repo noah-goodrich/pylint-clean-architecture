@@ -1,6 +1,8 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter, LinterResult
+from unittest.mock import MagicMock, patch
+
+from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
+
 
 class TestMypyAdapter(unittest.TestCase):
     def setUp(self):
@@ -9,9 +11,12 @@ class TestMypyAdapter(unittest.TestCase):
     def test_parse_output_with_errors(self):
         # Sample mypy output with error codes
         mypy_output = (
-            "src/domain/user.py:10: error: Incompatible types in assignment (expression has type \"int\", variable has type \"str\")  [assignment]\n"
-            "src/use_cases/login.py:5: error: Module \"requests\" has no attribute \"get\"  [attr-defined]\n"
-            "src/domain/user.py:20: error: Incompatible types in assignment (expression has type \"float\", variable has type \"str\")  [assignment]\n"
+            "src/domain/user.py:10: error: Incompatible types in assignment "
+            "(expression has type \"int\", variable has type \"str\")  [assignment]\n"
+            "src/use_cases/login.py:5: error: Module \"requests\" has no attribute \"get\"  "
+            "[attr-defined]\n"
+            "src/domain/user.py:20: error: Incompatible types in assignment "
+            "(expression has type \"float\", variable has type \"str\")  [assignment]\n"
         )
 
         results = self.adapter._parse_output(mypy_output)

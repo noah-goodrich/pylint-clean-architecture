@@ -46,38 +46,46 @@ class ImmutabilityChecker(BaseChecker):
 
         self.add_message("domain-immutability-violation", node=node, args=(layer,))
 
+    def _is_dataclass_name(self, n: astroid.nodes.NodeNG) -> bool:
+        """Return True if node is 'dataclass' (Name or Attribute)."""
+        if isinstance(n, astroid.nodes.Name):
+            return n.name == "dataclass"
+        if isinstance(n, astroid.nodes.Attribute):
+            return n.attrname == "dataclass"
+        return False
+
+    def _dataclass_frozen_from_decorators(
+        self, decorators: list
+    ) -> tuple[bool, bool]:
+        """Scan decorator list for @dataclass and frozen=True. Returns (is_dataclass, is_frozen)."""
+        is_dataclass = False
+        is_frozen = False
+        for decorator in decorators:
+            if self._is_dataclass_name(decorator):
+                is_dataclass = True
+            elif isinstance(decorator, astroid.nodes.Call):
+                if self._is_dataclass_name(decorator.func):
+                    is_dataclass = True
+                    if decorator.keywords:
+                        for kw in decorator.keywords:
+                            if (
+                                kw.arg == "frozen"
+                                and isinstance(kw.value, astroid.nodes.Const)
+                                and kw.value.value is True
+                            ):
+                                is_frozen = True
+                                break
+        return (is_dataclass, is_frozen)
+
     def visit_classdef(self, node: astroid.nodes.ClassDef) -> None:
         """W9601: Enforce frozen dataclasses in Domain layer."""
         layer = self._python_gateway.get_node_layer(node, self.config_loader)
         if layer != LayerRegistry.LAYER_DOMAIN:
             return
-
         if not node.decorators:
             return
-
-        is_dataclass: bool = False
-        is_frozen: bool = False
-
-        for decorator in node.decorators.nodes:
-            # Helper to check name
-            def is_dataclass_name(n: astroid.nodes.NodeNG) -> bool:
-                if isinstance(n, astroid.nodes.Name):
-                    return n.name == "dataclass"
-                if isinstance(n, astroid.nodes.Attribute):
-                    return n.attrname == "dataclass"
-                return False
-
-            if is_dataclass_name(decorator):
-                is_dataclass: bool = True
-            elif isinstance(decorator, astroid.nodes.Call):
-                if is_dataclass_name(decorator.func):
-                    is_dataclass: bool = True
-                    # Check for frozen=True
-                    if decorator.keywords:
-                        for kw in decorator.keywords:
-                            if kw.arg == "frozen" and isinstance(kw.value, astroid.nodes.Const) and kw.value.value is True:
-                                is_frozen: bool = True
-                                break
-
+        is_dataclass, is_frozen = self._dataclass_frozen_from_decorators(
+            node.decorators.nodes
+        )
         if is_dataclass and not is_frozen:
             self.add_message("domain-immutability-violation", node=node, args=(layer,))

@@ -1,7 +1,8 @@
-from typing import Dict, Any, TypeVar, Optional
-from clean_architecture_linter.interface.telemetry import ProjectTelemetry
+from typing import Any, Dict, Optional, TypeVar
+
 from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
 from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
+from clean_architecture_linter.interface.telemetry import ProjectTelemetry
 
 T = TypeVar("T")
 

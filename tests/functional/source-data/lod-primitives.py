@@ -1,5 +1,6 @@
 from typing import Iterable, Iterator
 
+
 def typing_collections_trust(items: Iterable[str]) -> None:
     # Allowed: collections.abc/typing logic is considered 'builtins'
     it: Iterator[str] = iter(items)

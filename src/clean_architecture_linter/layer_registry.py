@@ -150,7 +150,12 @@ class LayerRegistry:
             return None
         return None
 
-    def resolve_layer(self, node_name: str, file_path: str, node: Optional["astroid.nodes.NodeNG"] = None) -> str | None:
+    def resolve_layer(
+        self,
+        node_name: str,
+        file_path: str,
+        node: Optional["astroid.nodes.NodeNG"] = None,
+    ) -> str | None:
         """
         Resolve the architectural layer for a node.
         """

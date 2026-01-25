@@ -1,4 +1,5 @@
-from typing import List, Dict, Set, Optional, Any
+from typing import Dict, List, Set
+
 
 def exhaustive_string_methods():
     s = "hello"
@@ -23,18 +24,18 @@ def exhaustive_string_methods():
     s.count("l")
 
 def exhaustive_list_methods():
-    l: List[str] = ["a"]
-    l.append("b")
-    l.extend(["c", "d"])
-    l.insert(0, "z")
-    l.remove("a")
-    l.pop()
-    l.clear()
-    l.index("b")
-    l.count("b")
-    l.sort()
-    l.reverse()
-    l.copy()
+    lst: List[str] = ["a"]
+    lst.append("b")
+    lst.extend(["c", "d"])
+    lst.insert(0, "z")
+    lst.remove("a")
+    lst.pop()
+    lst.clear()
+    lst.index("b")
+    lst.count("b")
+    lst.sort()
+    lst.reverse()
+    lst.copy()
 
 def exhaustive_dict_methods():
     d: Dict[str, int] = {"a": 1}

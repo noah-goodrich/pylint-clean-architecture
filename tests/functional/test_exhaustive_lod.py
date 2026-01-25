@@ -1,9 +1,11 @@
-import pytest
-import astroid
 from unittest import mock
-from pylint.testutils import CheckerTestCase, MessageTest
+
+import astroid
+from pylint.testutils import CheckerTestCase
+
 from clean_architecture_linter.checks.patterns import CouplingChecker
 from clean_architecture_linter.di.container import ExcelsiorContainer
+
 
 class TestLoDExhaustive(CheckerTestCase):
     CHECKER_CLASS = CouplingChecker
@@ -11,7 +13,6 @@ class TestLoDExhaustive(CheckerTestCase):
     def setup_method(self):
         super().setup_method()
         # Inject gateways manually since CheckerTestCase doesn't know about them
-        from clean_architecture_linter.di.container import ExcelsiorContainer
         container = ExcelsiorContainer.get_instance()
         # Ensure we have fresh gateways
         python_gateway = container.get("PythonGateway")
@@ -23,16 +24,19 @@ class TestLoDExhaustive(CheckerTestCase):
     def test_safe_zone_passes(self):
         """Verify 0 messages for SAFE_ZONE."""
         # Mock LayerRegistry to return 'Domain' for the current file to satisfy Category 5
-        with mock.patch("clean_architecture_linter.config.ConfigurationLoader.get_layer_for_module", return_value="Domain"):
+        with mock.patch(
+            "clean_architecture_linter.config.ConfigurationLoader.get_layer_for_module",
+            return_value="Domain",
+        ):
             with open("tests/benchmarks/lod-samples.py", "r") as f:
                 content = f.read()
 
             node = astroid.parse(content)
             # Find all functions in SAFE_ZONE (everything before 'VIOLATION_ZONE')
-            safe_funcs = [
+            _ = [
                 f for f in node.body
                 if isinstance(f, astroid.nodes.FunctionDef)
-                and f.lineno < content.find("VIOLATION_ZONE") / 40 # Rough heuristic
+                and f.lineno < content.find("VIOLATION_ZONE") / 40  # Rough heuristic
             ]
             # Actually, let's just use the whole node but only assert no messages for safe lines
             self.walk(node)

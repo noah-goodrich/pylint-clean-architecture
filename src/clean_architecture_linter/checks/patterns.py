@@ -1,6 +1,6 @@
 """Pattern checks (W9005, W9006)."""
 
-from typing import TYPE_CHECKING, Optional, List, Dict
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
@@ -127,6 +127,19 @@ class CouplingChecker(BaseChecker):
         if self._ast_gateway.is_trusted_authority_call(node.value):
             return
 
+        # If the return type is a primitive (dict, list, str, etc.), it's NOT a stranger
+        # This uses dynamic type inference - no hardcoded lists
+        return_qname = self._ast_gateway.get_return_type_qname_from_expr(node.value)
+        if return_qname and self._ast_gateway.is_primitive(return_qname):
+            return
+
+        # Additional check: If calling method on primitive receiver (dict.setdefault, list.append, etc.)
+        # the result is safe. Use dynamic type inference on the receiver.
+        if isinstance(node.value.func, astroid.nodes.Attribute):
+            receiver_qname = self._ast_gateway.get_return_type_qname_from_expr(node.value.func.expr)
+            if receiver_qname and self._ast_gateway.is_primitive(receiver_qname):
+                return
+
         for target in node.targets:
             if isinstance(target, astroid.nodes.AssignName):
                 self._locals_map[target.name] = True
@@ -193,11 +206,102 @@ class CouplingChecker(BaseChecker):
         self.add_message("clean-arch-demeter", node=node, args=(full_chain,))
         return True
 
+    def _is_assigned_from_primitive_method(self, var_node: astroid.nodes.Name) -> bool:
+        """Check if a variable was assigned from a method call on a primitive (dict, list, etc.)."""
+        # Find the assignment statement for this variable in the current function
+        func_node = var_node.frame()
+        if not isinstance(func_node, astroid.nodes.FunctionDef):
+            return False
+
+        # Look for Assign nodes that target this variable
+        for assign in func_node.nodes_of_class(astroid.nodes.Assign):
+            for target in assign.targets:
+                if isinstance(target, astroid.nodes.AssignName) and target.name == var_node.name:
+                    # Found the assignment - check if RHS is a Call on a primitive
+                    if not isinstance(assign.value, astroid.nodes.Call):
+                        return False
+
+                    # Check if it's calling a method on a primitive receiver
+                    if isinstance(assign.value.func, astroid.nodes.Attribute):
+                        # Try to infer the receiver type
+                        receiver_qname = self._ast_gateway.get_return_type_qname_from_expr(assign.value.func.expr)
+                        if receiver_qname and self._ast_gateway.is_primitive(receiver_qname):
+                            return True
+
+                        # Check if the receiver has an isinstance() type guard before this assignment
+                        # This handles cases like: `if isinstance(x, dict): y = x.setdefault(...)`
+                        if isinstance(assign.value.func.expr, astroid.nodes.Name):
+                            receiver_name = assign.value.func.expr.name
+                            if self._has_isinstance_primitive_guard(func_node, receiver_name, assign.lineno):
+                                return True
+                    return False
+        return False
+
+    def _unwrap_not(self, test: astroid.nodes.NodeNG) -> astroid.nodes.NodeNG:
+        """Unwrap 'not' in `if not isinstance(...)` -> isinstance node."""
+        if isinstance(test, astroid.nodes.UnaryOp) and test.op == "not":
+            return test.operand
+        return test
+
+    def _isinstance_guard_var_primitive(
+        self, test: astroid.nodes.Call, var_name: str
+    ) -> bool:
+        """Return True if test is isinstance(var_name, primitive_type)."""
+        try:
+            for inf in test.func.infer():
+                if getattr(inf, "name", None) != "isinstance":
+                    continue
+                if len(test.args) < 2:
+                    return False
+                if not (
+                    isinstance(test.args[0], astroid.nodes.Name)
+                    and test.args[0].name == var_name
+                ):
+                    return False
+                type_arg = test.args[1]
+                for type_inf in type_arg.infer():
+                    q = getattr(type_inf, "qname", None)
+                    if q is None:
+                        continue
+                    type_qname = q() if callable(q) else q
+                    if isinstance(type_qname, str) and self._ast_gateway.is_primitive(type_qname):
+                        return True
+                return False
+        except (astroid.InferenceError, AttributeError):
+            pass
+        return False
+
+    def _has_isinstance_primitive_guard(
+        self,
+        func_node: astroid.nodes.FunctionDef,
+        var_name: str,
+        before_line: int,
+    ) -> bool:
+        """Check if a variable has an isinstance(var, primitive_type) guard before the given line."""
+        for if_node in func_node.nodes_of_class(astroid.nodes.If):
+            if if_node.lineno >= before_line:
+                continue
+            test = self._unwrap_not(if_node.test)
+            if isinstance(test, astroid.nodes.Call) and self._isinstance_guard_var_primitive(
+                test, var_name
+            ):
+                return True
+        return False
+
     def _check_stranger_variable(self, node: astroid.nodes.Call) -> None:
         """Case 2: Method called on a 'stranger' variable."""
         if isinstance(node.func, astroid.nodes.Attribute):
             expr = node.func.expr
             if isinstance(expr, astroid.nodes.Name) and self._locals_map.get(expr.name, False):
+                # Double-check: Is this variable actually a primitive? Type inference can improve after assignment
+                var_qname = self._ast_gateway.get_return_type_qname_from_expr(expr)
+                if var_qname and self._ast_gateway.is_primitive(var_qname):
+                    return  # It's a primitive, not a stranger
+
+                # Additional check: Look up the assignment and check if it came from a primitive method
+                if self._is_assigned_from_primitive_method(expr):
+                    return  # Assigned from primitive.method(), safe
+
                 if self._is_chain_excluded(node, [node.func.attrname], expr):
                     return
 
@@ -207,59 +311,59 @@ class CouplingChecker(BaseChecker):
                     args=(f"{expr.name}.{node.func.attrname} (Stranger)",),
                 )
 
-    def _is_chain_excluded(self, node: astroid.nodes.Call, chain: List[str], curr: astroid.nodes.NodeNG) -> bool:
-        """Tiered logic for chain exclusion."""
-        config_loader = ConfigurationLoader()
-
-        # Category 6: Mocking & Testing
+    def _excluded_by_environment_or_trust(
+        self,
+        node: astroid.nodes.Call,
+        curr: astroid.nodes.NodeNG,
+        config_loader: "ConfigurationLoader",
+    ) -> bool:
+        """Test/mock, overrides, trusted authority, protocol, fluent."""
         if self._is_test_file(node) or self._is_mock_involved(curr):
             return True
-
-        # User-Defined FQN Overrides (Toggled via pyproject.toml)
         if self._is_override_excluded(node, config_loader):
             return True
-
-        # Continuity of Trust: If this tool belongs to a Trusted Authority, the chain stays alive.
         if self._ast_gateway.is_trusted_authority_call(node):
             return True
-
-        # Protocol Branch Trust: If this call is on an object produced by a Protocol, we trust it.
-        if isinstance(node.func, astroid.nodes.Attribute) and isinstance(node.func.expr, astroid.nodes.Call):
+        if isinstance(node.func, astroid.nodes.Attribute) and isinstance(
+            node.func.expr, astroid.nodes.Call
+        ):
             if self._ast_gateway.is_protocol_call(node.func.expr):
                 return True
+        return bool(self._ast_gateway.is_fluent_call(node))
 
-        # Fluent API Trust: If the transformation returns the same type (Transformation), it's safe.
-        if self._ast_gateway.is_fluent_call(node):
-            return True
-
-        # Transformation Trust: Collection accessors like items(), keys(), values(), union()
-        # are considered safe transformations of the object itself, not reaching into internals.
-        if isinstance(node.func, astroid.nodes.Attribute):
-            # If the receiver is a trusted authority (Standard Library or Primitive), the transformation is safe.
-            # This replaces the hardcoded list of methods (split, strip, etc.) with a dynamic trust model.
-            if self._ast_gateway.is_trusted_authority_call(node):
-                return True
-
-        # LEGO Brick Rule: If the immediate receiver is a primitive, the call is safe.
+    def _excluded_by_receiver_or_safe_source(
+        self,
+        node: astroid.nodes.Call,
+        curr: astroid.nodes.NodeNG,
+        chain: List[str],
+        config_loader: "ConfigurationLoader",
+    ) -> bool:
+        """Primitive receiver, safe source, self/cls, local instantiation, hinted protocol."""
         if isinstance(node.func, astroid.nodes.Attribute):
             if self._is_primitive_receiver(node.func.expr):
                 return True
-
-        # Category 1 & 2: Safe Roots (StdLib, Builtins, friend modules)
         if self._is_safe_source(curr, config_loader):
             return True
-
         if self._is_self_or_cls(curr, chain):
             return True
-
-        # Category 4: Local Friend Objects (Factory Exemption)
         if self._is_locally_instantiated(curr):
             return True
+        return bool(self._is_hinted_protocol(curr))
 
-        # Category 7: Hinted Protocols/Interfaces
-        if self._is_hinted_protocol(curr):
+    def _is_chain_excluded(
+        self,
+        node: astroid.nodes.Call,
+        chain: List[str],
+        curr: astroid.nodes.NodeNG,
+    ) -> bool:
+        """Tiered logic for chain exclusion."""
+        config_loader = ConfigurationLoader()
+        if self._excluded_by_environment_or_trust(node, curr, config_loader):
             return True
-
+        if self._excluded_by_receiver_or_safe_source(
+            node, curr, chain, config_loader
+        ):
+            return True
         return self._is_allowed_by_inference(curr, config_loader)
 
     def _is_primitive_receiver(self, receiver: astroid.nodes.NodeNG) -> bool:

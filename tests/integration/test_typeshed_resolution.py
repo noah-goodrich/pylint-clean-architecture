@@ -1,10 +1,10 @@
 
-import pytest
 import astroid
-import sys
+
 import clean_architecture_linter
 from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
 from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
+
 
 class TestTypeshedResolution:
 
@@ -56,7 +56,7 @@ x = args.foo
 """
          module = astroid.parse(code)
          x_assign = module.body[3]
-         x_node = x_assign.value # args.foo
+         _ = x_assign.value  # args.foo
 
          # Logic for generic stdlib object safety might need to be extended if not covered by iterator check
          # For now, let's just see what it does.

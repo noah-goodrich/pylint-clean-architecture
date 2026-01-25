@@ -1,227 +1,188 @@
 """CLI entry points for Excelsior."""
 
 import argparse
-import sys
 import json
+import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Dict, Any, Optional, cast
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-# JUSTIFICATION: CLI is the Composition Root and must wire up Infrastructure to Interface.
+from stellar_ui_kit import ColumnDefinition, ReportSchema, TerminalReporter
+
+from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.constants import EXCELSIOR_BANNER
 from clean_architecture_linter.di.container import ExcelsiorContainer
-# JUSTIFICATION: CLI is the Composition Root and must wire up Infrastructure to Interface.
 from clean_architecture_linter.infrastructure.adapters.linter_adapters import (
     ExcelsiorAdapter,
-    MypyAdapter,
     ImportLinterAdapter,
+    MypyAdapter,
 )
-from stellar_ui_kit import ColumnDefinition, ReportSchema, TerminalReporter
-from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
+from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import LibCSTFixerGateway
+from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
+from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
 
 if TYPE_CHECKING:
     from stellar_ui_kit import TelemetryPort
+
     from clean_architecture_linter.domain.entities import LinterResult
 
-BANNER = r"""
-    _______  ________________   _____ ________  ____
-   / ____/ |/ / ____/ ____/ /  / ___//  _/ __ \/ __ \   [ v2 ]
-  / __/  |   / /   / __/ / /   \__ \ / // / / / /_/ /   Architectural Autopilot
- / /___ /   / /___/ /___/ /______/ // // /_/ / _, _/
-/_____//_/|_\____/_____/_____/____/___/\____/_/ |_|
-"""
 
-AGENT_INSTRUCTIONS_TEMPLATE: str = """# Architecture Instructions
+def _gather_linter_results(
+    telemetry: "TelemetryPort", target_path: str, linter: str
+) -> tuple[List["LinterResult"], List["LinterResult"], List["LinterResult"], List["LinterResult"]]:
+    """Run requested linters and return (mypy, excelsior, il, ruff) result lists."""
+    mypy_results: List["LinterResult"] = []
+    excelsior_results: List["LinterResult"] = []
+    il_results: List["LinterResult"] = []
+    ruff_results: List["LinterResult"] = []
 
-This project adheres to **Clean Architecture** principles enforced by the `pylint-clean-architecture` plugin.
+    if linter in ["all", "mypy"]:
+        telemetry.step("Gathering Type Integrity violations (Source: Mypy)...")
+        mypy_results = MypyAdapter().gather_results(target_path)
+    if linter in ["all", "excelsior"]:
+        telemetry.step("Gathering Architectural violations (Source: Pylint/Excelsior)...")
+        excelsior_results = ExcelsiorAdapter().gather_results(target_path)
+    if linter in ["all", "import-linter"]:
+        telemetry.step("Verifying Package Contracts (Source: Import-Linter)...")
+        il_results = ImportLinterAdapter().gather_results(target_path)
 
-## Layer Boundaries
+    config_loader = ConfigurationLoader()
+    if linter in ["all", "ruff"] and config_loader.ruff_enabled:
+        telemetry.step("Running Code Quality Checks (Source: Ruff)...")
+        ruff_results = RuffAdapter(telemetry=telemetry).gather_results(target_path)
 
-The project is structured into strict layers.
-Inner layers ({domain_layer}, {use_case_layer}) **MUST NOT** import from Outer layers ({infrastructure_layer}, {interface_layer}).
+    return (mypy_results, excelsior_results, il_results, ruff_results)
 
-### 1. {domain_layer} Layer
-*   **Purpose**: Contains pure business logic, entities, and protocols (interfaces).
-*   **Rules**:
-    *   **NO** I/O operations (DB, API, Filesystem).
-    *   **NO** direct dependencies on frameworks or libraries (unless they are pure utilities).
-    *   **Must be pure Python.**
-    *   Use `@dataclass(frozen=True)` for Entities and Value Objects.
 
-### 2. {use_case_layer} Layer (Application Logic)
-*   **Purpose**: Orchestrates the flow of data between Domain Objects and Interfaces/Infrastructure.
-*   **Rules**:
-    *   **No Infrastructure-specific drivers or raw I/O** (e.g. no `requests`, no `sqlalchemy.session`).
-    *   **Dependency Injection**: Infrastructure components (Repositories, Clients) MUST be injected via constructor using Domain Protocols.
-    *   **Law of Demeter**: Objects should not reach through dependencies (e.g. avoid `obj.child.method()`).
+def _is_rule_fixable(adapter: object, code: str) -> bool:
+    """True if the adapter can auto-fix this rule code. Ruff uses prefix match."""
+    if not hasattr(adapter, "supports_autofix") or not adapter.supports_autofix():
+        return False
+    fixable = getattr(adapter, "get_fixable_rules", lambda: [])()
+    if adapter.__class__.__name__ == "RuffAdapter":
+        return any(code.startswith(r) for r in fixable)
+    return code in fixable
 
-### 3. {interface_layer} Layer (Controllers/CLI)
-*   **Purpose**: Handles external input (HTTP requests, CLI commands) and calls UseCases.
-*   **Rules**:
-    *   Convert external data (JSON, Args) into Domain objects before passing to UseCases.
 
-### 4. {infrastructure_layer} Layer (Gateways/Repositories)
-*   **Purpose**: Implements Domain Protocols to interact with the outside world (DB, API, Storage).
-*   **Rules**:
-    *   Must implement a Protocol defined in the Domain layer.
-    *   Should handle specific implementation details (SQL, API calls).
+def _process_results(
+    results: List["LinterResult"],
+    adapter: object,
+) -> List[Dict[str, object]]:
+    """Build table rows with count and fixability."""
+    out = []
+    for r in results:
+        d: Dict[str, object] = dict(r.to_dict())
+        d["count"] = len(r.locations) if r.locations else 1
+        d["fix"] = "✅ Auto" if _is_rule_fixable(adapter, r.code) else "⚠️ Manual"
+        out.append(d)
+    return sorted(
+        out,
+        key=lambda x: int(x["count"]) if isinstance(x["count"], int) else 0,
+        reverse=True,
+    )
 
-## Design Rules
 
-*   **Avoid "Naked Returns"**: Repositories should return Domain Entities, not raw DB cursors or API responses.
-*   **No "Stranger" Chains**: Don't chain method calls too deeply.
-    *   *Prefer Type Hints for LoD compliance.*
-    *   *Chaining is permitted on methods returning primitives or members of allowed_lod_modules.*
-    *   *Avoid manual method-name overrides in configuration unless absolutely necessary.*
-*   **Justify Bypasses**: If you must disable a linter rule, add a `# JUSTIFICATION: ...` comment.
-"""
-
-ONBOARDING_TEMPLATE: str = """# Architecture Onboarding Strategy
-
-This project is moving towards a strict Clean Architecture.
-Follow this 3-Phase Refactor Plan to achieve compliance without stopping development.
-
-## Phase 1: Package Organization (Structure)
-**Goal**: Eliminate "God Files" and "Root Soup".
-- [ ] Fix W9011 (Deep Structure): Move root-level logic files into sub-packages.
-- [ ] Fix W9010 (God File): Split files containing multiple heavy components or mixed layers.
-
-## Phase 2: Layer Separation (Boundaries)
-**Goal**: Enforce strict dependency rules.
-- [ ] Fix W9001-9004: Ensure Domain/use_cases do not import Infrastructure.
-- [ ] Introduce Dependency Injection using Protocols.
-
-## Phase 3: Coupling Hardening (Internal Quality)
-**Goal**: Reduce complexity and coupling.
-- [ ] Fix W9006 (Law of Demeter): Resolve chained calls.
-- [ ] Ensure all I/O is isolated in Infrastructure.
-
----
-**Configuration Note**:
-This project uses `pylint-clean-architecture` in **Architecture-Only Mode** (style checks disabled)
-because other tools (ruff/black/flake8) are detected.
-"""
-
-PRE_FLIGHT_WORKFLOW_TEMPLATE: str = """# Stellar Pre-Flight Checklist
-You MUST complete this checklist for EVERY file changed before proceeding.
-
-1.  **Handshake**: `make handshake` (Confirming compliance).
-2.  **Audit**: `make verify-file FILE=<file_path>`.
-3.  **Complexity**: Ruff C901 score must be <= 11.
-4.  **Coverage**: Minimum 85% coverage on new logic.
-5.  **Integrity**: Mypy --strict must return 0 errors.
-6.  **Self-Audit**: Pylint score MUST be 10.0/10.
-"""
-
-HANDSHAKE_SNIPPET: str = """
-# --- Agent Handshake Protocol ---
-.PHONY: handshake
-handshake:
-	@echo "=== STELLAR PROTOCOL HANDSHAKE ==="
-	@echo "1. READING REQUIREMENTS..."
-	@ls .agent/*.md | grep -v "_" || (echo "ERROR: Files in .agent/ must use dashes, not underscores!" && exit 1)
-	@echo "   [OK] .agent/ files verified."
-	@echo ""
-	@echo "2. ARCHITECTURAL BOUNDARIES:"
-	@echo "   - Complexity Limit: 11 (Ruff C901)"
-	@echo "   - Typing Policy: Strict (W9016 - Banned Any)"
-	@echo "   - Helpers: BANNED. Use Infrastructure Gateways."
-	@echo "   - UI Kit: stellar-ui-kit is IMMUTABLE."
-	@echo ""
-	@echo "3. TDD MANDATE (MUST FOLLOW IN ORDER):"
-	@echo "   A. Identify target files and logic."
-	@echo "   B. Create STUBS for new logic."
-	@echo "   C. Draft Acceptance Criteria & Tests in tests/benchmarks/lod-samples.py."
-	@echo "   D. STOP: Wait for User Approval of the Blueprint."
-	@echo ""
-	@echo "4. VERIFICATION GATE:"
-	@echo "   - After approval: Write Tests -> Verify Failure -> Implementation -> 'make verify-file'"
-	@echo "   - Requirement: 85% coverage + 10.0/10 Lint + 0 Mypy errors."
-	@echo "=================================="
-
-.PHONY: verify-file
-verify-file:
-	@echo "Auditing $(FILE)..."
-	ruff check $(FILE) --select C901 --max-complexity 11
-	mypy $(FILE) --strict
-	PYTHONPATH=src pylint $(FILE) --fail-under=10.0
-	pytest --cov=src --cov-report=term-missing | grep $(FILE)
-"""
-
-def check_command(telemetry: "TelemetryPort", target_path: str) -> None:
-    """Run standardized linter audit with grouped counts and desc sorting."""
-
-    telemetry.step(f"Starting Excelsior Audit for: {target_path}")
-
-    # 1. Run Mypy
-    telemetry.step("Gathering Type Integrity violations (Source: Mypy)...")
+def _print_audit_tables(
+    mypy_results: List["LinterResult"],
+    excelsior_results: List["LinterResult"],
+    il_results: List["LinterResult"],
+    ruff_results: List["LinterResult"],
+    ruff_enabled: bool,
+) -> None:
+    """Print Mypy, Excelsior, Import-Linter, and Ruff report tables."""
     mypy_adapter = MypyAdapter()
-    mypy_results = mypy_adapter.gather_results(target_path)
-
-    # 2. Run Excelsior
-    telemetry.step("Gathering Architectural violations (Source: Pylint/Excelsior)...")
     excelsior_adapter = ExcelsiorAdapter()
-    excelsior_results = excelsior_adapter.gather_results(target_path)
-
-    # 3. Run Import Linter
-    telemetry.step("Verifying Package Contracts (Source: Import-Linter)...")
-    il_adapter = ImportLinterAdapter()
-    il_results = il_adapter.gather_results(target_path)
+    ruff_adapter = RuffAdapter(telemetry=None) if ruff_enabled else None
 
     reporter = TerminalReporter()
 
-    def process_results(results: List["LinterResult"]) -> List[Dict[str, object]]:
-        processed = []
-        for r in results:
-            d: Dict[str, object] = dict(r.to_dict())
-            d["count"] = len(r.locations) if r.locations else 1
-            processed.append(d)
-        return sorted(processed, key=lambda x: int(x["count"]) if isinstance(x["count"], int) else 0, reverse=True)
-
-    # Table 1: Type Integrity
     mypy_schema = ReportSchema(
         title="[MYPY] Type Integrity Audit",
         columns=[
             ColumnDefinition(header="Error Code", key="code", style="#00EEFF"),
             ColumnDefinition(header="Count", key="count", style="bold #007BFF"),
+            ColumnDefinition(header="Fix?", key="fix"),
             ColumnDefinition(header="Message", key="message"),
         ],
         header_style="bold #007BFF",
     )
     if mypy_results:
-        reporter.generate_report(process_results(mypy_results), mypy_schema)
+        reporter.generate_report(_process_results(mypy_results, mypy_adapter), mypy_schema)
     else:
         print("\n✅ No Type Integrity violations detected.")
 
-    # Table 2: Architectural Governance
     excelsior_schema = ReportSchema(
         title="[EXCELSIOR] Architectural Governance Audit",
         columns=[
             ColumnDefinition(header="Rule ID", key="code", style="#C41E3A"),
             ColumnDefinition(header="Count", key="count", style="bold #007BFF"),
+            ColumnDefinition(header="Fix?", key="fix"),
             ColumnDefinition(header="Violation Description", key="message"),
         ],
         header_style="bold #F9A602",
     )
     if excelsior_results:
-        reporter.generate_report(process_results(excelsior_results), excelsior_schema)
+        reporter.generate_report(
+            _process_results(excelsior_results, excelsior_adapter),
+            excelsior_schema,
+        )
     else:
         print("\n✅ No Architectural violations detected.")
 
-    # Table 3: Package Contracts
     il_schema = ReportSchema(
         title="[IMPORT-LINTER] Package Boundary Audit",
         columns=[
             ColumnDefinition(header="Rule ID", key="code", style="#7B68EE"),
+            ColumnDefinition(header="Fix?", key="fix"),
             ColumnDefinition(header="Contract Violation", key="message"),
         ],
         header_style="bold #7B68EE",
     )
     if il_results:
-        reporter.generate_report([r.to_dict() for r in il_results], il_schema)
+        il_rows = []
+        for r in il_results:
+            d = dict(r.to_dict())
+            d["fix"] = "⚠️ Manual"  # Import-Linter has no autofix
+            il_rows.append(d)
+        reporter.generate_report(il_rows, il_schema)
 
-    # 4. Save Audit Trail
-    _save_audit_trail(telemetry, mypy_results, excelsior_results, il_results)
+    if ruff_enabled and ruff_adapter:
+        ruff_schema = ReportSchema(
+            title="[RUFF] Code Quality Audit",
+            columns=[
+                ColumnDefinition(header="Rule ID", key="code", style="#FFA500"),
+                ColumnDefinition(header="Count", key="count", style="bold #007BFF"),
+                ColumnDefinition(header="Fix?", key="fix"),
+                ColumnDefinition(header="Issue", key="message"),
+            ],
+            header_style="bold #FFA500",
+        )
+        if ruff_results:
+            reporter.generate_report(
+                _process_results(ruff_results, ruff_adapter),
+                ruff_schema,
+            )
+        else:
+            print("\n✅ No Code Quality violations detected.")
 
-    # AI Handover
+
+def check_command(telemetry: "TelemetryPort", target_path: str, linter: str = "all") -> bool:
+    """Run standardized linter audit with grouped counts and desc sorting."""
+    telemetry.step(f"Starting Excelsior Audit for: {target_path} (linter={linter})")
+
+    mypy_results, excelsior_results, il_results, ruff_results = _gather_linter_results(
+        telemetry, target_path, linter
+    )
+    config_loader = ConfigurationLoader()
+    _print_audit_tables(
+        mypy_results,
+        excelsior_results,
+        il_results,
+        ruff_results,
+        ruff_enabled=config_loader.ruff_enabled,
+    )
+    _save_audit_trail(telemetry, mypy_results, excelsior_results, il_results, ruff_results)
+
     telemetry.step("AI Agent Handover initialized.")
     print("\n" + "=" * 40)
     print("🤖 EXCELSIOR v2: AI HANDOVER")
@@ -231,323 +192,259 @@ def check_command(telemetry: "TelemetryPort", target_path: str) -> None:
     print("Run 'excelsior fix' to resolve common issues.")
     print("=" * 40 + "\n")
 
-def _save_audit_trail(telemetry: "TelemetryPort", mypy: List["LinterResult"], excelsior: List["LinterResult"], il: List["LinterResult"]) -> None:
+    has_violations = bool(
+        mypy_results or excelsior_results or il_results or ruff_results
+    )
+    return not has_violations
+
+
+def _write_violations_section(
+    f,
+    title: str,
+    results: List["LinterResult"],
+    adapter: object,
+    include_locations: bool = True,
+) -> None:
+    """Write a violations section to an audit txt file. Adds fixability and manual fix guidance."""
+    f.write(f"\n--- {title} ---\n")
+    for r in results:
+        fixable = _is_rule_fixable(adapter, r.code)
+        f.write(f"[{r.code}] {'✅ Auto-fixable' if fixable else '⚠️ Manual fix required'}\n")
+        f.write(f"  {r.message}\n")
+        if include_locations and r.locations:
+            for loc in r.locations:
+                f.write(f"  - {loc}\n")
+        if not fixable and adapter and hasattr(adapter, "get_manual_fix_instructions"):
+            instr = adapter.get_manual_fix_instructions(r.code)
+            f.write(f"  How to fix (juniors & AI): {instr}\n")
+
+
+def _violations_with_fix_info(
+    results: List["LinterResult"],
+    adapter: object,
+) -> List[Dict[str, object]]:
+    """Enrich violation dicts with fixable and manual_instructions for JSON audit."""
+    out = []
+    for r in results:
+        d = dict(r.to_dict())
+        fixable = _is_rule_fixable(adapter, r.code)
+        d["fixable"] = fixable
+        if not fixable and hasattr(adapter, "get_manual_fix_instructions"):
+            d["manual_instructions"] = adapter.get_manual_fix_instructions(r.code)
+        else:
+            d["manual_instructions"] = None
+        out.append(d)
+    return out
+
+
+def _save_audit_trail(
+    telemetry: "TelemetryPort",
+    mypy: List["LinterResult"],
+    excelsior: List["LinterResult"],
+    il: List["LinterResult"],
+    ruff: Optional[List["LinterResult"]] = None,
+) -> None:
     """Save results to .excelsior directory for human/AI review."""
+    ruff = ruff or []
     excelsior_dir = Path(".excelsior")
     excelsior_dir.mkdir(exist_ok=True)
 
+    mypy_adapter = MypyAdapter()
+    excelsior_adapter = ExcelsiorAdapter()
+    il_adapter = ImportLinterAdapter()
+    ruff_adapter = RuffAdapter(telemetry=None) if ruff else None
+
     audit_data = {
         "version": "2.0.0",
-        "timestamp": str(Path(".excelsior").stat().st_mtime), # rough timestamp
+        "timestamp": str(excelsior_dir.stat().st_mtime),
         "summary": {
             "type_integrity": len(mypy),
             "architectural": len(excelsior),
-            "contracts": len(il)
+            "contracts": len(il),
+            "code_quality": len(ruff),
         },
         "violations": {
-            "type_integrity": [r.to_dict() for r in mypy],
-            "architectural": [r.to_dict() for r in excelsior],
-            "contracts": [r.to_dict() for r in il]
-        }
+            "type_integrity": _violations_with_fix_info(mypy, mypy_adapter),
+            "architectural": _violations_with_fix_info(excelsior, excelsior_adapter),
+            "contracts": _violations_with_fix_info(il, il_adapter),
+            "code_quality": _violations_with_fix_info(ruff, ruff_adapter) if ruff_adapter else [],
+        },
     }
 
     json_path = excelsior_dir / "last_audit.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(audit_data, f, indent=2)
 
-    # Human readable summary
     txt_path = excelsior_dir / "last_audit.txt"
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write("=== EXCELSIOR v2 AUDIT LOG ===\n")
-        f.write(f"Summary: {len(excelsior)} Architectural, {len(mypy)} Type Integrity, {len(il)} Contracts\n\n")
-        f.write("--- ARCHITECTURAL VIOLATIONS ---\n")
-        for r in excelsior:
-            f.write(f"[{r.code}] {r.message}\n")
-            if r.locations:
-                for loc in r.locations:
-                    f.write(f"  - {loc}\n")
-        f.write("\n--- TYPE INTEGRITY VIOLATIONS ---\n")
-        for r in mypy:
-            f.write(f"[{r.code}] {r.message}\n")
-            if r.locations:
-                for loc in r.locations:
-                    f.write(f"  - {loc}\n")
+        f.write(
+            f"Summary: {len(excelsior)} Architectural, {len(mypy)} Type Integrity, "
+            f"{len(il)} Contracts, {len(ruff)} Code Quality\n"
+        )
+        _write_violations_section(f, "ARCHITECTURAL VIOLATIONS", excelsior, excelsior_adapter)
+        _write_violations_section(f, "TYPE INTEGRITY VIOLATIONS", mypy, mypy_adapter)
+        _write_violations_section(
+            f, "CONTRACT VIOLATIONS", il, il_adapter, include_locations=False
+        )
+        if ruff_adapter:
+            _write_violations_section(
+                f, "CODE QUALITY VIOLATIONS (RUFF)", ruff, ruff_adapter
+            )
 
     telemetry.step(f"💾 Audit Trail persisted to: {json_path} and {txt_path}")
 
-def init_command(telemetry: "TelemetryPort") -> None:
-    """Initialize Excelsior configuration."""
-    # Custom help with banner
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description=f"{BANNER}\nEXCELSIOR: Clean Architecture Governance.",
+        description=f"{EXCELSIOR_BANNER}\nEXCELSIOR v2: Architectural Autopilot for Clean Architecture.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    # JUSTIFICATION: Simple argparse configuration.
-    parser.add_argument(
-        "--template",
-        choices=["fastapi", "sqlalchemy"],
-        help="Pre-configure for specific frameworks.",
-    )
-    # JUSTIFICATION: Simple argparse configuration.
-    parser.add_argument(
-        "--check-layers",
-        action="store_true",
-        help="Verify active layer configuration.",
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    check_parser = subparsers.add_parser("check", help="Run multi-tool audit")
+    check_parser.add_argument("path", nargs="?", default=".", help="Target path to audit")
+    check_parser.add_argument(
+        "--linter",
+        choices=["ruff", "mypy", "excelsior", "import-linter", "all"],
+        default="all",
+        help="Which linter to run (default: all)",
     )
 
-    args = parser.parse_args()
-
-    if args.check_layers:
-        _check_layers(telemetry)
-        return
-
-    agent_dir = Path(".agent")
-    if not agent_dir.exists():
-        agent_dir.mkdir()
-        telemetry.step(f"Created directory: {agent_dir}")
-
-    # Instructions handling (existing)
-    instructions_file = agent_dir / "instructions.md"
-    _generate_instructions(telemetry, instructions_file)
-
-    # Pre-Flight Workflow
-    pre_flight_file = agent_dir / "pre-flight.md"
-    with pre_flight_file.open("w", encoding="utf-8") as f:
-        f.write(PRE_FLIGHT_WORKFLOW_TEMPLATE)
-    telemetry.step(f"Generated: {pre_flight_file}")
-
-    # Makefile Handshake Injection
-    _update_makefile(telemetry)
-
-    # Onboarding Artifact
-    onboarding_file = Path("ARCHITECTURE_ONBOARDING.md")
-    if not onboarding_file.exists():
-        # JUSTIFICATION: Simple file write for onboarding documentation.
-        with onboarding_file.open("w", encoding="utf-8") as f:
-            f.write(ONBOARDING_TEMPLATE)
-        telemetry.step(f"Generated: {onboarding_file}")
-
-    # Tool Audit & Smart Config
-    _perform_tool_audit(telemetry, args.template)
-
-    # AI Handover
-    telemetry.step("AI Agent Handover initialized.")
-    print("\n" + "=" * 40)
-    print("🤖 AI AGENT HANDOVER")
-    print("=" * 40)
-    print(
-        "Please read 'ARCHITECTURE_ONBOARDING.md' and '.agent/instructions.md' "
-        "to understand the architectural rules and refactoring plan."
+    fix_parser = subparsers.add_parser("fix", help="Auto-fix common violations")
+    fix_parser.add_argument("path", nargs="?", default=".", help="Target path to fix")
+    fix_parser.add_argument(
+        "--linter", choices=["ruff", "excelsior", "all"], default="all",
+        help="Which linter to fix violations for (default: all)"
     )
-    print("Start with Phase 1 in ARCHITECTURE_ONBOARDING.md to avoid being overwhelmed.")
-    print("=" * 40 + "\n")
+    fix_parser.add_argument("--confirm", action="store_true", help="Require confirmation before each fix")
+    fix_parser.add_argument("--no-backup", action="store_true", help="Skip creating .bak backup files")
+    fix_parser.add_argument("--skip-tests", action="store_true", help="Skip pytest validation (faster but riskier)")
+    fix_parser.add_argument("--cleanup-backups", action="store_true", help="Remove .bak files after successful fixes")
+    fix_parser.add_argument("--manual-only", action="store_true", help="Show manual fix suggestions only")
 
-def _update_makefile(telemetry: "TelemetryPort") -> None:
-    """Inject Stellar Handshake targets into Makefile."""
-    makefile_path = Path("Makefile")
-    content: str = ""
-    if makefile_path.exists():
-        # JUSTIFICATION: Simple file read for Makefile check.
-        with makefile_path.open("r", encoding="utf-8") as f:
-            content = f.read()
+    init_parser = subparsers.add_parser("init", help="Initialize configuration")
+    init_parser.add_argument("--template", choices=["fastapi", "sqlalchemy"], help="Pre-configure for frameworks")
+    init_parser.add_argument("--check-layers", action="store_true", help="Verify active layer configuration")
 
-    if "handshake:" in content:
-        telemetry.step("Makefile already contains handshake protocol.")
+    return parser
+
+
+def _run_check(telemetry: "TelemetryPort", args) -> None:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        telemetry.handshake()
+    ok = check_command(telemetry, args.path, args.linter)
+    sys.exit(0 if ok else 1)
+
+
+def _run_fix(telemetry: "TelemetryPort", args) -> None:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        telemetry.handshake()
+    if args.manual_only:
+        _run_fix_manual_only(telemetry, args)
         return
-
-    # JUSTIFICATION: Simple file append for Makefile injection.
-    with makefile_path.open("a", encoding="utf-8") as f:
-        f.write(HANDSHAKE_SNIPPET)
-    telemetry.step("Injected Stellar Handshake Protocol into Makefile.")
-
-def _check_layers(telemetry: "TelemetryPort") -> None:
-    """Verify and print active layers."""
-    config = ConfigurationLoader().config
-    layer_map = config.get("layer_map", {})
-
-    telemetry.step("Active Layer Configuration:")
-    if not isinstance(layer_map, dict) or not layer_map:
-        telemetry.error("No layer_map found in pyproject.toml [tool.clean-arch].")
+    if args.linter == "ruff":
+        _run_fix_ruff(telemetry, args)
         return
+    _run_fix_excelsior(telemetry, args)
 
-    # JUSTIFICATION: Simple dictionary iteration for display mapping.
-    for pattern, layer in layer_map.items():
-        telemetry.step(f"  {pattern} -> {layer}")
 
-def _generate_instructions(telemetry: "TelemetryPort", path: Path) -> None:
-    config = ConfigurationLoader().config
-    layer_map = config.get("layer_map", {})
+def _run_fix_manual_only(telemetry: "TelemetryPort", args) -> None:
+    from clean_architecture_linter.infrastructure.adapters.linter_adapters import (
+        ExcelsiorAdapter,
+        ImportLinterAdapter,
+        MypyAdapter,
+    )
+    from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
-    display_names = {
-        "Domain": "Domain",
-        "UseCase": "UseCase",
-        "Infrastructure": "Infrastructure",
-        "Interface": "Interface",
-    }
+    all_adapters = [
+        ("Ruff", RuffAdapter(telemetry), "ruff"),
+        ("Mypy", MypyAdapter(), "excelsior"),
+        ("Excelsior", ExcelsiorAdapter(), "excelsior"),
+        ("Import-Linter", ImportLinterAdapter(), "excelsior"),
+    ]
+    if args.linter == "all":
+        adapters = [(n, a) for n, a, _ in all_adapters]
+        telemetry.step("📋 Gathering manual fix suggestions from all linters...")
+    elif args.linter == "ruff":
+        adapters = [(n, a) for n, a, lt in all_adapters if lt == "ruff"]
+        telemetry.step("📋 Gathering manual fix suggestions from Ruff...")
+    else:
+        adapters = [(n, a) for n, a, lt in all_adapters if lt == "excelsior"]
+        telemetry.step("📋 Gathering manual fix suggestions from Excelsior suite...")
 
-    if isinstance(layer_map, dict):
-        # JUSTIFICATION: Simple dictionary iteration for display mapping.
-        for directory, layer in layer_map.items():
-            if not isinstance(layer, str) or not isinstance(directory, str):
-                continue
-            # JUSTIFICATION: Simple string check for valid directory names.
-            cleaned_directory: str = directory.replace("_", "")
-            if layer in display_names and cleaned_directory.isalnum():
-                # Capitalize for display (e.g. services -> Services)
-                display_names[layer] = f"{directory.capitalize()} ({layer})"
-
-    with path.open("w", encoding="utf-8") as f:
-        f.write(
-            AGENT_INSTRUCTIONS_TEMPLATE.format(
-                domain_layer=display_names["Domain"],
-                use_case_layer=display_names["UseCase"],
-                infrastructure_layer=display_names["Infrastructure"],
-                interface_layer=display_names["Interface"],
+    for linter_name, adapter in adapters:
+        results = adapter.gather_results(args.path)
+        if not results:
+            continue
+        print(f"\n{'='*60}\n{linter_name} - {len(results)} violation(s)\n{'='*60}")
+        for result in results:
+            fixable = (
+                "✅ AUTO-FIXABLE"
+                if adapter.supports_autofix() and result.code in adapter.get_fixable_rules()
+                else "⚠️  MANUAL FIX REQUIRED"
             )
-        )
-    telemetry.step(f"Generated: {path}")
+            print(f"\n[{result.code}] {fixable}")
+            print(f"  Message: {result.message}")
+            if result.locations:
+                print(f"  Locations ({len(result.locations)}):")
+                for loc in result.locations[:5]:
+                    print(f"    - {loc}")
+                if len(result.locations) > 5:
+                    print(f"    ... and {len(result.locations) - 5} more")
+            if not (adapter.supports_autofix() and result.code in adapter.get_fixable_rules()):
+                instructions = adapter.get_manual_fix_instructions(result.code)
+                print(f"  💡 How to fix: {instructions}")
+    sys.exit(0)
 
-def _perform_tool_audit(telemetry: "TelemetryPort", template: str | None = None) -> None:
-    """Scan for other tools and configure Mode."""
-    pyproject_path = Path("pyproject.toml")
-    if not pyproject_path.exists():
-        return
 
-    data = _load_pyproject(pyproject_path)
-    if not data or not isinstance(data, dict):
-        return
+def _run_fix_ruff(telemetry: "TelemetryPort", args) -> None:
+    from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
-    # JUSTIFICATION: Simple dictionary access for tool section.
-    tool_section = data.get("tool", {})
-    if not isinstance(tool_section, dict):
-        return
+    telemetry.step("🔧 Applying Ruff fixes...")
+    success = RuffAdapter(telemetry).apply_fixes(Path(args.path))
+    telemetry.step("✅ Ruff fixes complete. Run 'excelsior check' to verify." if success else "❌ Ruff fixing failed")
+    sys.exit(0 if success else 1)
 
-    style_tools = {"ruff", "black", "flake8"}
-    # JUSTIFICATION: Simple dictionary keys access.
-    found_tools = style_tools.intersection(tool_section.keys())
 
-    # Detect if we need to update configuration
-    # JUSTIFICATION: Dictionary copy for manipulation.
-    new_data = data.copy()
-    # JUSTIFICATION: Scaffolding requires direct dictionary manipulation.
-    new_tool = cast(dict[str, object], new_data.setdefault("tool", {}))
-    if "clean-arch" not in new_tool:
-        new_tool["clean-arch"] = {}
-
-    # Template Logic
-    if template:
-        _apply_template_updates(new_data, template)
-        telemetry.step(f"Applied template updates for: {template}")
-
-    # Architecture-Only Mode
-    if found_tools:
-        _print_architecture_only_mode_advice(telemetry, found_tools)
-
-    if template:
-        print(f"\n[TEMPLATE CONFIG] Add the following to [tool.clean-arch] for {template}:")
-        # JUSTIFICATION: Simple dictionary access for template config display.
-        clean_arch_section_raw = cast(dict[str, object], new_data["tool"]).get("clean-arch")
-        clean_arch_section = cast(dict[str, object], clean_arch_section_raw)
-        print(json.dumps(clean_arch_section, indent=2))
-
-def _load_pyproject(path: Path) -> dict[str, object] | None:
-    """Load and parse pyproject.toml."""
-    try:
-        # JUSTIFICATION: Optional dependency lazy load
-        if sys.version_info >= (3, 11):
-            import tomllib as toml_lib
-        else:
-            try:
-                import tomli as toml_lib  # type: ignore[import-not-found]
-            except ImportError:
-                return None
-
-        with path.open("rb") as f:
-            return cast(dict[str, object], toml_lib.load(f))
-    except (OSError, ValueError) as e:
-        print(f"Warning: Could not parse pyproject.toml: {e}")
-    return None
-
-def _apply_template_updates(data: dict[str, object], template: str) -> None:
-    """Apply template-specific updates to the config dict."""
-    # JUSTIFICATION: Scaffolding requires direct dictionary manipulation.
-    tool_section = data.get("tool", {})
-    if not isinstance(tool_section, dict):
-        return
-    # JUSTIFICATION: Scaffolding requires direct dictionary manipulation.
-    clean_arch = tool_section.get("clean-arch")
-    if not isinstance(clean_arch, dict):
-        return
-
-    if template == "fastapi":
-        # JUSTIFICATION: Nested configuration access is permitted in CLI scaffolding.
-        layer_map = cast(dict[str, str], clean_arch.setdefault("layer_map", {}))
-        # JUSTIFICATION: Simple dictionary update in CLI config.
-        layer_map.update({"routers": "Interface", "services": "UseCase", "schemas": "Interface"})
-    elif template == "sqlalchemy":
-        # JUSTIFICATION: Nested configuration access is permitted in CLI scaffolding.
-        layer_map = cast(dict[str, str], clean_arch.setdefault("layer_map", {}))
-        # JUSTIFICATION: Simple dictionary update in CLI config.
-        layer_map.update({"models": "Infrastructure", "repositories": "Infrastructure"})
-        # JUSTIFICATION: CLI configuration updates are inherently procedural.
-        base_class_map = cast(dict[str, str], clean_arch.setdefault("base_class_map", {}))
-        # JUSTIFICATION: Simple dictionary update in CLI config.
-        base_class_map.update({"Base": "Infrastructure", "DeclarativeBase": "Infrastructure"})
-
-def _print_architecture_only_mode_advice(telemetry: "TelemetryPort", found_tools: set[str]) -> None:
-    """Print advice for Architecture-Only Mode."""
-    telemetry.step(f"Detected style tools: {', '.join(found_tools)}. Enabling Architecture-Only Mode.")
-    print("\n[RECOMMENDED ACTION] Add this to pyproject.toml to disable conflicting style checks:")
-    print(
-        """
-[tool.pylint.messages_control]
-disable: str = "all"
-enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and other specific checks
-        """
+def _run_fix_excelsior(telemetry: "TelemetryPort", args) -> None:
+    telemetry.step(f"🔧 Applying Excelsior fixes (--linter {args.linter})...")
+    use_case = ApplyFixesUseCase(
+        LibCSTFixerGateway(),
+        telemetry=telemetry,
+        require_confirmation=args.confirm,
+        create_backups=not args.no_backup,
+        cleanup_backups=args.cleanup_backups,
+        validate_with_tests=not args.skip_tests,
     )
+    modified = use_case.execute([], args.path)
+    telemetry.step(f"✅ Successfully fixed {modified} file(s)" if modified > 0 else "ℹ️  No fixes applied")
+    sys.exit(0)
+
+
+def _run_init(telemetry: "TelemetryPort", args) -> None:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        telemetry.handshake()
+    Scaffolder(telemetry).init_project(args.template, args.check_layers)
+
 
 def main() -> None:
     """Main entry point."""
     container = ExcelsiorContainer()
-    # JUSTIFICATION: Bootstrapping the DI container requires direct access.
-    # casting to Any to avoid circular import at runtime, relying on TYPE_CHECKING
     telemetry: "TelemetryPort" = container.get("TelemetryPort")
-
-    parser = argparse.ArgumentParser(
-        description=f"{BANNER}\nEXCELSIOR v2: Architectural Autopilot for Clean Architecture.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-
-    # Check
-    check_parser = subparsers.add_parser("check", help="Run multi-tool audit")
-    check_parser.add_argument("path", nargs="?", default=".", help="Target path to audit")
-
-    # Fix
-    fix_parser = subparsers.add_parser("fix", help="Auto-fix common violations")
-    fix_parser.add_argument("path", nargs="?", default=".", help="Target path to fix")
-
-    # Init
-    subparsers.add_parser("init", help="Initialize configuration")
-
+    parser = _build_parser()
     args = parser.parse_args()
 
     if args.command == "check":
-        if "-h" not in sys.argv and "--help" not in sys.argv:
-            telemetry.handshake()
-        check_command(telemetry, args.path)
+        _run_check(telemetry, args)
     elif args.command == "fix":
-        from clean_architecture_linter.fixer import excelsior_fix
-        if "-h" not in sys.argv and "--help" not in sys.argv:
-            telemetry.handshake()
-        excelsior_fix(telemetry, args.path)
+        _run_fix(telemetry, args)
     elif args.command == "init":
-        if "-h" not in sys.argv and "--help" not in sys.argv:
-            telemetry.handshake()
-        init_command(telemetry)
-    elif args.command is None:
+        _run_init(telemetry, args)
+    else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()

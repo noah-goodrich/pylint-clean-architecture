@@ -1,7 +1,7 @@
-import pytest
-import subprocess
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
+
 
 def test_gather_results_success():
     adapter = ImportLinterAdapter()

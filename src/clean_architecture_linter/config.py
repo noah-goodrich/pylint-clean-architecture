@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from typing import ClassVar, Optional, Union
+from typing import ClassVar, Optional
 
 import astroid  # type: ignore[import-untyped]
 
@@ -28,6 +28,7 @@ class ConfigurationLoader:
     _instance: ClassVar[Optional["ConfigurationLoader"]] = None
     _config: ClassVar[dict[str, object]] = {}
     _registry: ClassVar[Optional[LayerRegistry]] = None
+    _tool_section: ClassVar[dict[str, object]] = {}  # Full [tool] section for ruff, etc.
 
     def __new__(cls) -> "ConfigurationLoader":
         if cls._instance is None:
@@ -81,6 +82,9 @@ class ConfigurationLoader:
                     with config_file.open("rb") as f:
                         data = toml_lib.load(f)
                         tool_section = data.get("tool", {})
+
+                        # Store full tool section for ruff, mypy, etc.
+                        ConfigurationLoader._tool_section = tool_section
 
                         # 1. Check for [tool.clean-arch] (New)
                         # JUSTIFICATION: Internal access to static configuration singleton
@@ -237,9 +241,57 @@ class ConfigurationLoader:
         """Delegate to registry for LoD compliance."""
         return self.registry.get_layer_for_class_node(node)
 
-    def resolve_layer(self, node_name: str, file_path: str, node: Optional[astroid.nodes.NodeNG] = None) -> Optional[str]:
+    def resolve_layer(
+        self,
+        node_name: str,
+        file_path: str,
+        node: Optional[astroid.nodes.NodeNG] = None,
+    ) -> Optional[str]:
         """Delegate to registry for LoD compliance."""
         return self.registry.resolve_layer(node_name, file_path, node=node)
+
+    # Ruff configuration methods
+
+    def get_project_ruff_config(self) -> dict[str, object]:
+        """Get [tool.ruff] configuration from pyproject.toml."""
+        return ConfigurationLoader._tool_section.get("ruff", {})  # type: ignore
+
+    def get_excelsior_ruff_config(self) -> dict[str, object]:
+        """Get [tool.excelsior.ruff] configuration from pyproject.toml."""
+        excelsior_section = ConfigurationLoader._tool_section.get("excelsior", {})
+        if isinstance(excelsior_section, dict):
+            return excelsior_section.get("ruff", {})  # type: ignore
+        return {}
+
+    def get_ruff_config(self) -> dict[str, object]:
+        """Alias for get_project_ruff_config for backward compatibility."""
+        return self.get_project_ruff_config()
+
+    def get_merged_ruff_config(self) -> dict[str, object]:
+        """Get merged Ruff config (Excelsior defaults + project overrides).
+
+        Uses Option C strategy:
+        - Excelsior provides comprehensive defaults
+        - Project-specific settings override defaults
+        """
+        from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
+
+        adapter = RuffAdapter()
+        project_config = self.get_project_ruff_config()
+        excelsior_config = self.get_excelsior_ruff_config()
+
+        return adapter._merge_configs(
+            project_config if isinstance(project_config, dict) else {},
+            excelsior_config if isinstance(excelsior_config, dict) else {}
+        )
+
+    @property
+    def ruff_enabled(self) -> bool:
+        """Check if Ruff is enabled (default: True)."""
+        excelsior_section = ConfigurationLoader._tool_section.get("excelsior", {})
+        if isinstance(excelsior_section, dict):
+            return bool(excelsior_section.get("ruff_enabled", True))
+        return True  # Enabled by default
 
 
 def _invert_map(config_map: object) -> dict[str, str]:

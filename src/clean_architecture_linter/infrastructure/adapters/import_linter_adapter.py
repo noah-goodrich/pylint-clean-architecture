@@ -1,9 +1,10 @@
 import subprocess
-import os
 import sys
 from typing import List
+
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
+
 
 class ImportLinterAdapter(LinterAdapterProtocol):
     """Adapter for Import Linter output."""
@@ -48,3 +49,20 @@ class ImportLinterAdapter(LinterAdapterProtocol):
                     results.append(LinterResult("IL001", f"{current_contract}: {line.strip()}", []))
 
         return results
+
+    def supports_autofix(self) -> bool:
+        """Check if this linter supports automatic fixing."""
+        return False
+
+    def get_fixable_rules(self) -> List[str]:
+        """Return list of rule codes that can be auto-fixed."""
+        return []  # Import-Linter does not support auto-fixing
+
+    def get_manual_fix_instructions(self, rule_code: str) -> str:
+        """Readable, step-by-step guidance for juniors and AI."""
+        return (
+            "Remove or refactor the import that breaks the contract. "
+            "1) Check pyproject.toml [tool.importlinter] for defined contracts. "
+            "2) Move the imported code to an allowed layer, or invert the dependency (e.g. use a Port). "
+            "3) Ensure the importing module lives in a layer that may depend on the imported module."
+        )

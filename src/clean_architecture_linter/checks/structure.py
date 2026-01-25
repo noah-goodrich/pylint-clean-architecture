@@ -1,7 +1,7 @@
 """Module structure checks (W9010, W9011)."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 # AST checks often violate Demeter by design
 import astroid  # type: ignore[import-untyped]

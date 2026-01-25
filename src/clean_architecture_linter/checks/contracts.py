@@ -134,7 +134,8 @@ class ContractChecker(BaseChecker):
             if isinstance(stmt, astroid.nodes.Pass):
                 continue
             if isinstance(stmt, astroid.nodes.Expr) and (
-                isinstance(stmt.value, astroid.nodes.Const) and (stmt.value.value is Ellipsis or stmt.value.value is None)
+                isinstance(stmt.value, astroid.nodes.Const)
+                and (stmt.value.value is Ellipsis or stmt.value.value is None)
             ):
                 continue
             if isinstance(stmt, astroid.nodes.Return) and (

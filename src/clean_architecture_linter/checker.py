@@ -18,9 +18,9 @@ from clean_architecture_linter.checks.patterns import CouplingChecker, PatternCh
 from clean_architecture_linter.checks.structure import ModuleStructureChecker
 from clean_architecture_linter.checks.testing import TestingChecker
 from clean_architecture_linter.constants import EXCELSIOR_BANNER
-from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
 from clean_architecture_linter.di.container import ExcelsiorContainer
 from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
+from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
 
 
 def register(linter: PyLinter) -> None:

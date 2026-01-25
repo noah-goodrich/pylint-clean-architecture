@@ -28,10 +28,10 @@ dependencies = [
     "typeshed-client",
     "stellar-ui-kit @ file:///development/stellar-ui-kit",
     "import-linter",
+    "libcst>=1.0.0",
 ]
 
 [project.scripts]
-clean-arch-init = "clean_architecture_linter.cli:init_command"
 excelsior = "clean_architecture_linter.cli:main"
 
 [project.optional-dependencies]
@@ -40,7 +40,6 @@ dev = [
     "pytest-cov>=4.0",
     "astroid",
     "ruff",
-    "libcst",
 ]
 
 [tool.setuptools]
@@ -55,9 +54,12 @@ packages = ["clean_architecture_linter", "clean_architecture_linter.checks"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
-addopts = "--cov=src --cov-report=term-missing --cov-report=json --cov-fail-under=80 --coverage-impact"
+# Run only fast tests by default; use -m slow or make test-slow for slow tests.
+addopts = "--cov=src --cov-report=term-missing --cov-report=json --cov-fail-under=85 -m 'not slow'"
+pythonpath = ["src"]
 markers = [
-    "unit: mark a test as a unit test."
+    "unit: mark a test as a unit test.",
+    "slow: mark a test as slow (subprocess, full CLI, etc.); excluded from default runs.",
 ]
 
 [tool.semantic_release]
@@ -83,6 +85,10 @@ select = [
     "C90", # mccabe complexity
 ]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Long template strings in architecture docs
+"src/clean_architecture_linter/constants.py" = ["E501"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 11
@@ -129,6 +135,9 @@ shared_kernel_modules = ["stellar_ui_kit"]
 "clean_architecture_linter.checker" = "Interface"
 "clean_architecture_linter.cli" = "Interface"
 "clean_architecture_linter.reporter" = "Interface"
+"clean_architecture_linter.use_cases" = "UseCase"
+"clean_architecture_linter.infrastructure.services" = "Infrastructure"
+"clean_architecture_linter.domain.rules" = "Domain"
 
 [tool.coverage.run]
 source = ["clean_architecture_linter"]

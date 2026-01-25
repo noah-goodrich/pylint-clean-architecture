@@ -1,6 +1,6 @@
 """Design checks (W9007, W9009, W9012, W9013, W9015, W9016)."""
 
-from typing import TYPE_CHECKING, Optional, List, Set, Any, IO
+from typing import IO, TYPE_CHECKING, List, Optional, Set
 
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker

@@ -1,6 +1,7 @@
-import pathlib
 import json
+import pathlib
 from typing import Optional
+
 
 def std_lib_exemption() -> None:
     p: pathlib.Path = pathlib.Path("config.json")

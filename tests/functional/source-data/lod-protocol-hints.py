@@ -1,5 +1,6 @@
 from typing import Protocol
 
+
 class CustomService:
     def get_version(self) -> str:
         return "1.0"

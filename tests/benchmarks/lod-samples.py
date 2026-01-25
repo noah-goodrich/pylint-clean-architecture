@@ -1,6 +1,7 @@
 # SAFE_ZONE
 import os
 
+
 def safe_calls():
     # Builtins/Primitives (Category 1)
     "abc".strip().lower()
