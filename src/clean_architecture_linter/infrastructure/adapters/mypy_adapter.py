@@ -18,9 +18,9 @@ class MypyAdapter(LinterAdapterProtocol):
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "mypy", target_path, "--strict"],
-                capture_output = True,
-                text = True,
-                check = False,
+                capture_output=True,
+                text=True,
+                check=False,
                 env=env,
             )
             return self._parse_output(result.stdout)
@@ -30,7 +30,8 @@ class MypyAdapter(LinterAdapterProtocol):
 
     def _parse_output(self, output: str) -> List[LinterResult]:
         # Structure: {error_code: {"message": str, "locations": set}}
-        collected: Dict[str, Dict[str, object]] = defaultdict(lambda: {"message": "", "locations": set()})
+        collected: Dict[str, Dict[str, object]] = defaultdict(
+            lambda: {"message": "", "locations": set()})
 
         # Pattern: file:line: error: message [code]
         pattern = re.compile(r"^(.*?):(\d+): error: (.*?)  \[(.*?)\]$")
@@ -65,8 +66,10 @@ class MypyAdapter(LinterAdapterProtocol):
         results = []
         for code, data in collected.items():
             locations_set = data["locations"]
-            sorted_locations = sorted(list(locations_set)) if isinstance(locations_set, set) else []
-            results.append(LinterResult(code, str(data["message"]), sorted_locations))
+            sorted_locations = sorted(list(locations_set)) if isinstance(
+                locations_set, set) else []
+            results.append(LinterResult(
+                code, str(data["message"]), sorted_locations))
 
         return results
 
@@ -118,5 +121,5 @@ class MypyAdapter(LinterAdapterProtocol):
                 "Check spelling, or add the attribute to the class definition."
             ),
         }
-        default = "See Mypy docs: https://mypy.readthedocs.io/ Fix types at the reported location."
+        default: str = "See Mypy docs: https://mypy.readthedocs.io/ Fix types at the reported location."
         return manual_instructions.get(rule_code, default)

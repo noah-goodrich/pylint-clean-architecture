@@ -5,10 +5,10 @@ from clean_architecture_linter.infrastructure.adapters.linter_adapters import My
 
 
 class TestMypyAdapter(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.adapter = MypyAdapter()
 
-    def test_parse_output_with_errors(self):
+    def test_parse_output_with_errors(self) -> None:
         # Sample mypy output with error codes
         mypy_output = (
             "src/domain/user.py:10: error: Incompatible types in assignment "
@@ -33,16 +33,16 @@ class TestMypyAdapter(unittest.TestCase):
         self.assertIn("src/domain/user.py:10", assignment_result.locations)
         self.assertIn("src/domain/user.py:20", assignment_result.locations)
 
-    def test_parse_output_fallback(self):
+    def test_parse_output_fallback(self) -> None:
         # Mypy output WITHOUT error codes
-        mypy_output = "src/domain/user.py:10: error: Some generic error\n"
+        mypy_output: str = "src/domain/user.py:10: error: Some generic error\n"
         results = self.adapter._parse_output(mypy_output)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].code, "MYPY")
         self.assertEqual(results[0].message, "Some generic error")
 
     @patch('subprocess.run')
-    def test_gather_results_exception(self, mock_run):
+    def test_gather_results_exception(self, mock_run) -> None:
         mock_run.side_effect = Exception("System Error")
         results = self.adapter.gather_results("src")
         self.assertEqual(len(results), 1)
@@ -50,7 +50,7 @@ class TestMypyAdapter(unittest.TestCase):
         self.assertIn("System Error", results[0].message)
 
     @patch('subprocess.run')
-    def test_gather_results(self, mock_run):
+    def test_gather_results(self, mock_run) -> None:
         mock_run.return_value = MagicMock(
             stdout = "src/file.py:1: error: msg  [code]",
             returncode = 1
@@ -63,19 +63,19 @@ class TestMypyAdapter(unittest.TestCase):
         self.assertEqual(results[0].locations, ["src/file.py:1"])
 
 class TestExcelsiorAdapter(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import ExcelsiorAdapter
         self.adapter = ExcelsiorAdapter()
 
-    def test_parse_output(self):
-        output = "src/domain/user.py:10: W9001: Dependency violation (dependency-violation)\n"
+    def test_parse_output(self) -> None:
+        output: str = "src/domain/user.py:10: W9001: Dependency violation (dependency-violation)\n"
         results = self.adapter._parse_output(output)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].code, "W9001")
         self.assertEqual(results[0].message, "Dependency violation (dependency-violation)")
 
     @patch('subprocess.run')
-    def test_gather_results(self, mock_run):
+    def test_gather_results(self, mock_run) -> None:
         mock_run.return_value = MagicMock(
             stdout = "src/domain/user.py:10: W9001: msg\n",
             returncode = 1
@@ -85,7 +85,7 @@ class TestExcelsiorAdapter(unittest.TestCase):
         self.assertEqual(results[0].code, "W9001")
 
     @patch('subprocess.run')
-    def test_gather_results_exception(self, mock_run):
+    def test_gather_results_exception(self, mock_run) -> None:
         mock_run.side_effect = Exception("Pylint Failed")
         results = self.adapter.gather_results("src")
         self.assertEqual(len(results), 1)

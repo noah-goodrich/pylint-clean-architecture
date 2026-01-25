@@ -9,7 +9,7 @@ from clean_architecture_linter.checks.bypass import BypassChecker
 
 
 class TestBypassChecker(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.checker = BypassChecker(self.linter)
 
@@ -17,9 +17,9 @@ class TestBypassChecker(unittest.TestCase):
         """Helper to tokenize code."""
         return list(tokenize.tokenize(BytesIO(code.encode('utf-8')).readline))
 
-    def test_global_disable_violation(self):
+    def test_global_disable_violation(self) -> None:
         """Module-level disable should trigger W9501."""
-        code = "# pylint: disable=all\nimport os\n"
+        code: str = "# pylint: disable=all\nimport os\n"
         tokens = self._tokenize(code)
 
         self.checker.process_tokens(tokens)
@@ -37,18 +37,18 @@ class TestBypassChecker(unittest.TestCase):
         self.assertEqual(msgid, 'anti-bypass-violation')
         self.assertIn('Global pylint: disable', args_tuple[0])
 
-    def test_allowed_disable_no_violation(self):
+    def test_allowed_disable_no_violation(self) -> None:
         """Allowed disables should not trigger W9501."""
-        code = "x = 'very long line'  # pylint: disable=line-too-long\n"
+        code: str = "x = 'very long line'  # pylint: disable=line-too-long\n"
         tokens = self._tokenize(code)
 
         self.checker.process_tokens(tokens)
 
         self.linter.add_message.assert_not_called()
 
-    def test_unjustified_complexity_disable_violation(self):
+    def test_unjustified_complexity_disable_violation(self) -> None:
         """Unjustified complexity disable should trigger W9501."""
-        code = "def foo():  # pylint: disable=too-complex\n    pass\n"
+        code: str = "def foo():  # pylint: disable=too-complex\n    pass\n"
         tokens = self._tokenize(code)
 
         self.checker.process_tokens(tokens)
@@ -57,26 +57,26 @@ class TestBypassChecker(unittest.TestCase):
         msgid = self.linter.add_message.call_args[0][0]
         self.assertEqual(msgid, 'anti-bypass-violation')
 
-    def test_justified_disable_no_violation(self):
+    def test_justified_disable_no_violation(self) -> None:
         """Justified disable with proper format should not trigger W9501."""
         # JUSTIFICATION must be on previous line or properly formatted
-        code = "# JUSTIFICATION: legacy code\ndef foo():  pass  # pylint: disable=too-complex\n"
+        code: str = "# JUSTIFICATION: legacy code\ndef foo():  pass  # pylint: disable=too-complex\n"
         tokens = self._tokenize(code)
 
         self.checker.process_tokens(tokens)
 
         self.linter.add_message.assert_not_called()
 
-    def test_no_pylint_comment_no_violation(self):
+    def test_no_pylint_comment_no_violation(self) -> None:
         """Regular comments should not trigger W9501."""
-        code = "# This is a regular comment\nimport os\n"
+        code: str = "# This is a regular comment\nimport os\n"
         tokens = self._tokenize(code)
 
         self.checker.process_tokens(tokens)
 
         self.linter.add_message.assert_not_called()
 
-    def test_inline_code_with_disable_after_header(self):
+    def test_inline_code_with_disable_after_header(self) -> None:
         """Inline disable after module header should not trigger global violation."""
         code = "\n" * 25 + "x = 1  # pylint: disable=invalid-name\n"
         tokens = self._tokenize(code)

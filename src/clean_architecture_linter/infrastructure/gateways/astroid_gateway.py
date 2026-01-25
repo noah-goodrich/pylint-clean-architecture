@@ -116,7 +116,7 @@ class AstroidGateway(AstroidProtocol):
             mod_lookup[0], (astroid.nodes.Import, astroid.nodes.ImportFrom)
         ):
             return None
-        mod_name = ""
+        mod_name: str = ""
         if isinstance(mod_lookup[0], astroid.nodes.Import):
             mod_name = mod_lookup[0].names[0][0]
         elif isinstance(mod_lookup[0], astroid.nodes.ImportFrom):
@@ -132,17 +132,18 @@ class AstroidGateway(AstroidProtocol):
         """Check if an iterator source is safe."""
         # 1. Direct Call (os.walk())
         if isinstance(iter_node, astroid.nodes.Call):
-             res = self._trace_safety(iter_node, visited)
-             if res:
-                  return "builtins.str" # Assumption for iterators from safe calls
+            res = self._trace_safety(iter_node, visited)
+            if res:
+                return "builtins.str"  # Assumption for iterators from safe calls
 
         # 2. Variable (for d in dirs)
         if isinstance(iter_node, astroid.nodes.Name):
-             res = self._trace_safety(iter_node, visited)
-             if res:
-                  return "builtins.str" # Propagate safety
+            res = self._trace_safety(iter_node, visited)
+            if res:
+                return "builtins.str"  # Propagate safety
 
         return None
+
     def get_return_type_qname_from_expr(
         self,
         expr: astroid.nodes.NodeNG,
@@ -224,8 +225,8 @@ class AstroidGateway(AstroidProtocol):
         for def_node in node.lookup(node.name)[1]:
             # Direct annotation on AssignName is rare, check parent AnnAssign
             if hasattr(def_node, "parent") and isinstance(def_node.parent, astroid.nodes.AnnAssign):
-                 if def_node.parent.annotation:
-                      return self._resolve_annotation(def_node.parent.annotation)
+                if def_node.parent.annotation:
+                    return self._resolve_annotation(def_node.parent.annotation)
 
             # Direct annotation (fallback)
             if hasattr(def_node, "annotation") and def_node.annotation:
@@ -256,7 +257,8 @@ class AstroidGateway(AstroidProtocol):
             # If no annotation, try to infer from default value
             # Arguments.defaults matches positional args from the right
             diff = len(args.args) - len(args.defaults)
-            arg_idx = args.args.index(def_node) if def_node in args.args else -1
+            arg_idx = args.args.index(
+                def_node) if def_node in args.args else -1
             if arg_idx >= diff:
                 default_idx = arg_idx - diff
                 return self.get_node_return_type_qname(args.defaults[default_idx])
@@ -294,7 +296,8 @@ class AstroidGateway(AstroidProtocol):
 
             # 2. Absolute Lookup
             module_parts: List[str] = class_qname.split(".")
-            module_name: str = "builtins" if len(module_parts) < 2 else ".".join(module_parts[:-1])
+            module_name: str = "builtins" if len(
+                module_parts) < 2 else ".".join(module_parts[:-1])
             class_name: str = module_parts[-1]
             if module_name:
                 try:
@@ -307,7 +310,6 @@ class AstroidGateway(AstroidProtocol):
         except Exception:
             pass
         return None
-
 
     def _resolve_method_in_node(self, class_node: astroid.nodes.ClassDef, method_name: str) -> Optional[str]:
         """Recursive discovery of method return type through inheritance."""
@@ -335,7 +337,7 @@ class AstroidGateway(AstroidProtocol):
             return self._resolve_nested_annotation(anno)
 
         if str(getattr(anno, "qname", lambda: "")()) == "types.UnionType":
-             return self._resolve_nested_annotation(anno)
+            return self._resolve_nested_annotation(anno)
 
         # Handle Index wrapper in some astroid versions
         if hasattr(anno, "value") and isinstance(anno, astroid.nodes.Index):
@@ -377,7 +379,7 @@ class AstroidGateway(AstroidProtocol):
 
         if isinstance(anno, astroid.nodes.Const) and isinstance(anno.value, str):
             if anno.value == "Self":
-                 return self._resolve_self_type(anno)
+                return self._resolve_self_type(anno)
             return self._normalize_primitive(anno.value)
 
         try:
@@ -404,14 +406,14 @@ class AstroidGateway(AstroidProtocol):
     def _normalize_primitive(self, qname: str) -> str:
         """Normalize types like 'str' to 'builtins.str'."""
         if not qname:
-             return ""
+            return ""
         # Dynamic check via python gateway if needed, but for primitives simple prefixing is okay
         # provided we don't assume the list is exhaustive for all safety checks.
         base_name = qname.split(".")[-1]
         # Check against actual builtins module if possible, simplified here
         # Check against actual builtins module
         if hasattr(builtins, base_name):
-             return f"builtins.{base_name}"
+            return f"builtins.{base_name}"
         return qname
 
     def _resolve_nested_annotation(self, slice_node: astroid.nodes.NodeNG) -> Optional[str]:
@@ -419,7 +421,7 @@ class AstroidGateway(AstroidProtocol):
         # Handle Index wrapper
         real_slice = slice_node
         if hasattr(slice_node, "value") and not isinstance(slice_node, (astroid.nodes.Tuple, astroid.nodes.Const)):
-             real_slice = slice_node.value
+            real_slice = slice_node.value
 
         nodes: List[astroid.nodes.NodeNG] = []
         if isinstance(real_slice, (astroid.nodes.Tuple, astroid.nodes.List)):
@@ -552,7 +554,8 @@ class AstroidGateway(AstroidProtocol):
             if isinstance(node.func.expr, astroid.nodes.Call):
                 if self.is_protocol_call(node.func.expr):
                     return True
-            receiver_qname = self.get_return_type_qname_from_expr(node.func.expr)
+            receiver_qname = self.get_return_type_qname_from_expr(
+                node.func.expr)
             if receiver_qname:
                 class_node = self._find_class_node(receiver_qname, node)
                 if class_node and self.is_protocol(class_node):
@@ -585,7 +588,8 @@ class AstroidGateway(AstroidProtocol):
 
             # 2. Absolute Lookup
             module_parts: List[str] = qname.split(".")
-            module_name: str = "builtins" if len(module_parts) < 2 else ".".join(module_parts[:-1])
+            module_name: str = "builtins" if len(
+                module_parts) < 2 else ".".join(module_parts[:-1])
             class_name: str = module_parts[-1]
             if module_name:
                 try:
@@ -606,12 +610,13 @@ class AstroidGateway(AstroidProtocol):
 
         # 1. Recursive Continuity: If receiver is already fluent, we keep going
         if isinstance(node.func.expr, astroid.nodes.Call):
-             if self.is_fluent_call(node.func.expr):
-                  return True
+            if self.is_fluent_call(node.func.expr):
+                return True
 
         # 2. Direct match check
         try:
-            receiver_qname: Optional[str] = self.get_return_type_qname_from_expr(node.func.expr)
+            receiver_qname: Optional[str] = self.get_return_type_qname_from_expr(
+                node.func.expr)
             return_qname: Optional[str] = self.get_node_return_type_qname(node)
 
             if receiver_qname and return_qname:

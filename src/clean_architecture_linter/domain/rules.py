@@ -1,41 +1,40 @@
-"""Domain models for rules and fix suggestions."""
+"""Domain models for rules and violations."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Protocol
 
-import astroid
-
-
-@dataclass(frozen=True)
-class FixSuggestion:
-    """A suggested fix for a code issue."""
-    description: str
-    context: Dict[str, Any] = field(default_factory=dict)
+import astroid  # type: ignore[import-untyped]
 
 
 @dataclass(frozen=True)
 class Violation:
-    """A rule violation with details."""
-    rule_id: str
+    """A rule violation with code, message, location, and fixability."""
+
+    code: str
     message: str
-    node: astroid.nodes.NodeNG = None  # type: ignore
-    line: int = 0
+    location: str
+    node: astroid.nodes.NodeNG
+    fixable: bool = False
 
 
-class BaseRule:
-    """Base class for architectural rules."""
+class BaseRule(Protocol):
+    """The fundamental unit of architectural governance."""
 
-    priority: int = 0
+    code: str
+    description: str
 
-    def check(self, node: astroid.nodes.NodeNG, context: Dict[str, Any]) -> List[Violation]:
-        """Check a node for violations."""
-        raise NotImplementedError("Subclasses must implement check()")
+    def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
+        """Interrogate a node for a specific architectural breach."""
+        ...
 
-    def fix(self, violation: Violation) -> List[FixSuggestion]:
-        """Generate fix suggestions for a violation.
+    def get_fix_instructions(self, violation: Violation) -> str:
+        """Provide human/AI instructions for a manual fix."""
+        ...
 
-        Returns:
-            List of FixSuggestion objects with commands for LibCST to apply.
-            Return empty list if no automatic fix is available.
-        """
-        return []  # Default: no automatic fix
+
+@dataclass(frozen=True)
+class FixSuggestion:
+    """A suggested fix for a code issue. Retained for LibCST / apply_fixes."""
+
+    description: str
+    context: Dict[str, Any] = field(default_factory=dict)

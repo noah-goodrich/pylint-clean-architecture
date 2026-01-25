@@ -18,7 +18,7 @@ from clean_architecture_linter.interface.telemetry import TelemetryPort
 class Scaffolder:
     """Handles project initialization and configuration."""
 
-    def __init__(self, telemetry: TelemetryPort):
+    def __init__(self, telemetry: TelemetryPort) -> None:
         self.telemetry = telemetry
 
     def init_project(self, template: Optional[str] = None, check_layers: bool = False) -> None:

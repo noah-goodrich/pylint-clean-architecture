@@ -58,14 +58,14 @@ class ImmutabilityChecker(BaseChecker):
         self, decorators: list
     ) -> tuple[bool, bool]:
         """Scan decorator list for @dataclass and frozen=True. Returns (is_dataclass, is_frozen)."""
-        is_dataclass = False
-        is_frozen = False
+        is_dataclass: bool = False
+        is_frozen: bool = False
         for decorator in decorators:
             if self._is_dataclass_name(decorator):
-                is_dataclass = True
+                is_dataclass: bool = True
             elif isinstance(decorator, astroid.nodes.Call):
                 if self._is_dataclass_name(decorator.func):
-                    is_dataclass = True
+                    is_dataclass: bool = True
                     if decorator.keywords:
                         for kw in decorator.keywords:
                             if (
@@ -73,7 +73,7 @@ class ImmutabilityChecker(BaseChecker):
                                 and isinstance(kw.value, astroid.nodes.Const)
                                 and kw.value.value is True
                             ):
-                                is_frozen = True
+                                is_frozen: bool = True
                                 break
         return (is_dataclass, is_frozen)
 

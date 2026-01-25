@@ -27,7 +27,7 @@ def allowed_datetime_chain() -> int:
 
 # 2. ALLOWED: Member Access (Level 1)
 class Entity:
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
 
 def allowed_level_1(e: Entity) -> str:
@@ -39,7 +39,7 @@ class Child:
         return "child"
 
 class Parent:
-    def __init__(self):
+    def __init__(self) -> None:
         self.child = Child()
     def get_child(self) -> Child:
         return self.child
@@ -51,7 +51,7 @@ def forbidden_deep_chain(p: Parent) -> str:
 
 # 4. FORBIDDEN: Deep Member Access
 class DeepEntity:
-    def __init__(self):
+    def __init__(self) -> None:
         self.child = Child()
 
 def forbidden_member_chain(de: DeepEntity) -> str:

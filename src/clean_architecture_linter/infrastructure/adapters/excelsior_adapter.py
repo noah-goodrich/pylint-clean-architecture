@@ -28,9 +28,9 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
                     "--msg-template={path}:{line}: {msg_id}: {msg} ({symbol})",
                 ],
                 env=env,
-                capture_output = True,
-                text = True,
-                check = False,
+                capture_output=True,
+                text=True,
+                check=False,
             )
             return self._parse_output(result.stdout)
         except Exception as e:
@@ -39,7 +39,8 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
 
     def _parse_output(self, output: str) -> List[LinterResult]:
         # Structure: {msg_id: {"message": str, "locations": set}}
-        collected: Dict[str, Dict[str, object]] = defaultdict(lambda: {"message": "", "locations": set()})
+        collected: Dict[str, Dict[str, object]] = defaultdict(
+            lambda: {"message": "", "locations": set()})
         # Pattern: path:line: msg_id: msg (symbol)
         pattern = re.compile(r"^(.*?):(\d+): (.*?): (.*)$")
 
@@ -62,8 +63,10 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
         for msg_id, data in collected.items():
             # JUSTIFICATION: Converting set to sorted list for deterministic reporting.
             locations_set = data["locations"]
-            sorted_locations = sorted(list(locations_set)) if isinstance(locations_set, set) else []
-            results.append(LinterResult(msg_id, str(data["message"]), sorted_locations))
+            sorted_locations = sorted(list(locations_set)) if isinstance(
+                locations_set, set) else []
+            results.append(LinterResult(msg_id, str(
+                data["message"]), sorted_locations))
 
         return results
 

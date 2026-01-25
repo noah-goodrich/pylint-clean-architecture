@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional, TypeVar
 
 from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
 from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
+from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
 from clean_architecture_linter.interface.telemetry import ProjectTelemetry
 
 T = TypeVar("T")
@@ -18,9 +19,11 @@ class ExcelsiorContainer:
 
     def _register_defaults(self) -> None:
         """Register default implementations for protocols."""
-        self.register_singleton("TelemetryPort", ProjectTelemetry("EXCELSIOR", "red", "Command Cruiser Online"))
+        telemetry = ProjectTelemetry("EXCELSIOR", "red", "Command Cruiser Online")
+        self.register_singleton("TelemetryPort", telemetry)
         self.register_singleton("AstroidGateway", AstroidGateway())
         self.register_singleton("PythonGateway", PythonGateway())
+        self.register_singleton("Scaffolder", Scaffolder(telemetry))
 
     # JUSTIFICATION: DI Container must handle any type of service
     def register_singleton(self, key: str, instance: Any) -> None:  # pylint: disable=banned-any-usage

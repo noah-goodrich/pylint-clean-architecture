@@ -5,11 +5,11 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def test_env(tmp_path_factory):
+def test_env(tmp_path_factory) -> None:
     root = tmp_path_factory.mktemp("snowfort_test")
 
     # Create pyproject.toml
-    toml_content = """
+    toml_content: str = """
 [tool.clean-architecture-linter]
 visibility_enforcement = true
 forbidden_prefixes = ["db", "requests"]
@@ -65,9 +65,9 @@ def run_pylint(file_path, root_dir):
     return result.stdout
 
 
-def test_w9003_protected_access(test_env):
+def test_w9003_protected_access(test_env) -> None:
     """Test W9003: Protected member access."""
-    code = """
+    code: str = """
 class User:
     def __init__(self):
         self._secret = 'shh'
@@ -84,9 +84,9 @@ def access_secret():
     assert 'Access to protected member "_secret"' in output
 
 
-def test_w9004_resource_access_violation(test_env):
+def test_w9004_resource_access_violation(test_env) -> None:
     """Test W9004 in Domain layer (Should fail)."""
-    code = """
+    code: str = """
 import db
 
 def save():
@@ -100,9 +100,9 @@ def save():
     assert "clean-arch-resources" in output
 
 
-def test_w9004_resource_access_allowed(test_env):
+def test_w9004_resource_access_allowed(test_env) -> None:
     """Test W9004 in Adapters layer (Should pass)."""
-    code = """
+    code: str = """
 import db
 
 def save():
@@ -115,9 +115,9 @@ def save():
     assert "W9004" not in output
 
 
-def test_w9005_delegation_anti_pattern(test_env):
+def test_w9005_delegation_anti_pattern(test_env) -> None:
     """Test W9005: Delegation anti-pattern."""
-    code = """
+    code: str = """
 def handle(x):
     if x == 1:
         return do_a()
@@ -134,9 +134,9 @@ def handle(x):
     assert "Delegation Anti-Pattern" in output
 
 
-def test_w9006_law_of_demeter(test_env):
+def test_w9006_law_of_demeter(test_env) -> None:
     """Test W9006: Law of Demeter."""
-    code = """
+    code: str = """
 def get_stuff(obj):
     return obj.a.b.c()
 """

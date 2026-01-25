@@ -21,7 +21,7 @@ class TestLoDExhaustive(CheckerTestCase):
         # Re-initialize checker with dependencies
         self.checker = self.CHECKER_CLASS(self.linter, ast_gateway=ast_gateway, python_gateway=python_gateway)
 
-    def test_safe_zone_passes(self):
+    def test_safe_zone_passes(self) -> None:
         """Verify 0 messages for SAFE_ZONE."""
         # Mock LayerRegistry to return 'Domain' for the current file to satisfy Category 5
         with mock.patch(
@@ -42,7 +42,7 @@ class TestLoDExhaustive(CheckerTestCase):
             self.walk(node)
 
             # Filter messages: any message on a line < VIOLATION_ZONE start is a failure
-            v_line = 0
+            v_line: int = 0
             for i, line in enumerate(content.splitlines()):
                 if "VIOLATION_ZONE" in line:
                     v_line = i + 1
@@ -55,7 +55,7 @@ class TestLoDExhaustive(CheckerTestCase):
 
             assert not unexpected, f"Unexpected LoD violations in SAFE_ZONE: {unexpected}"
 
-    def test_violation_zone_fails(self):
+    def test_violation_zone_fails(self) -> None:
         """Verify exhaustive violations are caught in VIOLATION_ZONE."""
         with open("tests/benchmarks/lod-samples.py", "r") as f:
              content = f.read()
@@ -63,13 +63,13 @@ class TestLoDExhaustive(CheckerTestCase):
         node = astroid.parse(content)
         self.walk(node)
 
-        v_line = 0
+        v_line: int = 0
         for i, line in enumerate(content.splitlines()):
             if "VIOLATION_ZONE" in line:
                 v_line = i + 1
                 break
 
-        v_count = 0
+        v_count: int = 0
         for msg in self.linter.release_messages():
             if msg.msg_id in ["clean-arch-demeter", "W9006"] and msg.line >= v_line:
                 v_count += 1

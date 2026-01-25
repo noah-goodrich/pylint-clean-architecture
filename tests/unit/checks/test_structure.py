@@ -9,18 +9,20 @@ from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
 class TestModuleStructureChecker(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.checker = ModuleStructureChecker(self.linter)
-        self.checker.open() # Load config
+        self.checker.open()  # Load config
 
-    def test_god_file_detection(self):
+    def test_god_file_detection(self) -> None:
         """W9010 detected when multiple heavy layers exist."""
         # Mock classdefs for StructureChecker
         # It tracks 'current_layer_types'
 
-        node_usecase = create_mock_node(astroid.nodes.ClassDef, name="CreateUser")
-        node_infra = create_mock_node(astroid.nodes.ClassDef, name="SqlUserRepo")
+        node_usecase = create_mock_node(
+            astroid.nodes.ClassDef, name="CreateUser")
+        node_infra = create_mock_node(
+            astroid.nodes.ClassDef, name="SqlUserRepo")
 
         # We need a predictable config/layer resolution.
         # We can mock config_loader.get_layer_for_class_node
@@ -40,20 +42,23 @@ class TestModuleStructureChecker(unittest.TestCase, CheckerTestCase):
         self.checker.leave_module(module_node)
 
         # Verify "Mixed layers" detected
-        self.assertAddsMessage(self.checker, "clean-arch-god-file", node=module_node)
+        self.assertAddsMessage(
+            self.checker, "clean-arch-god-file", node=module_node)
 
-    def test_deep_structure_root(self):
+    def test_deep_structure_root(self) -> None:
         """W9011 detected for root files."""
         # Need to mock Path.cwd and relative logic in _is_root_logic
 
-        node = create_mock_node(astroid.nodes.Module, name="root_logic", file="/project/root_logic.py")
+        node = create_mock_node(
+            astroid.nodes.Module, name="root_logic", file="/project/root_logic.py")
 
         with patch("clean_architecture_linter.checks.structure.Path.cwd", return_value=Path("/project")):
-             self.checker.visit_module(node)
+            self.checker.visit_module(node)
 
-        self.assertAddsMessage(self.checker, "clean-arch-folder-structure", node=node, args=("root_logic",))
+        self.assertAddsMessage(
+            self.checker, "clean-arch-folder-structure", node=node, args=("root_logic",))
 
-    def test_god_module_functions_only_not_flagged(self):
+    def test_god_module_functions_only_not_flagged(self) -> None:
         """Module with many top-level functions but NO classes must NOT trigger W9010.
         W9010 only counts classes (visit_classdef). CLI-style 'god module' is thus invisible.
         This test documents current behavior; a future 'god module' rule would flag it."""

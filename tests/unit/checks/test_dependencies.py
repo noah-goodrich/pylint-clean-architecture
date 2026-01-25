@@ -9,12 +9,12 @@ from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
 class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.python_gateway = MagicMock()
         self.checker = DependencyChecker(self.linter, self.python_gateway)
 
-    def test_illegal_dependency_domain_imports_infra(self):
+    def test_illegal_dependency_domain_imports_infra(self) -> None:
         # Setup: Domain -> Infrastructure (BANNED)
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_DOMAIN
 
@@ -22,10 +22,12 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
         # But Checker uses config_loader which is instantiated inside __init__.
         # We need to mock the checker.config_loader
         self.checker.config_loader.resolve_layer = MagicMock(return_value=None)
-        self.checker.config_loader.get_layer_for_module = MagicMock(return_value=LayerRegistry.LAYER_INFRASTRUCTURE)
+        self.checker.config_loader.get_layer_for_module = MagicMock(
+            return_value=LayerRegistry.LAYER_INFRASTRUCTURE)
 
         # Mock the read-only property using PropertyMock
-        type(self.checker.config_loader).shared_kernel_modules = PropertyMock(return_value=[])
+        type(self.checker.config_loader).shared_kernel_modules = PropertyMock(
+            return_value=[])
 
         node = create_mock_node(astroid.nodes.Import)
         node.names = [("requests", None)]
@@ -36,14 +38,16 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
             self.checker,
             "clean-arch-dependency",
             node,
-            args=(LayerRegistry.LAYER_INFRASTRUCTURE, LayerRegistry.LAYER_DOMAIN)
+            args=(LayerRegistry.LAYER_INFRASTRUCTURE,
+                  LayerRegistry.LAYER_DOMAIN)
         )
 
-    def test_legal_dependency_usecase_imports_domain(self):
+    def test_legal_dependency_usecase_imports_domain(self) -> None:
         # Setup: UseCase -> Domain (ALLOWED)
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_USE_CASE
         self.checker.config_loader.resolve_layer = MagicMock(return_value=None)
-        self.checker.config_loader.get_layer_for_module = MagicMock(return_value=LayerRegistry.LAYER_DOMAIN)
+        self.checker.config_loader.get_layer_for_module = MagicMock(
+            return_value=LayerRegistry.LAYER_DOMAIN)
 
         node = create_mock_node(astroid.nodes.Import)
         node.names = [("domain.models", None)]
@@ -51,7 +55,7 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
         self.checker.visit_import(node)
         self.assertNoMessages(self.checker)
 
-    def test_interface_imports_infrastructure_flagged(self):
+    def test_interface_imports_infrastructure_flagged(self) -> None:
         """Interface -> Infrastructure (e.g. cli importing adapters) must be flagged (W9001).
         Mirrors the violation we should catch in cli.py."""
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_INTERFACE
@@ -59,7 +63,8 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
         self.checker.config_loader.get_layer_for_module = MagicMock(
             return_value=LayerRegistry.LAYER_INFRASTRUCTURE
         )
-        type(self.checker.config_loader).shared_kernel_modules = PropertyMock(return_value=set())
+        type(self.checker.config_loader).shared_kernel_modules = PropertyMock(
+            return_value=set())
 
         node = create_mock_node(astroid.nodes.ImportFrom)
         node.modname = "clean_architecture_linter.infrastructure.adapters.linter_adapters"
@@ -70,5 +75,6 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
             self.checker,
             "clean-arch-dependency",
             node,
-            args=(LayerRegistry.LAYER_INFRASTRUCTURE, LayerRegistry.LAYER_INTERFACE),
+            args=(LayerRegistry.LAYER_INFRASTRUCTURE,
+                  LayerRegistry.LAYER_INTERFACE),
         )

@@ -108,6 +108,8 @@ enable = [
     "clean-arch-di",
     "clean-arch-god-file",
     "clean-arch-folder-structure",
+    "clean-arch-layer-integrity",
+    "clean-arch-class-only",
     "clean-arch-contracts",
     "clean-arch-testing",
     "clean-arch-immutability",

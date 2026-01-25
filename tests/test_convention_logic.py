@@ -34,7 +34,7 @@ def run_pylint_on_snippet(file_path, snippet, extra_args=None):
     return result
 
 
-def test_convention_w9004_usecase_resource_ban(tmp_path):
+def test_convention_w9004_usecase_resource_ban(tmp_path) -> None:
     # Test valid UseCase logic (Suffix-based)
     # Convention: *UseCase suffix -> UseCase layer -> Bans raw I/O
 
@@ -42,7 +42,7 @@ def test_convention_w9004_usecase_resource_ban(tmp_path):
     d.mkdir(parents=True)
     f = d / "create_user_usecase.py"
 
-    snippet = """
+    snippet: str = """
 import os
 import requests
 
@@ -62,7 +62,7 @@ class CreateUserUseCase:
     )
 
 
-def test_convention_w9004_infrastructure_allowed(tmp_path):
+def test_convention_w9004_infrastructure_allowed(tmp_path) -> None:
     # Test valid Infrastructure logic (Suffix-based)
     # Convention: *Repository suffix -> Infrastructure layer -> Allows I/O
 
@@ -70,7 +70,7 @@ def test_convention_w9004_infrastructure_allowed(tmp_path):
     d.mkdir(parents=True)
     f = d / "user_repository.py"
 
-    snippet = """
+    snippet: str = """
 import os
 
 class UserRepository:
@@ -83,14 +83,14 @@ class UserRepository:
     assert "abstract-resource-access-violation" not in result.stdout
 
 
-def test_convention_w9009_missing_abstraction(tmp_path):
+def test_convention_w9009_missing_abstraction(tmp_path) -> None:
     # Test W9009: UseCase holding Client reference
 
     d = tmp_path / "app" / "use_cases"
     d.mkdir(parents=True)
     f = d / "sync_data_usecase.py"
 
-    snippet = """
+    snippet: str = """
 class MockClient:
     def query(self, q): pass
 
@@ -116,7 +116,7 @@ class SyncDataUseCase:
     assert "snowflake_client" in result.stdout
 
 
-def test_convention_directory_resolution(tmp_path):
+def test_convention_directory_resolution(tmp_path) -> None:
     # Test resolution by directory structure
 
     d = tmp_path / "src" / "domain"
@@ -124,7 +124,7 @@ def test_convention_directory_resolution(tmp_path):
     f = d / "logic.py"
 
     # Domain banning requests
-    snippet = """
+    snippet: str = """
 import requests
 
 def do_logic():

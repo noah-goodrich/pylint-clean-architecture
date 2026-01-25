@@ -59,7 +59,7 @@ class ContractChecker(BaseChecker):
         for base in node.ancestors():
             # Dynamic Exception Check
             if self._python_gateway.is_exception_node(base):
-                has_domain_base = True
+                has_domain_base: bool = True
                 break
 
             # Check upstream layer dynamically
@@ -68,7 +68,7 @@ class ContractChecker(BaseChecker):
                 continue
             base_layer = self.config_loader.get_layer_for_module(root.name)
             if base_layer == LayerRegistry.LAYER_DOMAIN:
-                has_domain_base = True
+                has_domain_base: bool = True
                 domain_protos.append(base)
 
         if not has_domain_base:

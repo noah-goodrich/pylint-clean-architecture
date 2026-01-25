@@ -43,7 +43,7 @@ class LibCSTFixerGateway(FixerGatewayProtocol):
         return cls(ctx) if cls else None
 
 class AddImportTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         self.module = context.get("module")
         self.imports = context.get("imports", []) # List[str]
         self.added = False
@@ -58,7 +58,7 @@ class AddImportTransformer(cst.CSTTransformer):
             )
 
             new_body = list(updated_node.body)
-            insert_idx = 0
+            insert_idx: int = 0
             for i, stmt in enumerate(new_body):
                 if isinstance(stmt, (cst.Import, cst.ImportFrom)):
                     insert_idx = i + 1
@@ -69,16 +69,16 @@ class AddImportTransformer(cst.CSTTransformer):
         return updated_node
 
 class FreezeDataclassTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         self.class_name = context.get("class_name")
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        match = False
+        match: bool = False
         if self.class_name:
             if original_node.name.value == self.class_name:
-                match = True
+                match: bool = True
         else:
-            match = True
+            match: bool = True
 
         if match:
              return self._apply_frozen(updated_node)
@@ -86,7 +86,7 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
 
     def _apply_frozen(self, node: cst.ClassDef) -> cst.ClassDef:
         new_decorators = []
-        found = False
+        found: bool = False
         compact_eq = cst.AssignEqual(
             whitespace_before=cst.SimpleWhitespace(""),
             whitespace_after=cst.SimpleWhitespace("")
@@ -101,7 +101,7 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
                         whitespace_before_args=cst.SimpleWhitespace("")
                     )
                 ))
-                found = True
+                found: bool = True
             elif (
                 isinstance(decorator.decorator, cst.Call)
                 and isinstance(decorator.decorator.func, cst.Name)
@@ -116,7 +116,7 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
                     ))
                 else:
                     new_decorators.append(decorator)
-                found = True
+                found: bool = True
             else:
                 new_decorators.append(decorator)
 
@@ -125,7 +125,7 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
         return node
 
 class DomainImmutabilityTransformer(FreezeDataclassTransformer):
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         super().__init__({"class_name": None})
         self.file_path = context.get("file_path", "")
 
@@ -134,7 +134,7 @@ class DomainImmutabilityTransformer(FreezeDataclassTransformer):
          return super().leave_ClassDef(original_node, updated_node)
 
 class AddReturnTypeTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         self.function_name = context.get("function_name")
         self.return_type = context.get("return_type")
 
@@ -147,7 +147,7 @@ class AddReturnTypeTransformer(cst.CSTTransformer):
         return updated_node
 
 class AddParameterTypeTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         self.function_name = context.get("function_name")
         self.param_name = context.get("param_name")
         self.param_type = context.get("param_type")
@@ -155,7 +155,7 @@ class AddParameterTypeTransformer(cst.CSTTransformer):
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         if original_node.name.value == self.function_name:
             new_params_list = []
-            modified = False
+            modified: bool = False
 
             # Handle default parameters (params.params)
             for param in updated_node.params.params:
@@ -167,7 +167,7 @@ class AddParameterTypeTransformer(cst.CSTTransformer):
                         )
                     )
                     new_params_list.append(new_param)
-                    modified = True
+                    modified: bool = True
                 else:
                     new_params_list.append(param)
 
@@ -178,7 +178,7 @@ class AddParameterTypeTransformer(cst.CSTTransformer):
         return updated_node
 
 class LifecycleReturnTypeTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         pass
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
@@ -195,7 +195,7 @@ class LifecycleReturnTypeTransformer(cst.CSTTransformer):
 
 class DeterministicTypeHintsTransformer(cst.CSTTransformer):
     """Enforce type hints on literals (e.g. x = "foo" -> x: str = "foo")."""
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         pass
 
     def leave_Assign(self, original_node: cst.Assign, updated_node: cst.Assign) -> cst.Assign:
@@ -210,11 +210,11 @@ class DeterministicTypeHintsTransformer(cst.CSTTransformer):
 
             annot: Optional[str] = None
             if isinstance(val, cst.SimpleString):
-                annot = "str"
+                annot: str = "str"
             elif isinstance(val, cst.Integer):
-                annot = "int"
+                annot: str = "int"
             elif isinstance(val, cst.Name) and val.value in ("True", "False"):
-                annot = "bool"
+                annot: str = "bool"
 
             if annot and isinstance(target.target, cst.Name):
                 # Convert Assign to AnnAssign
@@ -234,7 +234,7 @@ class DeterministicTypeHintsTransformer(cst.CSTTransformer):
 
 class TypeIntegrityTransformer(cst.CSTTransformer):
     """Auto-import common typing missing imports."""
-    def __init__(self, context: dict):
+    def __init__(self, context: dict) -> None:
         self.used_types: Set[str] = set()
         self.existing_typing_imports: Set[str] = set()
         self.typing_aliases = {"List", "Dict", "Optional", "Any", "Union", "Iterable", "Callable"}
@@ -274,7 +274,7 @@ class TypeIntegrityTransformer(cst.CSTTransformer):
             )
 
             new_body = list(updated_node.body)
-            insert_idx = 0
+            insert_idx: int = 0
             for i, stmt in enumerate(new_body):
                 if isinstance(stmt, (cst.Import, cst.ImportFrom)):
                     insert_idx = i + 1

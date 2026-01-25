@@ -6,8 +6,8 @@ from tests.linter_test_utils import run_checker
 ast_gateway = AstroidGateway()
 python_gateway = PythonGateway()
 
-def test_str_startswith_on_hinted_stranger_passes():
-    code = """
+def test_str_startswith_on_hinted_stranger_passes() -> None:
+    code: str = """
 def get_it() -> str:
     return "hello"
 
@@ -21,8 +21,8 @@ def check():
     assert "law-of-demeter" not in messages
 
 
-def test_str_split_on_hinted_stranger_passes():
-    code = """
+def test_str_split_on_hinted_stranger_passes() -> None:
+    code: str = """
 def get_it() -> str:
     return "a,b,c"
 
@@ -35,8 +35,8 @@ def check():
     assert "law-of-demeter" not in messages
 
 
-def test_str_split_chain_on_hinted_stranger_passes():
-    code = """
+def test_str_split_chain_on_hinted_stranger_passes() -> None:
+    code: str = """
 def get_path() -> str:
     return "/path/to/file"
 
@@ -50,9 +50,9 @@ def check():
     assert "law-of-demeter" not in messages
 
 
-def test_path_read_text_splitlines_passes():
+def test_path_read_text_splitlines_passes() -> None:
     """Verify Path('file').read_text().splitlines() is allowed (StdLib exemption)."""
-    code = """
+    code: str = """
 from pathlib import Path
 def process():
     lines = Path('file.txt').read_text().splitlines()

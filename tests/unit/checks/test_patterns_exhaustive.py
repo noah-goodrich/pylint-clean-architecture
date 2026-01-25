@@ -8,11 +8,11 @@ from tests.unit.checker_test_utils import CheckerTestCase
 
 
 class TestPatternCheckerExhaustive(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.checker = PatternChecker(self.linter)
 
-    def test_delegation_detected_deep_if(self):
+    def test_delegation_detected_deep_if(self) -> None:
         """W9005: Deep delegation chain (if/elif/elif) detected."""
         # if x: return delegate() elif y: return delegate()
         node = create_strict_mock(astroid.nodes.If)
@@ -38,7 +38,7 @@ class TestPatternCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         return ret
 
 class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.ast_gateway = MagicMock()
         self.python_gateway = MagicMock()
@@ -58,7 +58,7 @@ class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node.root.return_value = root
         return node
 
-    def test_visit_call_long_chain_violation(self):
+    def test_visit_call_long_chain_violation(self) -> None:
         """W9006: a.b.c() violation."""
         # a.b.c() -> Call(func=Attribute(expr=Attribute(expr=Name(a), attr='b'), attr='c'))
         node = create_strict_mock(astroid.nodes.Call)
@@ -83,7 +83,7 @@ class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         self.checker.visit_call(node)
         self.assertAddsMessage(self.checker, "clean-arch-demeter", node=node, args=("a.b.c",))
 
-    def test_visit_call_trusted_authority_exclusion(self):
+    def test_visit_call_trusted_authority_exclusion(self) -> None:
         """W9006: Excluded if Trusted Authority."""
         node = create_strict_mock(astroid.nodes.Call)
         self._add_root_mock(node)
@@ -109,7 +109,7 @@ class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         self.checker.visit_call(node)
         self.assertNoMessages(self.checker)
 
-    def test_visit_call_fluent_exclusion(self):
+    def test_visit_call_fluent_exclusion(self) -> None:
         """W9006: Excluded if Fluent API."""
         node = create_strict_mock(astroid.nodes.Call)
         self._add_root_mock(node)
@@ -132,7 +132,7 @@ class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         self.checker.visit_call(node)
         self.assertNoMessages(self.checker)
 
-    def test_stranger_variable_violation(self):
+    def test_stranger_variable_violation(self) -> None:
         """W9006: Calling method on stranger variable."""
         # x = other.get_x() -> x is stranger
         # x.do_something() -> Violation

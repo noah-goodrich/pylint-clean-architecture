@@ -8,17 +8,17 @@ from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
 class TestCouplingChecker(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.ast_gateway = MagicMock()
         self.python_gateway = MagicMock()
         self.checker = CouplingChecker(self.linter, self.ast_gateway, self.python_gateway)
 
-    def test_demeter_violation_chain(self):
+    def test_demeter_violation_chain(self) -> None:
         # a.b.c() -> chain length 3 (a, b, c) -> 2 dots. _MIN_CHAIN_LENGTH is 2.
         # Use real astroid parsing to get proper isinstance behavior
         import astroid
-        code = "result = a.b.c()"
+        code: str = "result = a.b.c()"
         module = astroid.parse(code)
         call_nodes = list(module.nodes_of_class(astroid.nodes.Call))
         node = call_nodes[0]
@@ -33,11 +33,11 @@ class TestCouplingChecker(unittest.TestCase, CheckerTestCase):
         self.assertAddsMessage(self.checker, "clean-arch-demeter", args=("a.b.c",))
 
 class TestPatternChecker(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.checker = PatternChecker(self.linter)
 
-    def test_delegation_not_detected_simple(self):
+    def test_delegation_not_detected_simple(self) -> None:
         # if x: do()
         node = create_mock_node(astroid.nodes.If)
         node.test = create_mock_node(astroid.nodes.Name, name="x")

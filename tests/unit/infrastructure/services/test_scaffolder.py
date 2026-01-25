@@ -5,7 +5,7 @@ from clean_architecture_linter.infrastructure.services.scaffolder import Scaffol
 
 
 class TestScaffolder(unittest.TestCase):
-    def test_init_project_creates_files(self):
+    def test_init_project_creates_files(self) -> None:
         telemetry = MagicMock()
         scaffolder = Scaffolder(telemetry)
 
@@ -24,7 +24,7 @@ class TestScaffolder(unittest.TestCase):
             # Verify file creation
             assert mock_open.call_count >= 3
 
-    def test_update_makefile_injects_snippet(self):
+    def test_update_makefile_injects_snippet(self) -> None:
         telemetry = MagicMock()
         scaffolder = Scaffolder(telemetry)
 
@@ -42,7 +42,7 @@ class TestScaffolder(unittest.TestCase):
             # Verify write called
             mock_file.write.assert_called()
 
-    def test_check_layers_calls_telemetry(self):
+    def test_check_layers_calls_telemetry(self) -> None:
         telemetry = MagicMock()
         scaffolder = Scaffolder(telemetry)
 
@@ -52,7 +52,7 @@ class TestScaffolder(unittest.TestCase):
             telemetry.step.assert_any_call("Active Layer Configuration:")
             telemetry.step.assert_any_call("  src -> Domain")
 
-    def test_apply_template_updates_fastapi(self):
+    def test_apply_template_updates_fastapi(self) -> None:
         data = {"tool": {"clean-arch": {}}}
         scaffolder = Scaffolder(MagicMock())
         scaffolder._apply_template_updates(data, "fastapi")

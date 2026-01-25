@@ -8,7 +8,7 @@ from clean_architecture_linter.infrastructure.typeshed_integration import Typesh
 
 class TestTypeshedResolution:
 
-    def test_typeshed_service_identifies_stdlib(self):
+    def test_typeshed_service_identifies_stdlib(self) -> None:
         import inspect
         print(f"DEBUG: AstroidGateway file: {inspect.getfile(AstroidGateway)}")
         print(f"DEBUG: Loaded linter from {clean_architecture_linter.__file__}")
@@ -20,8 +20,8 @@ class TestTypeshedResolution:
         assert not service.is_stdlib_module("requests")
         assert not service.is_stdlib_module("clean_architecture_linter")
 
-    def test_gateway_infers_os_walk_variables_as_safe(self):
-        code = """
+    def test_gateway_infers_os_walk_variables_as_safe(self) -> None:
+        code: str = """
 import os
 def test_walk():
     for root, dirs, files in os.walk("."):
@@ -46,9 +46,9 @@ def test_walk():
         # We implemented it to return "builtins.str" or "builtins.object" for stdlib iterators
         assert qname in ["builtins.str", "builtins.object"]
 
-    def test_gateway_infers_argparse_as_safe(self):
+    def test_gateway_infers_argparse_as_safe(self) -> None:
          # argparse is dynamic, so often Uninferable, but it is stdlib.
-         code = """
+         code: str = """
 import argparse
 parser = argparse.ArgumentParser()
 args = parser.parse_args()

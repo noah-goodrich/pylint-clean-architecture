@@ -8,11 +8,11 @@ from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
 class TestBoundaries(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.python_gateway = MagicMock()
 
-    def test_visibility_protected_access(self):
+    def test_visibility_protected_access(self) -> None:
         checker = VisibilityChecker(self.linter)
         # visibility_enforcement defaults to True in config, no need to set
 
@@ -25,7 +25,7 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
         checker.visit_attribute(node)
         self.assertAddsMessage(checker, "clean-arch-visibility", node, args=("_internal",))
 
-    def test_resource_access_forbidden(self):
+    def test_resource_access_forbidden(self) -> None:
         checker = ResourceChecker(self.linter, self.python_gateway)
 
         # Configure layer to be Domain
@@ -39,7 +39,7 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
         # requests is forbidden in Domain
         self.assertAddsMessage(checker, "clean-arch-resources", node, args=("import requests", "Domain"))
 
-    def test_resource_access_allowed_stdlib(self):
+    def test_resource_access_allowed_stdlib(self) -> None:
         checker = ResourceChecker(self.linter, self.python_gateway)
         self.python_gateway.get_node_layer.return_value = "Domain"
 

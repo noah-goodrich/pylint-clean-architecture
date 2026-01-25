@@ -2,7 +2,7 @@ import astroid  # type: ignore[import-untyped]
 
 
 class MockLinter:
-    def __init__(self):
+    def __init__(self) -> None:
         self.messages = []
         self.config = type("config", (), {})()
         self.current_name = "test_module"

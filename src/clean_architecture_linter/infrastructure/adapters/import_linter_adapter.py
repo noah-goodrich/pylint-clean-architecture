@@ -46,7 +46,8 @@ class ImportLinterAdapter(LinterAdapterProtocol):
                 if "Broken contract" in line:
                     current_contract = line.strip()
                 elif "is not allowed to import" in line:
-                    results.append(LinterResult("IL001", f"{current_contract}: {line.strip()}", []))
+                    results.append(LinterResult(
+                        "IL001", f"{current_contract}: {line.strip()}", []))
 
         return results
 

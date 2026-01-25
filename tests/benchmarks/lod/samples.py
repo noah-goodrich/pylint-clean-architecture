@@ -2,7 +2,7 @@ from typing import Dict, List, Set
 
 
 def exhaustive_string_methods():
-    s = "hello"
+    s: str = "hello"
     s.upper()
     s.lower()
     s.strip()
@@ -73,7 +73,7 @@ def exhaustive_set_methods():
     s.issuperset({3})
 
 def exhaustive_int_float_methods():
-    i = 10
+    i: int = 10
     i.bit_length()
     i.to_bytes(2, "big")
     int.from_bytes(b"\x00\x0a", "big")
@@ -87,10 +87,10 @@ def exhaustive_int_float_methods():
 def internal_safe_cases():
     # Covering mod_file.startswith(self._stdlib_path)
     mod_file = str("some/path")
-    prefix = "/usr/lib/python"
+    prefix: str = "/usr/lib/python"
     mod_file.startswith(prefix)
 
     # Covering visited.add(expr_id)
     visited = set()
-    expr_id = 12345
+    expr_id: int = 12345
     visited.add(expr_id)

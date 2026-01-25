@@ -11,7 +11,7 @@ from clean_architecture_linter.di.container import ExcelsiorContainer
 
 def _collect_samples():
     """Helper to parse all benchmark files in source-data."""
-    source_dir = "tests/functional/source-data"
+    source_dir: str = "tests/functional/source-data"
     all_samples = []
 
     for filename in sorted(os.listdir(source_dir)):
@@ -58,7 +58,7 @@ class TestLoDExhaustive(CheckerTestCase):
         # Only mock Domain layer for the specific category that needs it
         mock_layer = "Domain" if "domain-entities" in name else None
 
-        patch_target = "clean_architecture_linter.config.ConfigurationLoader.get_layer_for_module"
+        patch_target: str = "clean_architecture_linter.config.ConfigurationLoader.get_layer_for_module"
         with mock.patch(patch_target, return_value=mock_layer):
             # Ensure the checker is reset for each node
             if hasattr(self.linter, "release_messages"):
@@ -94,11 +94,11 @@ class TestLoDExhaustive(CheckerTestCase):
             getattr(self.checker, leave_name)(node)
 
     @pytest.mark.parametrize("name, node, _", get_safe_samples())
-    def test_safe_zone_exemptions(self, name, node, _):
+    def test_safe_zone_exemptions(self, name, node, _) -> None:
         """Verify that all architectural exemptions pass."""
         self._assert_lod_compliance(node, expected_violation=False, name=name)
 
     @pytest.mark.parametrize("name, node, _", get_violation_samples())
-    def test_violation_zone_enforcement(self, name, node, _):
+    def test_violation_zone_enforcement(self, name, node, _) -> None:
         """Verify that all genuine violations are caught."""
         self._assert_lod_compliance(node, expected_violation=True, name=name)

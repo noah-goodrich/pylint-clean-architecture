@@ -11,7 +11,7 @@ from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
 class TestApplyFixesEnhanced:
     """Test enhanced fix functionality."""
 
-    def test_backup_created_before_fix(self, tmp_path):
+    def test_backup_created_before_fix(self, tmp_path) -> None:
         """Test that .bak file is created before applying fixes."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -26,7 +26,7 @@ class TestApplyFixesEnhanced:
         assert backup_file.exists()
         assert backup_file.read_text() == "x = 1\n"
 
-    def test_confirmation_prompt_shown(self, tmp_path):
+    def test_confirmation_prompt_shown(self, tmp_path) -> None:
         """Test that confirmation is requested before applying fix."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -43,7 +43,7 @@ class TestApplyFixesEnhanced:
         fixer_gateway.apply_fixes.assert_not_called()
         assert result == 0
 
-    def test_confirmation_yes_applies_fix(self, tmp_path):
+    def test_confirmation_yes_applies_fix(self, tmp_path) -> None:
         """Test that 'yes' confirmation proceeds with fix."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -61,7 +61,7 @@ class TestApplyFixesEnhanced:
         fixer_gateway.apply_fixes.assert_called_once()
         assert result == 1
 
-    def test_pytest_validation_runs_before_fix(self, tmp_path):
+    def test_pytest_validation_runs_before_fix(self, tmp_path) -> None:
         """Test that pytest runs before applying fixes."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -81,7 +81,7 @@ class TestApplyFixesEnhanced:
         calls = [c for c in mock_run.call_args_list if 'pytest' in str(c)]
         assert len(calls) >= 1
 
-    def test_pytest_validation_rollback_on_new_failures(self, tmp_path):
+    def test_pytest_validation_rollback_on_new_failures(self, tmp_path) -> None:
         """Test rollback when pytest introduces new failures."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -111,7 +111,7 @@ class TestApplyFixesEnhanced:
         # Should detect regression and restore
         assert test_file.read_text() == "x = 1\n"  # Original content restored
 
-    def test_skip_tests_flag_bypasses_validation(self, tmp_path):
+    def test_skip_tests_flag_bypasses_validation(self, tmp_path) -> None:
         """Test --skip-tests flag skips pytest validation."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -128,10 +128,11 @@ class TestApplyFixesEnhanced:
             use_case.execute([], str(test_file))
 
         # Pytest should NOT be called
-        pytest_calls = [c for c in mock_run.call_args_list if 'pytest' in str(c)]
+        pytest_calls = [
+            c for c in mock_run.call_args_list if 'pytest' in str(c)]
         assert len(pytest_calls) == 0
 
-    def test_backup_cleanup_on_success(self, tmp_path):
+    def test_backup_cleanup_on_success(self, tmp_path) -> None:
         """Test .bak files can be cleaned up after successful fix."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -151,7 +152,7 @@ class TestApplyFixesEnhanced:
         # Should be cleaned up automatically
         assert not backup_file.exists()
 
-    def test_manual_fix_suggestions_returned(self, tmp_path):
+    def test_manual_fix_suggestions_returned(self, tmp_path) -> None:
         """Test manual fix suggestions are returned for non-fixable issues."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -180,7 +181,7 @@ class TestApplyFixesEnhanced:
 class TestAutoFixCapabilityDetection:
     """Test detection of which linters support auto-fixing."""
 
-    def test_ruff_supports_autofix(self):
+    def test_ruff_supports_autofix(self) -> None:
         """Test Ruff is detected as supporting auto-fix."""
         from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
@@ -188,14 +189,14 @@ class TestAutoFixCapabilityDetection:
         assert adapter.supports_autofix() is True
         assert "C901" in adapter.get_fixable_rules()
 
-    def test_mypy_no_autofix(self):
+    def test_mypy_no_autofix(self) -> None:
         """Test Mypy does not support auto-fix."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
 
         adapter = MypyAdapter()
         assert adapter.supports_autofix() is False
 
-    def test_pylint_limited_autofix(self):
+    def test_pylint_limited_autofix(self) -> None:
         """Test Pylint (excelsior) has limited auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import ExcelsiorAdapter
 
@@ -206,7 +207,7 @@ class TestAutoFixCapabilityDetection:
         fixable = adapter.get_fixable_rules()
         assert "clean-arch-immutable" in fixable
 
-    def test_import_linter_no_autofix(self):
+    def test_import_linter_no_autofix(self) -> None:
         """Test Import-Linter does not support auto-fix."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import ImportLinterAdapter
 
@@ -217,7 +218,7 @@ class TestAutoFixCapabilityDetection:
 class TestManualFixInstructions:
     """Test manual fix instructions for each linter."""
 
-    def test_mypy_manual_instructions(self):
+    def test_mypy_manual_instructions(self) -> None:
         """Test Mypy provides manual fix instructions."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
 
@@ -227,7 +228,7 @@ class TestManualFixInstructions:
         assert "type" in instructions.lower()
         assert instructions  # Non-empty
 
-    def test_ruff_manual_instructions_for_non_fixable(self):
+    def test_ruff_manual_instructions_for_non_fixable(self) -> None:
         """Test Ruff provides manual instructions for non-fixable rules."""
         from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
@@ -237,11 +238,12 @@ class TestManualFixInstructions:
 
         assert instructions  # Should provide guidance
 
-    def test_import_linter_manual_instructions(self):
+    def test_import_linter_manual_instructions(self) -> None:
         """Test Import-Linter provides manual fix instructions."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import ImportLinterAdapter
 
         adapter = ImportLinterAdapter()
-        instructions = adapter.get_manual_fix_instructions("contract-violation")
+        instructions = adapter.get_manual_fix_instructions(
+            "contract-violation")
 
         assert "import" in instructions.lower() or "dependency" in instructions.lower()

@@ -7,7 +7,7 @@ from typing import Any
 # Or better, we define classes that simulate it.
 
 class InternalObj:
-    _protected = "I am secret"  # W9003 target
+    _protected: str = "I am secret"  # W9003 target
 
 class Stranger:
     def call_me(self):
@@ -27,7 +27,7 @@ class Repository:
 class BadUseCase:
     """Uses forbidden things."""
 
-    def __init__(self, repo: Any): # W9016
+    def __init__(self, repo: Any) -> None: # W9016
         self.repo = repo
         # W9009: Missing Abstraction (References detailed infra if we had proper types)
         self.session = "SQLAlchemy Session"

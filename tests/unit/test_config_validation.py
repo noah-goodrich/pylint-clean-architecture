@@ -4,7 +4,7 @@ from pathlib import Path
 from clean_architecture_linter.config import ConfigurationLoader
 
 
-def test_config_validation_penalty(caplog):
+def test_config_validation_penalty(caplog) -> None:
     """Providing a bare name in pyproject.toml triggers a configuration error."""
     with tempfile.TemporaryDirectory() as tmpdir:
         pyproject = Path(tmpdir) / "pyproject.toml"

@@ -21,10 +21,10 @@ def create_strict_mock(spec_cls, **attrs):
     return m
 
 class TestMissingTypeHintRule(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.rule = MissingTypeHintRule()
 
-    def test_check_return_type_missing(self):
+    def test_check_return_type_missing(self) -> None:
         node = create_strict_mock(astroid.nodes.FunctionDef)
         node.name = "foo"
         node.returns = None
@@ -36,7 +36,7 @@ class TestMissingTypeHintRule(unittest.TestCase):
         self.assertEqual(len(violations), 1)
         self.assertIn("Missing return type hint", violations[0].message)
 
-    def test_check_parameter_type_missing(self):
+    def test_check_parameter_type_missing(self) -> None:
         node = create_strict_mock(astroid.nodes.FunctionDef)
         node.name = "foo"
         node.returns = MagicMock() # Return type ok

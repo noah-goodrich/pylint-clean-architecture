@@ -9,7 +9,7 @@ Message = namedtuple("Message", ["msg_id", "symbol", "path"])
 
 
 class TestCleanArchitectureSummaryReporter(unittest.TestCase):
-    def test_collect_stats(self):
+    def test_collect_stats(self) -> None:
         reporter = CleanArchitectureSummaryReporter()
         reporter.handle_message(Message("W9001", "dependency-violation", "packages/core/src/domain/file.py"))
         reporter.handle_message(Message("W9001", "dependency-violation", "packages/audit/src/domain/file.py"))
@@ -26,7 +26,7 @@ class TestCleanArchitectureSummaryReporter(unittest.TestCase):
         self.assertEqual(errors["W9001"]["audit"], 1)
         self.assertEqual(errors["W9001"]["total"], 2)
 
-    def test_summary_reporter(self):
+    def test_summary_reporter(self) -> None:
         reporter = CleanArchitectureSummaryReporter()
 
         # Create dummy messages
@@ -61,7 +61,7 @@ class TestCleanArchitectureSummaryReporter(unittest.TestCase):
         self.assertIn("audit", output)
         self.assertIn("Total", output)
 
-    def test_summary_reporter_empty(self):
+    def test_summary_reporter_empty(self) -> None:
         reporter = CleanArchitectureSummaryReporter()
 
         out = io.StringIO()

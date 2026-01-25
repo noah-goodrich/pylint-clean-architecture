@@ -1,7 +1,7 @@
 # JUSTIFICATION: Internal helper class
 # pylint: disable=too-many-instance-attributes
 class Violator:
-    def __init__(self):
+    def __init__(self) -> None:
         self.a = 1
         self.b = 2
         self.c = 3

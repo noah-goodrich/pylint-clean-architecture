@@ -7,21 +7,21 @@ from clean_architecture_linter.config import ConfigurationLoader
 
 
 class TestGenericConfiguration(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         # Reset Singleton
         ConfigurationLoader._instance = None
         self.test_dir = tempfile.mkdtemp()
         self.old_cwd = os.getcwd()
         os.chdir(self.test_dir)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         ConfigurationLoader._instance = None
         os.chdir(self.old_cwd)
         shutil.rmtree(self.test_dir)
 
-    def test_custom_layer_mapping(self):
+    def test_custom_layer_mapping(self) -> None:
         """Test that custom layer mapping works (services -> UseCase)."""
-        content = """
+        content: str = """
 [tool.clean-arch]
 project_type = "generic"
 

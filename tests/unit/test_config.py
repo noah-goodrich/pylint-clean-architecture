@@ -6,19 +6,19 @@ from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class TestConfigurationLoader(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         # Reset ConfigurationLoader singleton for each test
         ConfigurationLoader._instance = None
         ConfigurationLoader._config = {}
         ConfigurationLoader._registry = None
         self.loader = ConfigurationLoader()
 
-    def test_config_loader_default_registry(self):
+    def test_config_loader_default_registry(self) -> None:
         """Test that default registry is created if not set."""
         loader = ConfigurationLoader()
         self.assertIsInstance(loader.registry, LayerRegistry)
 
-    def test_config_loader_get_layer_explicit(self):
+    def test_config_loader_get_layer_explicit(self) -> None:
         """Test getting layer from explicit 'layers' config in pyproject.toml."""
         loader = ConfigurationLoader()
         # Mocking the _config directly since we can't easily mock toml loading in a singleton without more work
@@ -36,7 +36,7 @@ class TestConfigurationLoader(unittest.TestCase):
         layer = loader.get_layer_for_module("my_pkg.other")
         self.assertEqual(layer, "RootLayer")
 
-    def test_config_loader_get_layer_convention_fallback(self):
+    def test_config_loader_get_layer_convention_fallback(self) -> None:
         """Test fallback to registry convention when no explicit config matches."""
         loader = ConfigurationLoader()
         loader._config = {"layers": []}
@@ -45,7 +45,7 @@ class TestConfigurationLoader(unittest.TestCase):
         layer = loader.get_layer_for_module("my_app.use_cases.something", "my_app/use_cases/something.py")
         self.assertEqual(layer, "UseCase")
 
-    def test_config_loader_load_config_missing_file(self):
+    def test_config_loader_load_config_missing_file(self) -> None:
         """Test load_config when no pyproject.toml exists (graceful failure)."""
         # Reset instance to ensure we don't carry over config from setUp
         ConfigurationLoader._instance = None
@@ -64,7 +64,7 @@ class TestConfigurationLoader(unittest.TestCase):
         read_data=b'[tool.snowarch]\nproject_type="cli_app"',
     )
     @patch("pathlib.Path.exists", return_value=True)
-    def test_config_loader_load_config_success(self, mock_exists, mock_file):
+    def test_config_loader_load_config_success(self, mock_exists, mock_file) -> None:
         """Test successful loading of configuration."""
         # Force re-creation to trigger __new__ logic with mocks active
         ConfigurationLoader._instance = None

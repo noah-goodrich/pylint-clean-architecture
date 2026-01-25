@@ -22,7 +22,7 @@ class ApplyFixesUseCase:
         create_backups: bool = True,
         cleanup_backups: bool = False,
         validate_with_tests: bool = True
-    ):
+    ) -> None:
         self.fixer_gateway = fixer_gateway
         self.linter_adapter = linter_adapter
         self.telemetry = telemetry
@@ -40,8 +40,8 @@ class ApplyFixesUseCase:
 
         self._run_baseline_if_enabled()
         files = list(path.glob("**/*.py")) if path.is_dir() else [path]
-        modified_count = 0
-        rollback_occurred = False
+        modified_count: int = 0
+        rollback_occurred: bool = False
 
         for file_path in files:
             if file_path.suffix != ".py":

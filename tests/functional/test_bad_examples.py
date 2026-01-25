@@ -28,7 +28,7 @@ def run_pylint(file_path):
     return result
 
 
-def test_bad_io_access(tmp_path):
+def test_bad_io_access(tmp_path) -> None:
     """
     Test W9004: A Use Case calling open() or requests.*
     """
@@ -56,7 +56,7 @@ class ProcessDataUseCase:
     assert "import os" in res.stdout
 
 
-def test_bad_coupling(tmp_path):
+def test_bad_coupling(tmp_path) -> None:
     """
     Test W9006: A Command accessing repo.client.session
     """
@@ -83,7 +83,7 @@ class DeployCommand:
     assert "clean-arch-demeter" in res.stdout
 
 
-def test_bad_return(tmp_path):
+def test_bad_return(tmp_path) -> None:
     """
     Test W9007: A Repository returning a raw requests.Response
     """
@@ -107,7 +107,7 @@ class UserRepository:
     assert "naked-return-violation" in res.stdout
 
 
-def test_missing_abstraction(tmp_path):
+def test_missing_abstraction(tmp_path) -> None:
     """
     Test W9009: UseCase holding reference to Client
     """
@@ -142,7 +142,7 @@ class SyncUseCase:
     assert "missing-abstraction-violation" in res.stdout
 
 
-def test_delegation_advice(tmp_path):
+def test_delegation_advice(tmp_path) -> None:
     """
     Test W9005 advice validation
     """

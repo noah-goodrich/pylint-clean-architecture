@@ -51,7 +51,7 @@ testpaths = ["tests"]
 
         return project_dir
 
-    def test_fix_creates_backup(self, temp_project):
+    def test_fix_creates_backup(self, temp_project) -> None:
         """Test that --no-backup flag is NOT set, .bak files are created."""
         _ = subprocess.run(
             ["excelsior", "fix", str(temp_project), "--skip-tests"],
@@ -64,7 +64,7 @@ testpaths = ["tests"]
         backup_files = list(temp_project.glob("**/*.bak"))
         assert len(backup_files) > 0, "Backup files should be created by default"
 
-    def test_fix_no_backup_flag(self, temp_project):
+    def test_fix_no_backup_flag(self, temp_project) -> None:
         """Test that --no-backup flag prevents .bak file creation."""
         _ = subprocess.run(
             ["excelsior", "fix", str(temp_project), "--no-backup", "--skip-tests"],
@@ -77,7 +77,7 @@ testpaths = ["tests"]
         backup_files = list(temp_project.glob("**/*.bak"))
         assert len(backup_files) == 0, "No backup files should be created with --no-backup"
 
-    def test_fix_skip_tests_flag(self, temp_project):
+    def test_fix_skip_tests_flag(self, temp_project) -> None:
         """Test that --skip-tests bypasses pytest validation."""
         # This should complete quickly without running pytest
         result = subprocess.run(
@@ -90,7 +90,7 @@ testpaths = ["tests"]
         # Check it didn't run pytest
         assert "pytest" not in result.stdout.lower() or "Test baseline" not in result.stdout
 
-    def test_fix_with_tests_validation(self, temp_project):
+    def test_fix_with_tests_validation(self, temp_project) -> None:
         """Test that fix runs pytest validation by default."""
         result = subprocess.run(
             ["excelsior", "fix", str(temp_project)],
@@ -102,7 +102,7 @@ testpaths = ["tests"]
         # Should mention test baseline or pytest
         assert "baseline" in result.stdout.lower() or "test" in result.stdout.lower()
 
-    def test_fix_manual_only_flag(self, temp_project):
+    def test_fix_manual_only_flag(self, temp_project) -> None:
         """Test --manual-only shows suggestions without applying fixes."""
         # First, capture original file content
         test_file = temp_project / "example.py"
@@ -121,7 +121,7 @@ testpaths = ["tests"]
         # Should show manual fix suggestions
         assert "AUTO-FIXABLE" in result.stdout or "MANUAL FIX REQUIRED" in result.stdout
 
-    def test_fix_cleanup_backups_flag(self, temp_project):
+    def test_fix_cleanup_backups_flag(self, temp_project) -> None:
         """Test --cleanup-backups removes .bak files after success."""
         _ = subprocess.run(
             ["excelsior", "fix", str(temp_project), "--cleanup-backups", "--skip-tests"],
@@ -134,7 +134,7 @@ testpaths = ["tests"]
         backup_files = list(temp_project.glob("**/*.bak"))
         assert len(backup_files) == 0, "Backup files should be cleaned up with --cleanup-backups"
 
-    def test_fix_rollback_on_regression(self, temp_project):
+    def test_fix_rollback_on_regression(self, temp_project) -> None:
         """Test that fix rolls back changes if tests start failing."""
         # Create a test that will pass initially
         test_file = temp_project / "tests" / "test_example.py"
@@ -160,7 +160,7 @@ def test_always_passes():
             # File should be restored
             assert source_file.read_text() == original_content
 
-    def test_manual_instructions_for_all_linters(self, temp_project):
+    def test_manual_instructions_for_all_linters(self, temp_project) -> None:
         """Test that manual-only shows instructions for all linters."""
         result = subprocess.run(
             ["excelsior", "fix", str(temp_project), "--manual-only"],
@@ -183,7 +183,7 @@ def test_always_passes():
         # At least one linter should report (may not have all violations)
         assert linter_mentions >= 1, "Should show results from at least one linter"
 
-    def test_fix_help_shows_all_options(self):
+    def test_fix_help_shows_all_options(self) -> None:
         """Test that fix --help shows all enhanced options."""
         result = subprocess.run(
             ["excelsior", "fix", "--help"],
@@ -205,7 +205,7 @@ def test_always_passes():
 class TestFixAdapterCapabilities:
     """Test that adapters correctly report their fix capabilities."""
 
-    def test_ruff_supports_autofix(self):
+    def test_ruff_supports_autofix(self) -> None:
         """Test Ruff adapter reports auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
@@ -216,7 +216,7 @@ class TestFixAdapterCapabilities:
         assert "F" in fixable_rules  # Pyflakes
         assert "I" in fixable_rules  # isort
 
-    def test_mypy_no_autofix(self):
+    def test_mypy_no_autofix(self) -> None:
         """Test Mypy adapter reports no auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.mypy_adapter import MypyAdapter
 
@@ -224,7 +224,7 @@ class TestFixAdapterCapabilities:
         assert adapter.supports_autofix() is False
         assert len(adapter.get_fixable_rules()) == 0
 
-    def test_excelsior_supports_autofix(self):
+    def test_excelsior_supports_autofix(self) -> None:
         """Test Excelsior (pylint) adapter reports auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import ExcelsiorAdapter
 
@@ -234,14 +234,14 @@ class TestFixAdapterCapabilities:
         fixable_rules = adapter.get_fixable_rules()
         assert "clean-arch-immutable" in fixable_rules
 
-    def test_import_linter_no_autofix(self):
+    def test_import_linter_no_autofix(self) -> None:
         """Test Import-Linter adapter reports no auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
 
         adapter = ImportLinterAdapter()
         assert adapter.supports_autofix() is False
 
-    def test_all_adapters_provide_manual_instructions(self):
+    def test_all_adapters_provide_manual_instructions(self) -> None:
         """Test all adapters provide manual fix instructions."""
         from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import ExcelsiorAdapter
         from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter

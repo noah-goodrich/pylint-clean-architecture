@@ -27,7 +27,7 @@ pre-flight:
 clean:
 	rm -rf .pytest_cache .coverage htmlcov dist build *.egg-info
 	find . -type d -name "__pycache__" -exec rm -rf {} +
-
+	rm -rf .excelsior/*
 test:
 	PYTHONPATH=src pytest
 

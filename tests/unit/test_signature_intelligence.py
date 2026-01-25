@@ -7,8 +7,8 @@ get_return_type_qname = gateway.get_node_return_type_qname
 get_return_type_qname_from_expr = gateway.get_return_type_qname_from_expr
 
 
-def test_simple_protocol_inference():
-    code = """
+def test_simple_protocol_inference() -> None:
+    code: str = """
 from typing import Protocol, Optional
 class Config(Protocol):
     def get_env(self, key: str) -> Optional[str]: ...
@@ -35,8 +35,8 @@ def test(c: Config):
     # However, get_return_type_qname_from_expr(res) would work because of the hint.
 
 
-def test_bool_op_or_inference():
-    code = """
+def test_bool_op_or_inference() -> None:
+    code: str = """
 from typing import Protocol, Optional
 class Config(Protocol):
     def get_env(self, key: str) -> Optional[str]: ...
@@ -58,15 +58,15 @@ def test(c: Config, account: Optional[str] = None):
     assert get_return_type_qname(strip_node) == "builtins.str"
 
 
-def test_builtin_constructor_inference():
-    code = "x = str(123)"
+def test_builtin_constructor_inference() -> None:
+    code: str = "x = str(123)"
     module = astroid.parse(code)
     call_node = module.body[0].value
     assert get_return_type_qname(call_node) == "builtins.str"
 
 
-def test_union_unpacking():
-    code = """
+def test_union_unpacking() -> None:
+    code: str = """
 from typing import Protocol, Union
 
 class API(Protocol):
@@ -81,8 +81,8 @@ def test(api: API):
     assert get_return_type_qname(call_node) == "builtins.int"
 
 
-def test_list_base_type():
-    code = """
+def test_list_base_type() -> None:
+    code: str = """
 from typing import Protocol, List
 
 class API(Protocol):

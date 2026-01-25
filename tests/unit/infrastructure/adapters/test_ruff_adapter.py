@@ -11,11 +11,11 @@ from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffA
 class TestRuffAdapter(unittest.TestCase):
     """Test the RuffAdapter for running Ruff and parsing output."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.telemetry = MagicMock()
         self.adapter = RuffAdapter(telemetry=self.telemetry)
 
-    def test_run_ruff_no_violations(self):
+    def test_run_ruff_no_violations(self) -> None:
         """Should return empty list when Ruff finds no issues."""
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -25,10 +25,10 @@ class TestRuffAdapter(unittest.TestCase):
             self.assertEqual(results, [])
             self.telemetry.step.assert_called()
 
-    def test_run_ruff_with_violations(self):
+    def test_run_ruff_with_violations(self) -> None:
         """Should parse Ruff JSON output into LinterResult objects."""
         # Actual Ruff JSON format
-        ruff_json = """[
+        ruff_json: str = """[
   {
     "code": "C901",
     "message": "`foo` is too complex (15 > 11)",
@@ -54,7 +54,7 @@ class TestRuffAdapter(unittest.TestCase):
             self.assertIn("too complex", results[0].message)
             self.assertIn("src/example.py:10", results[0].locations[0])
 
-    def test_run_ruff_with_config_from_pyproject(self):
+    def test_run_ruff_with_config_from_pyproject(self) -> None:
         """Should respect Ruff config from pyproject.toml."""
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -66,7 +66,7 @@ class TestRuffAdapter(unittest.TestCase):
             self.assertIn("ruff", call_args[0])
             self.assertIn("check", call_args)
 
-    def test_run_ruff_subprocess_error(self):
+    def test_run_ruff_subprocess_error(self) -> None:
         """Should handle subprocess errors gracefully."""
         with patch('subprocess.run') as mock_run:
             mock_run.side_effect = FileNotFoundError("ruff not found")
@@ -77,18 +77,18 @@ class TestRuffAdapter(unittest.TestCase):
             self.assertIn("Ruff not found", results[0].message)
             self.assertEqual(results[0].code, "RUFF_ERROR")
 
-    def test_parse_ruff_output_empty(self):
+    def test_parse_ruff_output_empty(self) -> None:
         """Should handle empty Ruff output."""
         results = self.adapter._parse_ruff_output("", 0)
         self.assertEqual(results, [])
 
-    def test_parse_ruff_output_malformed_json(self):
+    def test_parse_ruff_output_malformed_json(self) -> None:
         """Should handle malformed JSON gracefully."""
         results = self.adapter._parse_ruff_output("not json{", 1)
         self.assertEqual(len(results), 1)
         self.assertIn("parse", results[0].message.lower())
 
-    def test_get_default_config(self):
+    def test_get_default_config(self) -> None:
         """Should return comprehensive default Ruff config."""
         config = RuffAdapter.get_default_config()
 
@@ -109,7 +109,7 @@ class TestRuffAdapter(unittest.TestCase):
         self.assertIn("PTH", config["lint"]["select"])  # flake8-use-pathlib
         self.assertIn("RUF", config["lint"]["select"])  # Ruff-specific
 
-    def test_merge_configs_project_wins(self):
+    def test_merge_configs_project_wins(self) -> None:
         """Should merge configs with project settings taking precedence (Option C)."""
         project_config = {
             "line-length": 100,

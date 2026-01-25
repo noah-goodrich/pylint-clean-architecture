@@ -22,9 +22,9 @@ class TestLoDDictPrimitives:
         path.write_text(content)
         return str(path)
 
-    def test_dict_setdefault_not_flagged(self):
+    def test_dict_setdefault_not_flagged(self) -> None:
         """dict.setdefault() should NOT trigger LoD violation - it's a primitive method."""
-        code = '''
+        code: str = '''
 def configure_template(data: dict):
     """Configure template - mimics scaffolder pattern."""
     tool_section = data.get("tool", {})
@@ -51,9 +51,9 @@ def configure_template(data: dict):
             f"{[v.message for v in lod_violations]}"
         )
 
-    def test_dict_get_chain_not_flagged(self):
+    def test_dict_get_chain_not_flagged(self) -> None:
         """dict.get().get() should NOT trigger LoD when both are dicts."""
-        code = '''
+        code: str = '''
 def nested_config(config: dict):
     """Nested dict access."""
     # Both .get() calls return dict - should be safe
@@ -68,9 +68,9 @@ def nested_config(config: dict):
             f"Expected NO LoD violations for dict.get().get(), but found {len(lod_violations)}"
         )
 
-    def test_list_append_not_flagged(self):
+    def test_list_append_not_flagged(self) -> None:
         """list.append() should NOT trigger LoD - primitive method."""
-        code = '''
+        code: str = '''
 def process_items():
     """Process items with list operations."""
     items = get_items()  # Returns list
@@ -92,9 +92,9 @@ def get_items():
             f"Expected NO LoD violations for list.append(), but found {len(lod_violations)}"
         )
 
-    def test_str_split_not_flagged(self):
+    def test_str_split_not_flagged(self) -> None:
         """str.split() should NOT trigger LoD - primitive method."""
-        code = '''
+        code: str = '''
 def parse_path(path: str):
     """Parse path with str methods."""
     # str.split is primitive - should be safe

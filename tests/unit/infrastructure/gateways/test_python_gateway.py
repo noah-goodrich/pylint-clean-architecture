@@ -7,10 +7,10 @@ from clean_architecture_linter.infrastructure.gateways.python_gateway import Pyt
 
 
 class TestPythonGateway(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.gateway = PythonGateway()
 
-    def test_is_stdlib_module(self):
+    def test_is_stdlib_module(self) -> None:
         self.assertTrue(self.gateway.is_stdlib_module("os"))
         self.assertTrue(self.gateway.is_stdlib_module("typing"))
         # External packages should be False
@@ -18,7 +18,7 @@ class TestPythonGateway(unittest.TestCase):
         # pandas is likely not installed in this env, but clean_architecture_linter IS.
         self.assertFalse(self.gateway.is_stdlib_module("clean_architecture_linter"))
 
-    def test_is_external_dependency_heuristic(self):
+    def test_is_external_dependency_heuristic(self) -> None:
         # file_path in .venv or site-packages -> True
         self.assertTrue(self.gateway.is_external_dependency("/usr/lib/python3.11/site-packages/libcst/__init__.py"))
         self.assertTrue(self.gateway.is_external_dependency(".venv/lib/requests/__init__.py"))
@@ -26,7 +26,7 @@ class TestPythonGateway(unittest.TestCase):
         # internal code -> False
         self.assertFalse(self.gateway.is_external_dependency("/development/project/src/main.py"))
 
-    def test_get_node_layer_with_config(self):
+    def test_get_node_layer_with_config(self) -> None:
         node = MagicMock()
         mock_root = MagicMock(spec=astroid.nodes.Module)
         mock_root.file = "/src/domain/entities.py"
@@ -39,7 +39,7 @@ class TestPythonGateway(unittest.TestCase):
         layer = self.gateway.get_node_layer(node, config)
         self.assertEqual(layer, "Domain")
 
-    def test_get_node_layer_fallback(self):
+    def test_get_node_layer_fallback(self) -> None:
         node = MagicMock()
         mock_root = MagicMock(spec=astroid.nodes.Module)
         mock_root.file = "/src/unknown.py"

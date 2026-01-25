@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class RuffAdapter:
     """Adapter for running Ruff and parsing results."""
 
-    def __init__(self, telemetry: Optional["TelemetryPort"] = None):
+    def __init__(self, telemetry: Optional["TelemetryPort"] = None) -> None:
         self.telemetry = telemetry
 
     @staticmethod
@@ -267,7 +267,7 @@ class RuffAdapter:
                 "with 'if arg is None: arg = []'."
             ),
         }
-        default = "See Ruff documentation: https://docs.astral.sh/ruff/rules/"
+        default: str = "See Ruff documentation: https://docs.astral.sh/ruff/rules/"
         return manual_instructions.get(rule_code, default)
 
     def apply_fixes(self, target_path: Path) -> bool:

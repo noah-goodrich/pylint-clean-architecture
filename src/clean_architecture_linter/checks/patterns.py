@@ -11,14 +11,14 @@ if TYPE_CHECKING:
 from clean_architecture_linter.config import ConfigurationLoader
 from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
 
-_MIN_CHAIN_LENGTH = 2
-_MAX_SELF_CHAIN_LENGTH = 2
+_MIN_CHAIN_LENGTH: int = 2
+_MAX_SELF_CHAIN_LENGTH: int = 2
 
 
 class PatternChecker(BaseChecker):
     """W9005: Delegation anti-pattern detection with prescriptive advice."""
 
-    name = "clean-arch-delegation"
+    name: str = "clean-arch-delegation"
 
     def __init__(self, linter: "PyLinter") -> None:
         self.msgs = {
@@ -61,9 +61,9 @@ class PatternChecker(BaseChecker):
         if not self._is_delegation_call(stmt):
             return False, None
 
-        advice = "Refactor to Strategy/Handler pattern."
+        advice: str = "Refactor to Strategy/Handler pattern."
         if isinstance(node.test, astroid.nodes.Compare) and isinstance(node.test.left, astroid.nodes.Name):
-            advice = "Refactor to **Strategy Pattern** using a dictionary mapping."
+            advice: str = "Refactor to **Strategy Pattern** using a dictionary mapping."
 
         if not node.orelse:
             # Only flag if we are already deep in a chain (depth > 0)
@@ -93,7 +93,7 @@ class PatternChecker(BaseChecker):
 class CouplingChecker(BaseChecker):
     """W9006: Law of Demeter violation detection."""
 
-    name = "clean-arch-demeter"
+    name: str = "clean-arch-demeter"
 
     def __init__(
         self,
@@ -129,14 +129,16 @@ class CouplingChecker(BaseChecker):
 
         # If the return type is a primitive (dict, list, str, etc.), it's NOT a stranger
         # This uses dynamic type inference - no hardcoded lists
-        return_qname = self._ast_gateway.get_return_type_qname_from_expr(node.value)
+        return_qname = self._ast_gateway.get_return_type_qname_from_expr(
+            node.value)
         if return_qname and self._ast_gateway.is_primitive(return_qname):
             return
 
         # Additional check: If calling method on primitive receiver (dict.setdefault, list.append, etc.)
         # the result is safe. Use dynamic type inference on the receiver.
         if isinstance(node.value.func, astroid.nodes.Attribute):
-            receiver_qname = self._ast_gateway.get_return_type_qname_from_expr(node.value.func.expr)
+            receiver_qname = self._ast_gateway.get_return_type_qname_from_expr(
+                node.value.func.expr)
             if receiver_qname and self._ast_gateway.is_primitive(receiver_qname):
                 return
 
@@ -171,10 +173,10 @@ class CouplingChecker(BaseChecker):
         # Only skip if it's in a 'tests' directory or starts with 'test_'
         # And NOT if it's a functional test target (usually in /tmp or snowfort_test)
         if "tests" in parts or filename.startswith("test_"):
-             # Extra guard: if it's in /tmp/ it might be a functional test
-             if "/tmp/" in file_path or "snowfort" in file_path:
-                 return False
-             return True
+            # Extra guard: if it's in /tmp/ it might be a functional test
+            if "/tmp/" in file_path or "snowfort" in file_path:
+                return False
+            return True
 
         return False
 
@@ -224,7 +226,8 @@ class CouplingChecker(BaseChecker):
                     # Check if it's calling a method on a primitive receiver
                     if isinstance(assign.value.func, astroid.nodes.Attribute):
                         # Try to infer the receiver type
-                        receiver_qname = self._ast_gateway.get_return_type_qname_from_expr(assign.value.func.expr)
+                        receiver_qname = self._ast_gateway.get_return_type_qname_from_expr(
+                            assign.value.func.expr)
                         if receiver_qname and self._ast_gateway.is_primitive(receiver_qname):
                             return True
 
@@ -294,7 +297,8 @@ class CouplingChecker(BaseChecker):
             expr = node.func.expr
             if isinstance(expr, astroid.nodes.Name) and self._locals_map.get(expr.name, False):
                 # Double-check: Is this variable actually a primitive? Type inference can improve after assignment
-                var_qname = self._ast_gateway.get_return_type_qname_from_expr(expr)
+                var_qname = self._ast_gateway.get_return_type_qname_from_expr(
+                    expr)
                 if var_qname and self._ast_gateway.is_primitive(var_qname):
                     return  # It's a primitive, not a stranger
 
@@ -384,7 +388,8 @@ class CouplingChecker(BaseChecker):
     def _is_safe_source(self, receiver: astroid.nodes.NodeNG, config_loader: ConfigurationLoader) -> bool:
         """Check if receiver is a safe source."""
         # 1. Check Inference
-        qname: Optional[str] = self._ast_gateway.get_return_type_qname_from_expr(receiver)
+        qname: Optional[str] = self._ast_gateway.get_return_type_qname_from_expr(
+            receiver)
         if qname:
             if self._ast_gateway.is_primitive(qname):
                 return True
@@ -425,9 +430,9 @@ class CouplingChecker(BaseChecker):
             return True
 
         if self._python_gateway.is_external_dependency(getattr(self.linter.current_file, "path", "")):
-             # If we are IN infrastructure code, we might allow more things, but strictly speaking
-             # we are checking if the *imported module* is allowed.
-             pass
+            # If we are IN infrastructure code, we might allow more things, but strictly speaking
+            # we are checking if the *imported module* is allowed.
+            pass
 
         allowed = config_loader.allowed_lod_roots
         return any(mod_name == m or mod_name.startswith(m + ".") for m in allowed)
@@ -451,7 +456,8 @@ class CouplingChecker(BaseChecker):
 
     def _is_allowed_by_inference(self, node: astroid.nodes.NodeNG, config_loader: "ConfigurationLoader") -> bool:
         """Inferred layer allowance check."""
-        qname: Optional[str] = self._ast_gateway.get_return_type_qname_from_expr(node)
+        qname: Optional[str] = self._ast_gateway.get_return_type_qname_from_expr(
+            node)
         if qname:
             if self._is_layer_allowed(qname, config_loader):
                 return True

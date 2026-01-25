@@ -25,7 +25,8 @@ def _run_pylint(file_path: Path, cwd: Path, enable: str = "clean-arch-dependency
         "--score=n",
         "--persistent=n",
     ]
-    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env)
+    result = subprocess.run(
+        cmd, cwd=cwd, capture_output=True, text=True, env=env)
     return result.stdout + "\n" + result.stderr
 
 
@@ -53,7 +54,7 @@ def project_interface_infra(tmp_path):
     return tmp_path
 
 
-def test_interface_imports_infrastructure_flagged(project_interface_infra):
+def test_interface_imports_infrastructure_flagged(project_interface_infra) -> None:
     """Interface importing Infrastructure must be flagged (W9001).
     Mirrors cli.py importing adapters/gateways/services."""
     cli_like = project_interface_infra / "pkg" / "interface" / "cli_like.py"
@@ -80,7 +81,7 @@ def run_check():
     )
 
 
-def test_god_module_functions_only_not_flagged(project_interface_infra):
+def test_god_module_functions_only_not_flagged(project_interface_infra) -> None:
     """Module with only functions, no classes, must NOT trigger W9010 (god-file).
     Documents current gap: we never flag 'god module'."""
     # Use a layer that wouldn't trigger other rules; avoid Interface→Infra

@@ -5,7 +5,7 @@ Stellar Engineering Command: Visual Telemetry Constants
 # EXCELSIOR: ANSI Red (\033[31m)
 _RED: str = "\033[31m"
 _RESET: str = "\033[0m"
-_EXCELSIOR_ART = r"""
+_EXCELSIOR_ART: str = r"""
     _______  ________________   _____ ________  ____
    / ____/ |/ / ____/ ____/ /  / ___//  _/ __ \/ __ \   [ v2 ]
   / __/  |   / /   / __/ / /   \__ \ / // / / / /_/ /   Architectural Autopilot

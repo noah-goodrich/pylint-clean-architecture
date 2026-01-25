@@ -1,21 +1,18 @@
 # Why CLI Violations Weren’t Caught: Diagnosis
 
-## 1. What We *Do* Catch (and Why It Persisted Anyway)
+## 1. W9001 (clean-arch-dependency): Why You Don’t See It in the Audit
 
-### W9001 (clean-arch-dependency): Interface → Infrastructure
+### The rule *does* fire when we lint app code
 
 - **Rule**: `DependencyChecker` bans Interface from importing Infrastructure. Interface may only import UseCase and Domain.
-- **cli.py**: Mapped as `Interface` (`layer_map`: `"clean_architecture_linter.cli" = "Interface"`). It imports:
-  - `clean_architecture_linter.infrastructure.adapters.*` (Infrastructure)
-  - `clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway` (Infrastructure)
-  - `clean_architecture_linter.infrastructure.services.scaffolder` (Infrastructure)
-  - `clean_architecture_linter.di.container` (Infrastructure)
-- **Result**: W9001 **does** fire for these imports. Pre-flight reports ~10 W9001; several come from cli (and other Interface modules like checker/reporter).
-- **Why it persisted**: We **chose to tolerate** these violations:
-  - **Import-Linter** `ignore_imports` explicitly allows `cli → infrastructure.adapters.linter_adapters` and `cli → di.container`. That encodes “we allow cli to pull these.”
-  - We never fixed the underlying design (thin controller + use cases). The rules flagged it; we didn’t remediate.
+- **cli.py**: Mapped as `Interface`. It imports infrastructure (adapters, gateways, services, di.container) → W9001 **does** fire for those imports when pylint runs on `src`.
 
-**Conclusion**: The dependency rule *did* catch Interface→Infrastructure. We didn’t treat it as a hard stop.
+### Why the audit shows **no** W9001
+
+- **Default path**: `excelsior check` uses `path = "."` by default. The adapter runs `pylint <path>`.
+- **`pylint .` vs `pylint src`**: With this layout, `pylint .` discovers **root** (`__init__.py`, `debug_test_rule.py`) and **tests** only. It does **not** lint `src/` (where `clean_architecture_linter` lives). So we never run the dependency checker on cli or other app code.
+- **`pylint src`**: Lints `src/` → W9001 **does** appear (e.g. 11 violations from cli, config, etc.).
+- **Conclusion**: If you run `excelsior check` (default `.`), you **will not** see W9001. Pre-flight uses `excelsior check src`, so it *would* see W9001—but the **default** hides it. **Fix**: Use `excelsior check src` (or ensure the default lints `src`); see §4 and §6.
 
 ---
 
@@ -32,13 +29,16 @@
 
 **Conclusion**: The current god-file rule **cannot** catch cli’s “god module” structure. We’d need a separate “god module” / “too many top-level functions” rule.
 
-### 2.2 Import-Linter Contract Excludes `cli`
+### 2.2 Import-Linter Contract Excludes `cli` — and the Container Pattern
 
 - **Contract** (`pyproject.toml`): `layers = [checker, reporter, checks, domain]`, `containers = [clean_architecture_linter]`. **`cli` is not a layer.**
-- **Effect**: Import-Linter only validates imports **between** those four layers. It does **not** validate `cli`’s imports. The `ignore_imports` entries for `cli → …` are effectively unused for that contract (or apply only if cli were ever folded into a layer).
-- **Gap**: We don’t enforce layer boundaries on `cli` via Import-Linter. All layer enforcement on cli comes from the **Pylint** DependencyChecker (W9001).
+- **Effect**: Import-Linter only validates imports **between** those four layers. It does **not** validate `cli`’s imports.
+- **Where does the CLI front controller belong?** Same place as **app.js** in a web app: the **outermost Interface** (entrypoint). It handles user input and delegates to use cases / services.
+- **Intended pattern**: The **container** (composition root) is the thing that “talks across layers”: it wires Infrastructure → UseCases, and exposes use cases (or a facade) to the Interface. The **CLI should only talk to the container and inward** (e.g. container, use cases, domain). It must **not** import adapters, gateways, or services directly.
+- **Gap**: We never modelled this. We put `cli` in the layer_map as Interface but **did not** add it to Import-Linter. We then added `ignore_imports` for `cli → infrastructure.adapters` and `cli → di.container`, which **encodes the wrong pattern**: we’re explicitly allowing cli to pull infrastructure, instead of enforcing “cli → container only.”
+- **Fix**: Add `cli` (and similar entrypoints) as a layer in Import-Linter. Allow **only** `cli → container` (and optionally `cli → use_cases` / domain). Remove the `ignore_imports` that allow `cli → infrastructure`. The container remains the only component that touches infrastructure.
 
-**Conclusion**: Import-Linter was never applied to cli. We rely only on Pylint for cli’s dependency violations.
+**Conclusion**: Import-Linter was never applied to cli. We also inverted the intended design: cli should talk to the container, not to infrastructure. Fixing the contract and removing those ignores closes the gap.
 
 ### 2.3 No “Thin Controller” / “Orchestration Bloat” Rule
 
@@ -59,42 +59,43 @@
 
 | Rule / Tool            | Could catch cli?        | Why it didn’t / did |
 |------------------------|-------------------------|---------------------|
-| W9001 (dependency)     | Yes                     | **Did** catch. We tolerated it; import-linter ignores encode allowed exceptions. |
+| W9001 (dependency)     | Yes                     | **Rule works**, but default `excelsior check` uses `path="."` → pylint lints root/tests only, **not** `src/` → W9001 never appears in audit. |
 | W9010 (god-file)       | No                      | **Only classes.** cli has no classes → never triggers. |
 | W9011 (root logic)     | No                      | cli not in root → rule doesn’t apply. |
 | Import-Linter          | No                      | **cli not a layer** → not validated. |
-| “God module”           | Would help              | **Rule doesn’t exist.** |
+| “God module”           | Would help              | **Rule didn’t exist**; now added (see §6). |
 | “Thin controller”      | Would help              | **Rule doesn’t exist.** |
 
 ---
 
 ## 4. Why This Was “Allowed” to Persist
 
-1. **W9001 fires** on Interface→Infrastructure, including cli. We accepted those violations and added import-linter ignores for two specific edges.
-2. **W9010** can’t see cli at all, because it only considers classes.
+1. **W9001** never showed up in the audit because we typically run `excelsior check` (default `"."`), and `pylint .` doesn’t lint `src/`. So we never saw Interface→Infrastructure violations for cli.
+2. **W9010** can’t see cli, because it only considers classes.
 3. **Import-Linter** doesn’t model cli as a layer, so it never enforced cli’s imports.
-4. We have **no rules** for “god module” (too many functions) or “thin controller” (orchestration bloat). So those design issues were never enforced.
+4. We had **no** “god module” rule (function-only files); we’ve since added one.
+5. We have **no** “thin controller” rule, so orchestration bloat wasn’t enforced.
 
 ---
 
 ## 5. Rules That *Don’t* Exist But *Should* (To Prevent This)
 
-1. **God-module / “too many top-level functions”**  
+1. **God-module / “too many top-level functions”**
    - Flag modules that have:
-     - No (or very few) classes, and  
-     - Many top-level functions (e.g. &gt; N), or high “orchestration” density (calls to many different domains).  
+     - No (or very few) classes, and
+     - Many top-level functions (e.g. &gt; N), or high “orchestration” density (calls to many different domains).
    - Would have made cli’s structure visible even without classes.
 
-2. **Thin-controller / “orchestration scope” for Interface**  
-   - E.g. “Interface modules may not define more than X logic statements / use-case calls.”  
+2. **Thin-controller / “orchestration scope” for Interface**
+   - E.g. “Interface modules may not define more than X logic statements / use-case calls.”
    - Would push routing and wiring into use cases / services and keep Interface thin.
 
-3. **Include `cli` (and similar entrypoints) in Import-Linter**  
-   - Add `cli` as a layer (e.g. “CLI” or “Entrypoint”) and enforce its allowed imports.  
+3. **Include `cli` (and similar entrypoints) in Import-Linter**
+   - Add `cli` as a layer (e.g. “CLI” or “Entrypoint”) and enforce its allowed imports.
    - Then we could remove or narrow import-linter `ignore_imports` and enforce those boundaries explicitly.
 
-4. **Optional: “Interface must not instantiate Infrastructure”**  
-   - Stricter than “no import”: even with Protocol-based UseCases, Interface must not `new` adapters/gateways.  
+4. **Optional: “Interface must not instantiate Infrastructure”**
+   - Stricter than “no import”: even with Protocol-based UseCases, Interface must not `new` adapters/gateways.
    - Would have forced DI/container usage earlier and made cli’s current design impossible.
 
 ---

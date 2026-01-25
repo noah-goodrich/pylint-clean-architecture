@@ -3,10 +3,10 @@ from unittest.mock import MagicMock, patch
 from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
 
 
-def test_gather_results_success():
+def test_gather_results_success() -> None:
     adapter = ImportLinterAdapter()
 
-    mock_output = """
+    mock_output: str = """
 Some header
 Broken contracts
 ----------------
@@ -33,7 +33,7 @@ domain.entities is not allowed to import infrastructure.db
         assert "domain_isolation" in results[0].message
         assert "is not allowed to import" in results[0].message
 
-def test_gather_results_fallback():
+def test_gather_results_fallback() -> None:
     adapter = ImportLinterAdapter()
 
     with patch("subprocess.run") as mock_run:
@@ -47,7 +47,7 @@ def test_gather_results_fallback():
         # Should return empty list (success)
         assert results == []
 
-def test_gather_results_exception():
+def test_gather_results_exception() -> None:
     adapter = ImportLinterAdapter()
     with patch("subprocess.run", side_effect=Exception("Boom")):
         results = adapter.gather_results("src")
