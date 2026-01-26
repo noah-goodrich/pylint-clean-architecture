@@ -48,15 +48,19 @@ class ApplyFixesUseCase:
         modified_count: int = 0
         rollback_occurred: bool = False
 
+        failed_fixes_all: List[str] = []
+
         for file_path in files:
             if file_path.suffix != ".py":
                 continue
-            
+
             # Rule-based discovery: collect transformers from rules
-            transformers = self._collect_transformers_from_rules(rules, file_path)
+            transformers, failed_fixes = self._collect_transformers_from_rules(rules, file_path)
+            failed_fixes_all.extend(failed_fixes)
+
             if not transformers:
                 continue
-            
+
             if self._skip_confirmation(file_path, transformers):
                 continue
 
@@ -79,6 +83,13 @@ class ApplyFixesUseCase:
         if self.telemetry:
             status = "with rollbacks" if rollback_occurred else "complete"
             self.telemetry.step(f"🛠️ Fix Suite {status}. Files repaired: {modified_count}")
+
+            # Report failed fixes
+            if failed_fixes_all:
+                self.telemetry.step(f"⚠️  {len(failed_fixes_all)} fix(es) could not be applied:")
+                for failure in failed_fixes_all:
+                    self.telemetry.error(f"  {failure}")
+
         return modified_count
 
     def _run_baseline_if_enabled(self) -> None:
@@ -147,20 +158,20 @@ class ApplyFixesUseCase:
         4. Collect all transformers
         """
         transformers: List["cst.CSTTransformer"] = []
-        
+
         try:
             # Parse file with astroid to get module node
             with open(file_path, "r", encoding="utf-8") as f:
                 source = f.read()
-            
+
             module_node = astroid.parse(source, str(file_path))
-            
+
             # Iterate through all enabled rules
             for rule in rules:
                 try:
                     # Run rule.check() to find violations
                     violations = rule.check(module_node)
-                    
+
                     # For each fixable violation, get transformer
                     for violation in violations:
                         if violation.fixable:
@@ -172,11 +183,11 @@ class ApplyFixesUseCase:
                     if self.telemetry:
                         self.telemetry.error(f"Rule {rule.code} failed on {file_path}: {e}")
                     continue
-                    
+
         except Exception as e:
             if self.telemetry:
                 self.telemetry.error(f"Failed to parse {file_path}: {e}")
-        
+
         return transformers
 
     def _confirm_fix(self, file_path: Path, transformers: List["cst.CSTTransformer"]) -> bool:

@@ -95,8 +95,14 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
                 "Inject the implementation via constructor."
             ),
             "clean-arch-demeter": (
-                "Reduce chaining (e.g. a.b.c()). Store the result of a.b in a variable, "
-                "then call .c() on it. Or add a delegated method on the immediate object."
+                "Manual architectural change required. Extract this chain into a delegated method "
+                "on the immediate dependency to preserve encapsulation. Do not use temporary variables "
+                "as a workaround - this is a linter cheat that bypasses the architectural issue."
+            ),
+            "W9006": (
+                "Manual architectural change required. Extract this chain into a delegated method "
+                "on the immediate dependency to preserve encapsulation. Do not use temporary variables "
+                "as a workaround - this is a linter cheat that bypasses the architectural issue."
             ),
             "contract-integrity-violation": (
                 "Class in Infrastructure must implement a Domain protocol. "

@@ -18,6 +18,8 @@ class Violation:
     location: str
     node: astroid.nodes.NodeNG
     fixable: bool = False
+    fix_failure_reason: Optional[str] = None
+    """Reason why an auto-fix wasn't possible (e.g., 'Inference failed', 'Banned Any type')."""
 
 
 class BaseRule(Protocol):
@@ -31,7 +33,15 @@ class BaseRule(Protocol):
         ...
 
     def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
-        """Return a LibCST transformer to resolve the violation."""
+        """
+        Return a transformer ONLY if the resolution is deterministic.
+        
+        If inference fails or would require banned types (e.g., Any), return None
+        and ensure the Violation object captures the reason in fix_failure_reason.
+        
+        Returns:
+            CSTTransformer if fix is deterministic and safe, None otherwise.
+        """
         ...
 
     def get_fix_instructions(self, violation: Violation) -> str:

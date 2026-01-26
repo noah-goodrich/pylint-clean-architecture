@@ -1,6 +1,6 @@
 """LibCST based Fixer Gateway."""
 
-from typing import List, Optional
+from typing import List
 
 import libcst as cst
 
@@ -26,12 +26,12 @@ class LibCSTFixerGateway(FixerGatewayProtocol):
                 source = f.read()
             module = cst.parse_module(source)
             original_code = module.code
-            
+
             # Apply all transformers sequentially
             for transformer in transformers:
                 if transformer is not None:
                     module = module.visit(transformer)
-            
+
             # Only write if code changed
             if module.code != original_code:
                 with open(file_path, "w", encoding="utf-8") as f:
