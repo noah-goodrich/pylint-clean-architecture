@@ -5,12 +5,13 @@
 import os
 import subprocess
 from pathlib import Path
+from subprocess import CompletedProcess
 
 # Plugin Discovery
 PLUGIN_DIR = Path("/development/pylint-clean-architecture/src").resolve()
 
 
-def run_pylint(file_path):
+def run_pylint(file_path) -> CompletedProcess:
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{PLUGIN_DIR}:{env.get('PYTHONPATH', '')}"
 

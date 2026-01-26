@@ -20,18 +20,16 @@ class TestFixCommandIsolated:
         project_dir.mkdir()
 
         # Create a simple Python file with a fixable issue
+        # Use a function that returns a string literal - this is fixable by W9015
         test_file = project_dir / "example.py"
-        test_file.write_text("""# Example file with violations
-from typing import Dict
+        test_file.write_text("""# Example file with fixable violations
+def get_message():
+    '''Missing return type hint - fixable because returns string literal'''
+    return "Hello, world"
 
-def calculate(x, y):
-    '''Missing type hints'''
-    return x + y
-
-class DataHolder:
-    '''Mutable dataclass that should be frozen'''
-    def __init__(self):
-        self.value = 0
+def get_number() -> int:
+    '''Has return type, but missing parameter type'''
+    return 42
 """)
 
         # Create a test file so pytest validation works

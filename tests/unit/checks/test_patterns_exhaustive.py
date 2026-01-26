@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.patterns import CouplingChecker, PatternChecker
+from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker, PatternChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
 
@@ -32,7 +32,7 @@ class TestPatternCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         self.checker.visit_if(node)
         self.assertAddsMessage(self.checker, "clean-arch-delegation", node=node)
 
-    def _create_return_call(self):
+    def _create_return_call(self) -> MagicMock:
         ret = create_strict_mock(astroid.nodes.Return)
         ret.value = create_strict_mock(astroid.nodes.Call)
         return ret
@@ -169,7 +169,7 @@ class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         self.checker.visit_call(call)
         self.assertAddsMessage(self.checker, "clean-arch-demeter", node=call, args=("x.do_something (Stranger)",))
 
-def create_strict_mock(spec_cls, **attrs):
+def create_strict_mock(spec_cls, **attrs) -> MagicMock:
     """Helper duplicate."""
     m = MagicMock(spec=spec_cls)
     for k, v in attrs.items():

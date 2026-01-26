@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, cast
 
-from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.constants import (
+from clean_architecture_linter.domain.config import ConfigurationLoader
+from clean_architecture_linter.domain.constants import (
     AGENT_INSTRUCTIONS_TEMPLATE,
     HANDSHAKE_SNIPPET,
     ONBOARDING_TEMPLATE,

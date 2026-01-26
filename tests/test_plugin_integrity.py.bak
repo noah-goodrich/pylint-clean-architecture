@@ -36,13 +36,13 @@ def run_pylint(file_path):
         ("violation_bypass_unlisted.py", "W9501"),
     ],
 )
-def test_bait_violations(bait_file, expected_id):
+def test_bait_violations(bait_file, expected_id) -> None:
     path = os.path.join(os.path.dirname(__file__), "bait", bait_file)
     output = run_pylint(path)
     assert expected_id in output, f"Expected {expected_id} in output for {bait_file}, but got:\n{output}"
 
 
-def test_clean_file():
+def test_clean_file() -> None:
     path = os.path.join(os.path.dirname(__file__), "bait", "clean_file.py")
     output = run_pylint(path)
     # Ensure no arch warnings

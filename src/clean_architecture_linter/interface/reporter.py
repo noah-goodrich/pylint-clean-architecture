@@ -148,7 +148,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
         # Totals row with Ops Gold
         totals_row = [f"{self.BOLD}{self.GOLD}{'Fleet Total':<{widths[0]}}{self.RESET}"]
         totals_row.append(f"{' ':<{widths[1]}}")
-        totals_row.append(f"{self.BOLD}{self.GOLD}{str(total_errors):<{widths[2]}}{self.RESET}")
+        totals_row.append(f"{self.BOLD}{self.GOLD}{total_errors!s:<{widths[2]}}{self.RESET}")
         for i, pkg in enumerate(sorted_packages):
             val = str(package_totals[pkg])
             totals_row.append(f"{self.BOLD}{self.GOLD}{val:<{widths[3 + i]}}{self.RESET}")

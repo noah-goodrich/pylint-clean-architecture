@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.design import DesignChecker
+from clean_architecture_linter.use_cases.checks.design import DesignChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 

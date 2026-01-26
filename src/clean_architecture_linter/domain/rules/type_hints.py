@@ -18,7 +18,7 @@ from clean_architecture_linter.infrastructure.gateways.transformers import (
 class MissingTypeHintRule:
     """
     High-Integrity Rule for Missing Type Hints (W9015).
-    
+
     Only fixes when type inference is deterministic and non-Any.
     """
 
@@ -31,7 +31,7 @@ class MissingTypeHintRule:
     def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
         """
         Check for missing type hints in function definitions.
-        
+
         Returns violations with fixable=True only when type can be deterministically inferred.
         """
         violations: List[Violation] = []
@@ -63,9 +63,11 @@ class MissingTypeHintRule:
 
                 # Check if parameter has annotation
                 has_hint = False
-                if i < len(func_def.args.annotations) and func_def.args.annotations[i]:
-                    has_hint = True
-                elif hasattr(arg, "annotation") and arg.annotation:
+                has_annotation = (
+                    (i < len(func_def.args.annotations) and func_def.args.annotations[i])
+                    or (hasattr(arg, "annotation") and arg.annotation)
+                )
+                if has_annotation:
                     has_hint = True
 
                 if not has_hint:
@@ -91,7 +93,12 @@ class MissingTypeHintRule:
                 return self.ast_gateway.get_return_type_qname_from_expr(return_node.value)
         return None
 
-    def _infer_parameter_type(self, func_def: astroid.nodes.FunctionDef, arg: astroid.nodes.Arguments, index: int) -> Optional[str]:
+    def _infer_parameter_type(
+        self,
+        func_def: astroid.nodes.FunctionDef,
+        arg: astroid.nodes.Arguments,
+        index: int,
+    ) -> Optional[str]:
         """Infer parameter type from default value or usage."""
         # Check if there's a default value
         args = func_def.args
@@ -109,7 +116,7 @@ class MissingTypeHintRule:
     def _can_fix_type(self, type_qname: Optional[str]) -> tuple[bool, Optional[str]]:
         """
         Determine if a type can be safely fixed.
-        
+
         Returns:
             (fixable: bool, failure_reason: Optional[str])
         """
@@ -130,7 +137,7 @@ class MissingTypeHintRule:
     def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
         """
         Return a transformer to fix the missing type hint.
-        
+
         Only called if violation.fixable is True.
         """
         if not violation.fixable:

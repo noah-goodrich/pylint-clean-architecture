@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, List, Optional, Protocol
 
 if TYPE_CHECKING:
     # JUSTIFICATION: Type checking imports for Domain Protocol definitions
     import astroid  # type: ignore[import-untyped] # pylint: disable=clean-arch-resources
 
     # JUSTIFICATION: Type checking imports for Domain Protocol definitions
-    from clean_architecture_linter.config import ConfigurationLoader  # pylint: disable=clean-arch-resources
+    from clean_architecture_linter.domain.config import ConfigurationLoader  # pylint: disable=clean-arch-resources
     from clean_architecture_linter.domain.entities import LinterResult
 
 
@@ -72,3 +72,38 @@ class TelemetryPort(Protocol):
     def step(self, message: str) -> None: ...
     def error(self, message: str) -> None: ...
     def handshake(self) -> None: ...
+
+
+class FileSystemProtocol(Protocol):
+    """Protocol for filesystem operations - abstracts Path usage."""
+    def resolve_path(self, path: str) -> str:
+        """Resolve and normalize a path string."""
+        ...
+
+    def is_directory(self, path: str) -> bool:
+        """Check if path is a directory."""
+        ...
+
+    def glob_python_files(self, path: str) -> List[str]:
+        """Get all Python files in path (recursive if directory)."""
+        ...
+
+    def get_path_string(self, path: str) -> str:
+        """Convert path to string representation."""
+        ...
+
+    def make_dirs(self, path: str, exist_ok: bool = True) -> None:
+        """Create directory and parent directories if needed."""
+        ...
+
+    def write_text(self, path: str, content: str, encoding: str = "utf-8") -> None:
+        """Write text content to a file."""
+        ...
+
+    def join_path(self, *paths: str) -> str:
+        """Join path components into a single path string."""
+        ...
+
+    def get_mtime(self, path: str) -> float:
+        """Get file modification time as timestamp."""
+        ...

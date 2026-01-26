@@ -8,9 +8,9 @@ from pylint.checkers import BaseChecker
 if TYPE_CHECKING:
     from pylint.lint import PyLinter
 
-from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.domain.config import ConfigurationLoader
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
 from clean_architecture_linter.domain.protocols import AstroidProtocol
-from clean_architecture_linter.layer_registry import LayerRegistry
 
 
 class DesignChecker(BaseChecker):
@@ -150,9 +150,7 @@ class DesignChecker(BaseChecker):
                 continue
 
             has_hint: bool = False
-            if i < len(args.annotations) and args.annotations[i]:
-                has_hint: bool = True
-            elif hasattr(arg, "annotation") and arg.annotation:
+            if (i < len(args.annotations) and args.annotations[i]) or (hasattr(arg, "annotation") and arg.annotation):
                 has_hint: bool = True
 
             if not has_hint:
@@ -180,9 +178,11 @@ class DesignChecker(BaseChecker):
     def _recursive_check_any(self, node: astroid.nodes.NodeNG, context: str) -> None:
         """Logic for detecting 'Any' usage."""
         found_any: bool = False
-        if isinstance(node, astroid.nodes.Name) and node.name == "Any":
-            found_any: bool = True
-        elif isinstance(node, astroid.nodes.Attribute) and node.attrname == "Any":
+        is_any_name = isinstance(node, astroid.nodes.Name) and node.name == "Any"
+        is_any_attr = (
+            isinstance(node, astroid.nodes.Attribute) and node.attrname == "Any"
+        )
+        if is_any_name or is_any_attr:
             found_any: bool = True
         elif isinstance(node, astroid.nodes.Subscript):
             self._recursive_check_any(node.value, context)
@@ -205,7 +205,7 @@ class DesignChecker(BaseChecker):
                     line_bytes: bytes = lines[node.lineno - 1]
                     line_str: str = line_bytes.decode("utf-8")
                     return "noqa: W9016" in line_str and "JUSTIFICATION:" in line_str.upper()
-        except (AttributeError, IndexError, IOError):
+        except (OSError, AttributeError, IndexError):
             pass
         return False
 

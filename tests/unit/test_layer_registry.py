@@ -1,6 +1,6 @@
 import unittest
 
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
 
 
 class TestLayerRegistry(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestLayerRegistry(unittest.TestCase):
 
     def test_registry_presets(self) -> None:
         """Test that project_type presets update the SUFFIX_MAP."""
-        from clean_architecture_linter.layer_registry import LayerRegistryConfig
+        from clean_architecture_linter.domain.layer_registry import LayerRegistryConfig
 
         registry = LayerRegistry(LayerRegistryConfig(project_type="fastapi_sqlalchemy"))
         self.assertEqual(registry.resolve_layer("UserModel", ""), "Infrastructure")
@@ -61,7 +61,7 @@ class TestLayerRegistry(unittest.TestCase):
         """Test layer detection via inheritance using base_class_map."""
         from unittest.mock import MagicMock
 
-        from clean_architecture_linter.layer_registry import LayerRegistryConfig
+        from clean_architecture_linter.domain.layer_registry import LayerRegistryConfig
 
         config = LayerRegistryConfig()
         config.base_class_map = {"BaseUseCase": "UseCase"}

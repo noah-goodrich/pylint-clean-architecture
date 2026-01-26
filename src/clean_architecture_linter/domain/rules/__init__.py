@@ -20,6 +20,8 @@ class Violation:
     fixable: bool = False
     fix_failure_reason: Optional[str] = None
     """Reason why an auto-fix wasn't possible (e.g., 'Inference failed', 'Banned Any type')."""
+    is_comment_only: bool = False
+    """True if fix injects governance comments only (not structural changes)."""
 
 
 class BaseRule(Protocol):
@@ -35,10 +37,10 @@ class BaseRule(Protocol):
     def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
         """
         Return a transformer ONLY if the resolution is deterministic.
-        
+
         If inference fails or would require banned types (e.g., Any), return None
         and ensure the Violation object captures the reason in fix_failure_reason.
-        
+
         Returns:
             CSTTransformer if fix is deterministic and safe, None otherwise.
         """

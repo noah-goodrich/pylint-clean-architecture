@@ -3,19 +3,19 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.design import DesignChecker
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
+from clean_architecture_linter.use_cases.checks.design import DesignChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
 
 class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.linter = MagicMock()
         self.gateway = MagicMock()
         self.checker = DesignChecker(self.linter, ast_gateway=self.gateway)
         self.checker.open() # Load config
 
-    def test_visit_return_naked_return_raw_type(self):
+    def test_visit_return_naked_return_raw_type(self) -> None:
         """W9007: Return of raw type triggers violation."""
         # Setup Return node
         node = create_strict_mock(astroid.nodes.Return)
@@ -31,7 +31,7 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
 
         self.assertAddsMessage(self.checker, "naked-return-violation", node=node)
 
-    def test_visit_assign_missing_abstraction(self):
+    def test_visit_assign_missing_abstraction(self) -> None:
         """W9009: Assigning infrastructure object in UseCase."""
         # Setup Assign node
         node = create_strict_mock(astroid.nodes.Assign)
@@ -58,7 +58,7 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
 
         self.assertAddsMessage(self.checker, "missing-abstraction-violation", node=node)
 
-    def test_defensive_none_check_in_domain(self):
+    def test_defensive_none_check_in_domain(self) -> None:
         """W9012: Defensive None check in Domain layer."""
         # if x is None: raise ValueError
         node = create_strict_mock(astroid.nodes.If)
@@ -81,7 +81,7 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         self.checker.visit_if(node)
         self.assertAddsMessage(self.checker, "defensive-none-check", node=node)
 
-    def test_any_in_signature_recursive(self):
+    def test_any_in_signature_recursive(self) -> None:
         """W9016: Explicit 'Any' in generic aliases."""
         # def foo(x: List[Any]) -> None: ...
         node = create_strict_mock(astroid.nodes.FunctionDef)

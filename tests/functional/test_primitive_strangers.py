@@ -1,6 +1,6 @@
-from clean_architecture_linter.checks.patterns import CouplingChecker
 from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
 from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
+from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
 from tests.linter_test_utils import run_checker
 
 ast_gateway = AstroidGateway()

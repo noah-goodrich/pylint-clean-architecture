@@ -36,7 +36,7 @@ class CheckerTestCase:
         """Verify that checker.add_message was called."""
         # We assert on the linter mock
         calls = checker.linter.add_message.call_args_list
-        found = False
+        found: bool = False
         target_node = node
         target_args = args
 
@@ -70,7 +70,7 @@ class CheckerTestCase:
                 if actual_args != target_args:
                     continue
 
-            found = True
+            found: bool = True
             break
 
         if not found:

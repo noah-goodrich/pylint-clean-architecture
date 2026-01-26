@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.structure import ModuleStructureChecker
+from clean_architecture_linter.use_cases.checks.structure import ModuleStructureChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
@@ -52,7 +52,7 @@ class TestModuleStructureChecker(unittest.TestCase, CheckerTestCase):
         node = create_mock_node(
             astroid.nodes.Module, name="root_logic", file="/project/root_logic.py")
 
-        with patch("clean_architecture_linter.checks.structure.Path.cwd", return_value=Path("/project")):
+        with patch("clean_architecture_linter.use_cases.checks.structure.Path.cwd", return_value=Path("/project")):
             self.checker.visit_module(node)
 
         self.assertAddsMessage(

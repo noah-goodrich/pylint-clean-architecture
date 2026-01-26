@@ -3,7 +3,7 @@ import unittest
 from collections import namedtuple
 from unittest.mock import MagicMock
 
-from clean_architecture_linter.reporter import CleanArchitectureSummaryReporter
+from clean_architecture_linter.interface.reporter import CleanArchitectureSummaryReporter
 
 Message = namedtuple("Message", ["msg_id", "symbol", "path"])
 

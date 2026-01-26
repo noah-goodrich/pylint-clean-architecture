@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from types import NoneType
 
 import pytest
 
@@ -40,7 +41,7 @@ layers = [
     return root
 
 
-def run_pylint(file_path, root_dir):
+def run_pylint(file_path, root_dir) -> NoneType:
     """Run pylint via subprocess to avoid SystemExit issues."""
     import subprocess
 

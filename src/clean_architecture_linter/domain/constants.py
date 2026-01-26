@@ -59,7 +59,8 @@ This project adheres to **Clean Architecture** principles enforced by the `pylin
 ## Layer Boundaries
 
 The project is structured into strict layers.
-Inner layers ({domain_layer}, {use_case_layer}) **MUST NOT** import from Outer layers ({infrastructure_layer}, {interface_layer}).
+Inner layers ({domain_layer}, {use_case_layer}) **MUST NOT** import from Outer layers
+({infrastructure_layer}, {interface_layer}).
 
 ### 1. {domain_layer} Layer
 *   **Purpose**: Contains pure business logic, entities, and protocols (interfaces).

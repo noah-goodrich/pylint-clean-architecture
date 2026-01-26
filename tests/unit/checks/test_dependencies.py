@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, PropertyMock
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.dependencies import DependencyChecker
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
+from clean_architecture_linter.use_cases.checks.dependencies import DependencyChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 

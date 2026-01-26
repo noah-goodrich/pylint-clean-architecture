@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.boundaries import ResourceChecker, VisibilityChecker
+from clean_architecture_linter.use_cases.checks.boundaries import ResourceChecker, VisibilityChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 

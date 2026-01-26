@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.domain.config import ConfigurationLoader
 
 
 def test_config_validation_penalty(caplog) -> None:

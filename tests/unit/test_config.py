@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import mock_open, patch
 
-from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.domain.config import ConfigurationLoader
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
 
 
 class TestConfigurationLoader(unittest.TestCase):

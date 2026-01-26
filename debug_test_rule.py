@@ -12,7 +12,7 @@ from clean_architecture_linter.checks.rules.missing_type_hint import MissingType
 
 
 # We need a strict mock creator that sets attributes properly
-def create_strict_mock(spec_cls, **attrs):
+def create_strict_mock(spec_cls, **attrs) -> MagicMock:
     m = MagicMock(spec=spec_cls)
     for k, v in attrs.items():
         setattr(m, k, v)

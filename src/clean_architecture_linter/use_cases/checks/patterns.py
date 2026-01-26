@@ -8,7 +8,7 @@ from pylint.checkers import BaseChecker
 if TYPE_CHECKING:
     from pylint.lint import PyLinter
 
-from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
 
 _MIN_CHAIN_LENGTH: int = 2

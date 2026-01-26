@@ -7,7 +7,7 @@ import astroid  # type: ignore[import-untyped]
 from clean_architecture_linter.domain.protocols import PythonProtocol
 
 if TYPE_CHECKING:
-    from clean_architecture_linter.config import ConfigurationLoader
+    from clean_architecture_linter.domain.config import ConfigurationLoader
 
 
 class PythonGateway(PythonProtocol):
@@ -27,10 +27,9 @@ class PythonGateway(PythonProtocol):
         if hasattr(sys, "stdlib_module_names"):
             if module_name in sys.stdlib_module_names:
                 return True
-        else:
-            # Fallback for older python, though Excelsior targets modern stacks
-            if module_name in sys.builtin_module_names:
-                return True
+        # Fallback for older python, though Excelsior targets modern stacks
+        elif module_name in sys.builtin_module_names:
+            return True
 
         # 2. Check path location for bundled modules that might not be in the set
         try:

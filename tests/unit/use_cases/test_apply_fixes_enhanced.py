@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
 from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
 
 
@@ -18,9 +19,19 @@ class TestApplyFixesEnhanced:
 
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = True
+        filesystem = FileSystemGateway()
 
-        use_case = ApplyFixesUseCase(fixer_gateway, create_backups=True)
-        use_case.execute([], str(test_file))
+        # Create a mock rule that will generate a transformer
+        mock_rule = MagicMock()
+        mock_violation = MagicMock()
+        mock_violation.fixable = True
+        mock_violation.location = str(test_file)
+        mock_transformer = MagicMock()
+        mock_rule.check.return_value = [mock_violation]
+        mock_rule.fix.return_value = mock_transformer
+
+        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, create_backups=True)
+        use_case.execute([mock_rule], str(test_file))
 
         backup_file = tmp_path / "example.py.bak"
         assert backup_file.exists()
@@ -32,7 +43,8 @@ class TestApplyFixesEnhanced:
         test_file.write_text("x = 1\n")
 
         fixer_gateway = MagicMock()
-        use_case = ApplyFixesUseCase(fixer_gateway, require_confirmation=True)
+        filesystem = FileSystemGateway()
+        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, require_confirmation=True)
 
         with patch('sys.stdin.isatty', return_value=True), patch(
             'builtins.input', return_value='n'
@@ -50,13 +62,23 @@ class TestApplyFixesEnhanced:
 
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = True
+        filesystem = FileSystemGateway()
 
-        use_case = ApplyFixesUseCase(fixer_gateway, require_confirmation=True)
+        # Create a mock rule that will generate a transformer
+        mock_rule = MagicMock()
+        mock_violation = MagicMock()
+        mock_violation.fixable = True
+        mock_violation.location = str(test_file)
+        mock_transformer = MagicMock()
+        mock_rule.check.return_value = [mock_violation]
+        mock_rule.fix.return_value = mock_transformer
+
+        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, require_confirmation=True)
 
         with patch('sys.stdin.isatty', return_value=True), patch(
             'builtins.input', return_value='y'
         ):
-            result = use_case.execute([], str(test_file))
+            result = use_case.execute([mock_rule], str(test_file))
 
         fixer_gateway.apply_fixes.assert_called_once()
         assert result == 1
@@ -68,8 +90,9 @@ class TestApplyFixesEnhanced:
 
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = True
+        filesystem = FileSystemGateway()
 
-        use_case = ApplyFixesUseCase(fixer_gateway, validate_with_tests=True)
+        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, validate_with_tests=True)
 
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(
@@ -89,8 +112,10 @@ class TestApplyFixesEnhanced:
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = True
 
+        filesystem = FileSystemGateway()
         use_case = ApplyFixesUseCase(
             fixer_gateway,
+            filesystem,
             validate_with_tests=True,
             create_backups=True
         )
@@ -118,14 +143,25 @@ class TestApplyFixesEnhanced:
 
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = True
+        filesystem = FileSystemGateway()
+
+        # Create a mock rule that will generate a transformer
+        mock_rule = MagicMock()
+        mock_violation = MagicMock()
+        mock_violation.fixable = True
+        mock_violation.location = str(test_file)
+        mock_transformer = MagicMock()
+        mock_rule.check.return_value = [mock_violation]
+        mock_rule.fix.return_value = mock_transformer
 
         use_case = ApplyFixesUseCase(
             fixer_gateway,
+            filesystem,
             validate_with_tests=False  # skip-tests
         )
 
         with patch('subprocess.run') as mock_run:
-            use_case.execute([], str(test_file))
+            use_case.execute([mock_rule], str(test_file))
 
         # Pytest should NOT be called
         pytest_calls = [
@@ -140,8 +176,10 @@ class TestApplyFixesEnhanced:
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = True
 
+        filesystem = FileSystemGateway()
         use_case = ApplyFixesUseCase(
             fixer_gateway,
+            filesystem,
             create_backups=True,
             cleanup_backups=True
         )
@@ -170,7 +208,8 @@ class TestApplyFixesEnhanced:
             }
         ]
 
-        use_case = ApplyFixesUseCase(fixer_gateway)
+        filesystem = FileSystemGateway()
+        use_case = ApplyFixesUseCase(fixer_gateway, filesystem)
         manual_suggestions = use_case.get_manual_fixes(str(test_file))
 
         assert len(manual_suggestions) == 1

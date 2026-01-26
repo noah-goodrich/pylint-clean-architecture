@@ -2,7 +2,7 @@
 
 import unittest
 
-from clean_architecture_linter.config import ConfigurationLoader
+from clean_architecture_linter.domain.config import ConfigurationLoader
 
 
 class TestRuffConfigMethods(unittest.TestCase):

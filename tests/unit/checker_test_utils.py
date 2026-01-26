@@ -4,7 +4,7 @@ import unittest.mock
 from unittest.mock import MagicMock
 
 
-def create_mock_node(cls, **attrs):
+def create_mock_node(cls, **attrs) -> MagicMock:
     """Create a mock node with specific attributes."""
     node = MagicMock()
     # node.name fallback?

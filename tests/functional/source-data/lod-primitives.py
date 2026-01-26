@@ -1,4 +1,4 @@
-from typing import Iterable, Iterator
+from collections.abc import Iterable, Iterator
 
 
 def typing_collections_trust(items: Iterable[str]) -> None:

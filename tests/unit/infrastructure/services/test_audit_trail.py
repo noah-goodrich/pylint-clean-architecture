@@ -1,0 +1,196 @@
+"""Unit tests for AuditTrailService."""
+
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import Mock
+
+from clean_architecture_linter.domain.entities import AuditResult, LinterResult
+from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from clean_architecture_linter.infrastructure.services.audit_trail import AuditTrailService
+from clean_architecture_linter.infrastructure.services.rule_analysis import RuleFixabilityService
+
+
+class TestAuditTrailService:
+    """Test AuditTrailService persistence logic."""
+
+    def test_save_audit_trail_creates_excelsior_directory(self) -> None:
+        """Test that .excelsior directory is created if it doesn't exist."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+
+                audit_result = AuditResult()
+                service.save_audit_trail(audit_result)
+
+                assert Path(".excelsior").exists()
+                assert Path(".excelsior").is_dir()
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_audit_trail_creates_json_file(self) -> None:
+        """Test that last_audit.json is created."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    mypy_results=[LinterResult("M001", "Type error", ["file.py:1"])],
+                    excelsior_results=[LinterResult("W9015", "Missing hint", ["file.py:2"])],
+                )
+                service.save_audit_trail(audit_result)
+
+                json_path = Path(".excelsior/last_audit.json")
+                assert json_path.exists()
+
+                import json
+                data = json.loads(json_path.read_text())
+                assert data["version"] == "2.0.0"
+                assert data["summary"]["type_integrity"] == 1
+                assert data["summary"]["architectural"] == 1
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_audit_trail_creates_txt_file(self) -> None:
+        """Test that last_audit.txt is created."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    excelsior_results=[LinterResult("W9015", "Missing hint", ["file.py:2"])],
+                )
+                service.save_audit_trail(audit_result)
+
+                txt_path = Path(".excelsior/last_audit.txt")
+                assert txt_path.exists()
+
+                content = txt_path.read_text()
+                assert "EXCELSIOR v2 AUDIT LOG" in content
+                assert "ARCHITECTURAL VIOLATIONS" in content
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_audit_trail_includes_fixability_info(self) -> None:
+        """Test that fixability information is included in JSON."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    excelsior_results=[LinterResult("W9015", "Missing hint", ["file.py:2"])],
+                )
+                service.save_audit_trail(audit_result)
+
+                import json
+                json_path = Path(".excelsior/last_audit.json")
+                data = json.loads(json_path.read_text())
+
+                violations = data["violations"]["architectural"]
+                assert len(violations) == 1
+                assert "fixable" in violations[0]
+                assert "manual_instructions" in violations[0]
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_audit_trail_handles_empty_results(self) -> None:
+        """Test that empty audit results are handled correctly."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult()
+                service.save_audit_trail(audit_result)
+
+                json_path = Path(".excelsior/last_audit.json")
+                assert json_path.exists()
+
+                import json
+                data = json.loads(json_path.read_text())
+                assert data["summary"]["type_integrity"] == 0
+                assert data["summary"]["architectural"] == 0
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_audit_trail_calls_telemetry(self) -> None:
+        """Test that telemetry.step is called with persistence message."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult()
+                service.save_audit_trail(audit_result)
+
+                telemetry.step.assert_called()
+                # Check that the call includes the path
+                call_args = [str(call) for call in telemetry.step.call_args_list]
+                assert any("Audit Trail persisted" in str(call) for call in call_args)
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_audit_trail_handles_ruff_when_disabled(self) -> None:
+        """Test that ruff violations are skipped when ruff_enabled is False."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    ruff_results=[LinterResult("E501", "Line too long", ["file.py:1"])],
+                    ruff_enabled=False,
+                )
+                service.save_audit_trail(audit_result)
+
+                import json
+                json_path = Path(".excelsior/last_audit.json")
+                data = json.loads(json_path.read_text())
+                assert data["violations"]["code_quality"] == []
+            finally:
+                os.chdir(original_cwd)

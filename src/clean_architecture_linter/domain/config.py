@@ -15,7 +15,7 @@ else:
         # Fallback for environment where neither is found during type checking
         toml_lib = None  # type: ignore
 
-from clean_architecture_linter.layer_registry import LayerRegistry, LayerRegistryConfig
+from clean_architecture_linter.domain.layer_registry import LayerRegistry, LayerRegistryConfig
 
 
 class ConfigurationLoader:
@@ -207,7 +207,7 @@ class ConfigurationLoader:
     @property
     def internal_modules(self) -> set[str]:
         """Return list of internal modules (merged with defaults)."""
-        from clean_architecture_linter.constants import DEFAULT_INTERNAL_MODULES
+        from clean_architecture_linter.domain.constants import DEFAULT_INTERNAL_MODULES
         return set(DEFAULT_INTERNAL_MODULES).union(self._get_set("internal_modules"))
 
     @property

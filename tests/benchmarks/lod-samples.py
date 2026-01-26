@@ -2,7 +2,7 @@
 import os
 
 
-def safe_calls():
+def safe_calls() -> A:
     # Builtins/Primitives (Category 1)
     "abc".strip().lower()
     x = [1, 2]
@@ -14,8 +14,8 @@ def safe_calls():
     os.path.join("a", "b").strip()
 
     class A:
-        def b(self): return self
-        def c(self): return self
+        def b(self) -> A: return self
+        def c(self) -> A: return self
         def test(self):
             # Self calls (depth 2 max)
             self.b().c()
@@ -25,7 +25,7 @@ class Stranger:
     def do_it(self): pass
 
 class Friend:
-    def get_stranger(self): return Stranger()
+    def get_stranger(self) -> Stranger: return Stranger()
 
 def bad_calls(f: Friend):
     # Direct chain on non-safe root (f is trusted but not local)

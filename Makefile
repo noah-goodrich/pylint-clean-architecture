@@ -45,3 +45,33 @@ test-all:
 
 lint:
 	PYTHONPATH=src pylint src/ --fail-under=10.0
+
+# Coverage Impact Analysis - Prioritize tests for filesystem-modifying code
+coverage-impact:
+	@echo "=== Coverage Impact Analysis: Filesystem-Modifying Code ==="
+	@mkdir -p .excelsior
+	PYTHONPATH=src pytest --cov=src \
+		--cov=src/clean_architecture_linter/use_cases/apply_fixes \
+		--cov=src/clean_architecture_linter/infrastructure/services/scaffolder \
+		--cov=src/clean_architecture_linter/infrastructure/gateways/filesystem_gateway \
+		--cov=src/clean_architecture_linter/infrastructure/gateways/libcst_fixer_gateway \
+		--cov=src/clean_architecture_linter/infrastructure/services/audit_trail \
+		--cov=src/clean_architecture_linter/infrastructure/gateways/transformers \
+		--coverage-impact \
+		--coverage-impact-top=50 \
+		--coverage-impact-json=.excelsior/coverage_impact.json \
+		-m "not slow" -q || true
+	@echo ""
+	@echo "📊 Analyzing filesystem-modifying code..."
+	@python3 scripts/analyze_filesystem_coverage.py
+
+# Coverage Impact Analysis - All code
+coverage-impact-all:
+	@echo "=== Coverage Impact Analysis: All Code ==="
+	PYTHONPATH=src pytest --cov=src \
+		--coverage-impact \
+		--coverage-impact-top=30 \
+		--coverage-impact-json=.excelsior/coverage_impact_all.json \
+		-m "not slow" || true
+	@echo ""
+	@echo "📊 Full analysis saved to .excelsior/coverage_impact_all.json"

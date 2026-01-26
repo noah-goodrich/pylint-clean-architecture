@@ -147,7 +147,7 @@ class RuffAdapter:
         except Exception as e:
             error_result = LinterResult(
                 code="RUFF_ERROR",
-                message=f"Ruff execution error: {str(e)}",
+                message=f"Ruff execution error: {e!s}",
                 locations=["system"]
             )
             return [error_result]
@@ -218,7 +218,7 @@ class RuffAdapter:
             # If JSON parsing fails, return a parse error
             parse_error = LinterResult(
                 code="RUFF_PARSE_ERROR",
-                message=f"Failed to parse Ruff output: {str(e)}",
+                message=f"Failed to parse Ruff output: {e!s}",
                 locations=["system"]
             )
             return [parse_error]
@@ -292,7 +292,7 @@ class RuffAdapter:
             ]
 
             # Use config from ConfigurationLoader if available
-            from clean_architecture_linter.config import ConfigurationLoader
+            from clean_architecture_linter.domain.config import ConfigurationLoader
             config_loader = ConfigurationLoader()
             merged_config = config_loader.get_merged_ruff_config()
 
@@ -323,5 +323,5 @@ class RuffAdapter:
             return False
         except Exception as e:
             if self.telemetry:
-                self.telemetry.step(f"❌ Ruff fix error: {str(e)}")
+                self.telemetry.step(f"❌ Ruff fix error: {e!s}")
             return False

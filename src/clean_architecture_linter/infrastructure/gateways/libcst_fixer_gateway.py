@@ -13,23 +13,28 @@ class LibCSTFixerGateway(FixerGatewayProtocol):
     def apply_fixes(self, file_path: str, transformers: List[cst.CSTTransformer]) -> bool:
         """
         Apply a list of CST transformers to a file.
-        
+
         Args:
             file_path: Path to the file to modify
             transformers: List of LibCST transformers to apply sequentially
-            
+
         Returns:
             True if the file was modified, False otherwise
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 source = f.read()
+            source_lines = source.splitlines()
             module = cst.parse_module(source)
             original_code = module.code
 
             # Apply all transformers sequentially
+            # Pass source_lines to transformers that need them (e.g., GovernanceCommentTransformer)
             for transformer in transformers:
                 if transformer is not None:
+                    # If transformer needs source_lines, inject them
+                    if hasattr(transformer, "source_lines") and not transformer.source_lines:
+                        transformer.source_lines = source_lines
                     module = module.visit(transformer)
 
             # Only write if code changed

@@ -1,6 +1,6 @@
 """LibCST Transformers for code fixes."""
 
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 import libcst as cst
 
@@ -268,3 +268,125 @@ class TypeIntegrityTransformer(cst.CSTTransformer):
         return updated_node
 
 
+class GovernanceCommentTransformer(cst.CSTTransformer):
+    """
+    Transformer to inject governance directive comments above violation lines.
+
+    These comments provide contextual anchors for both humans and AI (Cursor)
+    to understand the architectural issue and recommended fix.
+
+    The comment format is standardized and machine-parseable:
+    # EXCELSIOR: [Rule Code] - [Rule Name]
+    # Problem: [Specific issue description]
+    # Recommendation: [Actionable fix guidance]
+    # Context: [Relevant details] (optional)
+    """
+
+    def __init__(self, context: dict) -> None:
+        self.rule_code = context.get("rule_code", "")
+        self.rule_name = context.get("rule_name", "")
+        self.problem = context.get("problem", "")
+        self.recommendation = context.get("recommendation", "")
+        self.context_info = context.get("context_info", "")
+        self.target_line = context.get("target_line", 0)
+        self.source_lines = context.get("source_lines", [])
+        self.applied = False
+
+    def _build_comment_lines(self) -> List[str]:
+        """Build the standardized governance comment block."""
+        lines = [
+            f"# EXCELSIOR: {self.rule_code} - {self.rule_name}",
+            f"# Problem: {self.problem}",
+            f"# Recommendation: {self.recommendation}",
+        ]
+        if self.context_info:
+            lines.append(f"# Context: {self.context_info}")
+        return lines
+
+    def _get_node_line(self, node: cst.CSTNode) -> int:
+        """Get the line number for a node by parsing source."""
+        if not self.source_lines:
+            return 0
+
+        # Use LibCST's position metadata if available
+        # Otherwise, estimate based on source code
+        try:
+            # Try to get position from metadata
+            if hasattr(node, "metadata") and node.metadata:
+                position = node.metadata.get(cst.metadata.PositionProvider, None)
+                if position:
+                    return position.start.line
+        except Exception:
+            pass
+
+        # Fallback: search source lines for node content
+        # This is approximate but works for most cases
+        node_str = cst.Module(body=[node]).code if isinstance(node, cst.BaseStatement) else ""
+        if node_str:
+            for i, line in enumerate(self.source_lines, 1):
+                if node_str.strip() in line or any(part in line for part in node_str.split()[:3]):
+                    return i
+        return 0
+
+    def leave_Module(
+        self, original_node: cst.Module, updated_node: cst.Module
+    ) -> cst.Module:
+        """
+        Add governance comment before target line in module body.
+
+        We use source line matching to find the correct insertion point.
+        """
+        if self.applied or self.target_line <= 0:
+            return updated_node
+
+        new_body: List[cst.BaseStatement] = []
+        comment_lines = self._build_comment_lines()
+
+        # Create comment nodes as EmptyLine nodes with comments
+        # LibCST Comment value must include the "#" character (full comment line)
+        comment_empty_lines = []
+        for line in comment_lines:
+            # Ensure line starts with "#" for LibCST
+            if not line.startswith("#"):
+                line = "# " + line
+
+            comment_empty_lines.append(
+                cst.EmptyLine(
+                    comment=cst.Comment(value=line),  # Include "#" in value
+                    indent=cst.SimpleWhitespace(""),
+                )
+            )
+
+        # Find the statement at or closest to target_line
+        insert_index = -1
+        for i, stmt in enumerate(updated_node.body):
+            # Get approximate line for this statement
+            stmt_line = self._get_node_line(stmt)
+
+            # If we've reached or passed the target line, insert before this statement
+            if stmt_line >= self.target_line and insert_index == -1:
+                insert_index = i
+                break
+
+        # If we didn't find a match, insert at the beginning
+        if insert_index == -1:
+            insert_index = 0
+
+        # Build new body with comments inserted
+        for i, stmt in enumerate(updated_node.body):
+            if i == insert_index:
+                # Insert comments before this statement
+                new_body.extend(comment_empty_lines)
+                self.applied = True
+            new_body.append(stmt)
+
+        # If we never inserted (empty file or target_line beyond end), append at end
+        if not self.applied and updated_node.body:
+            new_body = list(updated_node.body) + comment_empty_lines
+            self.applied = True
+        elif not self.applied:
+            # Empty file - just add comments
+            new_body = comment_empty_lines
+            self.applied = True
+
+        return updated_node.with_changes(body=new_body)

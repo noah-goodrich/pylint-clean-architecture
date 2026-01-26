@@ -29,10 +29,11 @@ dependencies = [
     "stellar-ui-kit @ file:///development/stellar-ui-kit",
     "import-linter",
     "libcst>=1.0.0",
+    "typer[all]>=0.12.0",
 ]
 
 [project.scripts]
-excelsior = "clean_architecture_linter.cli:main"
+excelsior = "clean_architecture_linter.interface.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -40,11 +41,12 @@ dev = [
     "pytest-cov>=4.0",
     "astroid",
     "ruff",
+    "pytest-coverage-impact @ file:///development/pytest-coverage-impact",
 ]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["clean_architecture_linter", "clean_architecture_linter.checks"]
+packages = ["clean_architecture_linter"]
 
 [tool.setuptools.package-data]
 "clean_architecture_linter" = ["py.typed"]
@@ -115,6 +117,7 @@ enable = [
     "clean-arch-immutability",
     "clean-arch-dependency",
     "illegal-io-operation",
+    "duplicate-code",
 ]
 
 [tool.clean-arch]
@@ -129,18 +132,9 @@ shared_kernel_modules = ["stellar_ui_kit"]
 
 [tool.clean-arch.layer_map]
 "clean_architecture_linter.domain" = "Domain"
-"clean_architecture_linter.checks" = "UseCase"
-"clean_architecture_linter.interface" = "Interface"
-"clean_architecture_linter.di" = "Infrastructure"
-"clean_architecture_linter.config" = "Domain"
-"clean_architecture_linter.layer_registry" = "Domain"
-"clean_architecture_linter.checker" = "Interface"
-"clean_architecture_linter.cli" = "Interface"
-"clean_architecture_linter.reporter" = "Interface"
 "clean_architecture_linter.use_cases" = "UseCase"
-"clean_architecture_linter.infrastructure.services" = "Infrastructure"
-"clean_architecture_linter.domain.rules" = "Domain"
-"clean_architecture_linter.constants" = "Domain"
+"clean_architecture_linter.interface" = "Interface"
+"clean_architecture_linter.infrastructure" = "Infrastructure"
 
 [tool.coverage.run]
 source = ["clean_architecture_linter"]
@@ -164,13 +158,13 @@ root_package = "clean_architecture_linter"
 name = "Clean Architecture Layers"
 type = "layers"
 layers = [
-    "clean_architecture_linter.checker",
-    "clean_architecture_linter.reporter",
-    "clean_architecture_linter.checks",
-    "clean_architecture_linter.domain",
+    "clean_architecture_linter.infrastructure",  # Outermost - can import everything
+    "clean_architecture_linter.interface",       # Can import UseCase/Domain
+    "clean_architecture_linter.use_cases",       # Can import Domain
+    "clean_architecture_linter.domain",         # Innermost - imports NOTHING
 ]
 containers = ["clean_architecture_linter"]
 ignore_imports = [
-    "clean_architecture_linter.cli -> clean_architecture_linter.infrastructure.adapters.linter_adapters",
-    "clean_architecture_linter.cli -> clean_architecture_linter.di.container",
+    "clean_architecture_linter.interface.cli -> clean_architecture_linter.infrastructure.adapters.linter_adapters",
+    "clean_architecture_linter.interface.cli -> clean_architecture_linter.infrastructure.di.container",
 ]

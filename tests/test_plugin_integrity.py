@@ -1,11 +1,12 @@
 import os
 import subprocess
 import sys
+from types import NoneType
 
 import pytest
 
 
-def run_pylint(file_path):
+def run_pylint(file_path) -> NoneType:
     """Run pylint with the plugin against a file."""
     env = os.environ.copy()
     root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

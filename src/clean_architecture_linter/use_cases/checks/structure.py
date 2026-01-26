@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from pylint.lint import PyLinter
 from pylint.checkers import BaseChecker
 
-from clean_architecture_linter.config import ConfigurationLoader
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.domain.config import ConfigurationLoader
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
 
 
 class ModuleStructureChecker(BaseChecker):
@@ -40,12 +40,18 @@ class ModuleStructureChecker(BaseChecker):
                 "Non-boilerplate logic must reside in sub-packages (e.g. core/, gateways/).",
             ),
             "W9017": (
-                "Layer Integrity violation: File '%s' is unmapped. Clean Fix: Add to [tool.clean-arch.layer_map] in pyproject.toml.",
+                (
+                    "Layer Integrity violation: File '%s' is unmapped. "
+                    "Clean Fix: Add to [tool.clean-arch.layer_map] in pyproject.toml."
+                ),
                 "clean-arch-layer-integrity",
                 "All files in src/ must be mapped to an architectural layer.",
             ),
             "W9018": (
-                "Class-Only violation: Module '%s' contains top-level functions but no classes. Clean Fix: Migrate procedural logic into service objects.",
+                (
+                    "Class-Only violation: Module '%s' contains top-level functions "
+                    "but no classes. Clean Fix: Migrate procedural logic into service objects."
+                ),
                 "clean-arch-class-only",
                 "UseCase and Infrastructure layers must use classes, not top-level functions.",
             ),

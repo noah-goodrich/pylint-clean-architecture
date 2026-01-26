@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.contracts import ContractChecker
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
+from clean_architecture_linter.use_cases.checks.contracts import ContractChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
 
@@ -116,7 +116,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         self.checker.visit_functiondef(node2)
         self.assertNoMessages(self.checker)
 
-def create_strict_mock(spec_cls, **attrs):
+def create_strict_mock(spec_cls, **attrs) -> MagicMock:
     """Helper duplicate."""
     m = MagicMock(spec=spec_cls)
     for k, v in attrs.items():

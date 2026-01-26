@@ -1,0 +1,187 @@
+"""Tests for governance comment rules."""
+
+from unittest.mock import MagicMock
+
+import astroid
+import pytest
+
+from clean_architecture_linter.domain.rules import Violation
+from clean_architecture_linter.domain.rules.governance_comments import LawOfDemeterRule
+
+
+class TestLawOfDemeterRule:
+    """Test LawOfDemeterRule."""
+
+    def test_rule_attributes(self) -> None:
+        """Test rule has correct attributes."""
+        rule = LawOfDemeterRule()
+        assert rule.code == "W9006"
+        assert "Law of Demeter" in rule.description
+
+    def test_check_returns_empty_list(self) -> None:
+        """Test that check returns empty (violations come from Pylint)."""
+        rule = LawOfDemeterRule()
+        module_node = astroid.parse("x = 1\n")
+        violations = rule.check(module_node)
+        assert violations == []
+
+    def test_fix_returns_transformer_for_w9006(self) -> None:
+        """Test that fix returns transformer for W9006 violations."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = obj.a.b.c()\n").body[0].value
+
+        violation = Violation(
+            code="W9006",
+            message="Law of Demeter: Chain access (obj.a.b.c) exceeds one level",
+            location="test.py:1",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        assert hasattr(transformer, "target_line")
+
+    def test_fix_returns_none_for_wrong_code(self) -> None:
+        """Test that fix returns None for non-W9006 violations."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = 1\n").body[0]
+
+        violation = Violation(
+            code="W9001",  # Wrong code
+            message="Test",
+            location="test.py:1",
+            node=node,
+            fixable=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is None
+
+    def test_fix_extracts_chain_info_from_message(self) -> None:
+        """Test that fix extracts chain information from message."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = obj.a.b.c()\n").body[0].value
+
+        violation = Violation(
+            code="W9006",
+            message="Law of Demeter: Chain access (repo.session.query) exceeds one level",
+            location="test.py:5",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        # Check that transformer has context with chain info
+        assert transformer.rule_code == "W9006"
+        assert transformer.target_line == 5
+
+    def test_fix_builds_problem_description(self) -> None:
+        """Test that fix builds appropriate problem description."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = obj.a.b.c()\n").body[0].value
+
+        violation = Violation(
+            code="W9006",
+            message="Law of Demeter: Chain access (repo.session.query) exceeds one level",
+            location="test.py:10",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        assert "repo" in transformer.problem or "session" in transformer.problem
+
+    def test_fix_builds_recommendation(self) -> None:
+        """Test that fix builds actionable recommendation."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = obj.a.b.c()\n").body[0].value
+
+        violation = Violation(
+            code="W9006",
+            message="Law of Demeter: Chain access (repo.session.query) exceeds one level",
+            location="test.py:10",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        assert "delegate" in transformer.recommendation.lower() or "method" in transformer.recommendation.lower()
+
+    def test_get_fix_instructions(self) -> None:
+        """Test that get_fix_instructions returns helpful guidance."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = 1\n").body[0]
+
+        violation = Violation(
+            code="W9006",
+            message="Test",
+            location="test.py:1",
+            node=node,
+            fixable=True,
+        )
+
+        instructions = rule.get_fix_instructions(violation)
+        assert "delegate" in instructions.lower()
+        assert "encapsulation" in instructions.lower()
+
+    def test_fix_handles_missing_chain_info(self) -> None:
+        """Test that fix handles messages without chain info."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = 1\n").body[0]
+
+        violation = Violation(
+            code="W9006",
+            message="Law of Demeter violation",  # No chain info
+            location="test.py:1",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        # Should still create transformer with default problem/recommendation
+
+    def test_fix_extracts_line_number_from_location(self) -> None:
+        """Test that fix extracts line number from location."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = 1\n").body[0]
+
+        violation = Violation(
+            code="W9006",
+            message="Test",
+            location="test.py:42",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        assert transformer.target_line == 42
+
+    def test_fix_handles_location_without_line(self) -> None:
+        """Test that fix handles location without line number."""
+        rule = LawOfDemeterRule()
+        node = astroid.parse("x = 1\n").body[0]
+
+        violation = Violation(
+            code="W9006",
+            message="Test",
+            location="test.py",  # No line number
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        # Should handle gracefully, target_line might be 0
+        assert transformer is not None

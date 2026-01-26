@@ -75,8 +75,13 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
         return True  # Via LibCST fixes
 
     def get_fixable_rules(self) -> List[str]:
-        """Return list of rule codes that can be auto-fixed (via LibCST transforms)."""
+        """
+        Return list of rule codes that can be auto-fixed (via LibCST transforms).
+
+        Includes both structural fixes and comment-only fixes (governance comments).
+        """
         return [
+            # Structural auto-fixes
             "clean-arch-immutable",
             "clean-arch-lifecycle",
             "clean-arch-type-integrity",
@@ -84,7 +89,58 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
             "W9015",
             "domain-immutability-violation",
             "W9601",
+            # Comment-only fixes (governance comments)
+            "W9006",  # Law of Demeter
+            "clean-arch-demeter",
+            "W9001",  # Illegal Dependency
+            "clean-arch-dependency",
+            "W9003",  # Protected Member Access
+            "clean-arch-visibility",
+            "W9004",  # Forbidden I/O
+            "clean-arch-resources",
+            "W9005",  # Delegation Anti-Pattern
+            "clean-arch-delegation",
+            "W9007",  # Naked Return
+            "W9009",  # Missing Abstraction
+            "W9010",  # God File
+            "clean-arch-god-file",
+            "W9011",  # Deep Structure
+            "clean-arch-layer",
+            "W9012",  # Defensive None Check
+            "W9013",  # Illegal I/O Operation
+            "W9201",  # Contract Integrity
+            "contract-integrity-violation",
+            "W9301",  # DI Violation
+            "clean-arch-di",
+            "W9016",  # Banned Any
+            "banned-any-usage",
+            "W9501",  # Anti-Bypass
+            "clean-arch-bypass",
         ]
+
+    def is_comment_only_rule(self, rule_code: str) -> bool:
+        """
+        Check if a rule uses comment-only fixes (governance comments).
+
+        Returns:
+            True if the rule injects governance comments rather than structural fixes
+        """
+        comment_only_rules = {
+            "W9006", "clean-arch-demeter",
+            "W9001", "clean-arch-dependency",
+            "W9003", "clean-arch-visibility",
+            "W9004", "clean-arch-resources",
+            "W9005", "clean-arch-delegation",
+            "W9007", "W9009",
+            "W9010", "clean-arch-god-file",
+            "W9011", "clean-arch-layer",
+            "W9012", "W9013",
+            "W9201", "contract-integrity-violation",
+            "W9301", "clean-arch-di",
+            "W9016", "banned-any-usage",
+            "W9501", "clean-arch-bypass",
+        }
+        return rule_code in comment_only_rules
 
     def get_manual_fix_instructions(self, rule_code: str) -> str:
         """Readable, step-by-step guidance for juniors and AI. Covers all reported rules."""

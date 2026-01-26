@@ -15,17 +15,17 @@ def create_strict_mock(spec_cls, **attrs):
     return m
 
 class TestAstroidGateway(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.gateway = AstroidGateway()
         self.gateway.typeshed = MagicMock()
         self.gateway.typeshed.is_stdlib_qname.return_value = False
 
-    def test_is_primitive(self):
+    def test_is_primitive(self) -> None:
         self.assertTrue(self.gateway.is_primitive("builtins.str"))
         self.assertTrue(self.gateway.is_primitive("builtins.int"))
         self.assertFalse(self.gateway.is_primitive("pkg.MyClass"))
 
-    def test_get_node_return_type_qname_const(self):
+    def test_get_node_return_type_qname_const(self) -> None:
         # Const is inferred directly via spec
         node = create_strict_mock(astroid.nodes.Const)
         node.value = 123
@@ -40,7 +40,7 @@ class TestAstroidGateway(unittest.TestCase):
 
         self.assertEqual(self.gateway.get_node_return_type_qname(node), "builtins.int")
 
-    def test_get_node_return_type_qname_name(self):
+    def test_get_node_return_type_qname_name(self) -> None:
         # Use simple MagicMock with spec for Name, but ensure it behaves
         node = create_strict_mock(astroid.nodes.Name)
 
@@ -58,7 +58,7 @@ class TestAstroidGateway(unittest.TestCase):
 
         self.assertEqual(self.gateway.get_node_return_type_qname(node), "builtins.int")
 
-    def test_get_call_name(self):
+    def test_get_call_name(self) -> None:
         # Use STRICT mocks to ensure hasattr works
         node = create_strict_mock(astroid.nodes.Call)
 
@@ -72,7 +72,7 @@ class TestAstroidGateway(unittest.TestCase):
         node.func.attrname = "bar"
         self.assertEqual(self.gateway.get_call_name(node), "bar")
 
-    def test_is_fluent_call(self):
+    def test_is_fluent_call(self) -> None:
         # Must be Call and func must be Attribute
         call = create_strict_mock(astroid.nodes.Call)
         call.func = create_strict_mock(astroid.nodes.Attribute) # Correct type implies has 'attrname' etc

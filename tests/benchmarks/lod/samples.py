@@ -86,7 +86,7 @@ def exhaustive_int_float_methods():
 
 def internal_safe_cases():
     # Covering mod_file.startswith(self._stdlib_path)
-    mod_file = str("some/path")
+    mod_file = "some/path"
     prefix: str = "/usr/lib/python"
     mod_file.startswith(prefix)
 

@@ -5,4 +5,4 @@ from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import 
 from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
 from clean_architecture_linter.infrastructure.adapters.mypy_adapter import MypyAdapter
 
-__all__ = ["LinterResult", "MypyAdapter", "ExcelsiorAdapter", "ImportLinterAdapter"]
+__all__ = ["ExcelsiorAdapter", "ImportLinterAdapter", "LinterResult", "MypyAdapter"]

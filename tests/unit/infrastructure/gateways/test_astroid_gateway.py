@@ -7,7 +7,7 @@ import astroid.nodes
 from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
 
 
-def create_strict_mock(spec_cls, **attrs):
+def create_strict_mock(spec_cls, **attrs) -> MagicMock:
     """Create a mock that respects the spec (for hasattr checks)."""
     m = MagicMock(spec=spec_cls)
     for k, v in attrs.items():

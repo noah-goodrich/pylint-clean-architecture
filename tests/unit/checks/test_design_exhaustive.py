@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.checks.design import DesignChecker
-from clean_architecture_linter.layer_registry import LayerRegistry
+from clean_architecture_linter.domain.layer_registry import LayerRegistry
+from clean_architecture_linter.use_cases.checks.design import DesignChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
 
@@ -106,7 +106,7 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         # Warning is on the slice (the 'Any' part), not the subscript itself
         self.assertAddsMessage(self.checker, "banned-any-usage", node=subscript.slice)
 
-def create_strict_mock(spec_cls, **attrs):
+def create_strict_mock(spec_cls, **attrs) -> MagicMock:
     """Helper duplicate."""
     m = MagicMock(spec=spec_cls)
     for k, v in attrs.items():

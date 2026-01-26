@@ -2,13 +2,14 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from subprocess import CompletedProcess
 
 # Ensure plugin is discoverable
 PLUGIN_DIR = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(PLUGIN_DIR))
 
 
-def run_pylint_on_snippet(file_path, snippet, extra_args=None):
+def run_pylint_on_snippet(file_path, snippet, extra_args=None) -> CompletedProcess:
     """
     Helper to create a temporary file, write snippet, and run pylint.
     """

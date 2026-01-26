@@ -7,7 +7,7 @@ This file contains:
 """
 
 
-def clear_string_return():
+def clear_string_return() -> str:
     """Function that clearly returns a string - should be auto-fixed."""
     return "hello world"
 
@@ -20,7 +20,7 @@ def complex_unhinted_dynamic():
     return result
 
 
-def get_complex_data():
+def get_complex_data() -> dict:
     """Helper that returns unknown type."""
     # This would require inference that might fail
     return {"key": "value"}
