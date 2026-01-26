@@ -1,26 +1,38 @@
 """LibCST based Fixer Gateway."""
 
-from typing import List, Optional, Set
+from typing import List, Optional
 
 import libcst as cst
 
 from clean_architecture_linter.domain.protocols import FixerGatewayProtocol
-from clean_architecture_linter.domain.rules import FixSuggestion
 
 
 class LibCSTFixerGateway(FixerGatewayProtocol):
     """Gateway for applying safe code modifications using LibCST."""
 
-    def apply_fixes(self, file_path: str, fixes: List[FixSuggestion]) -> bool:
+    def apply_fixes(self, file_path: str, transformers: List[cst.CSTTransformer]) -> bool:
+        """
+        Apply a list of CST transformers to a file.
+        
+        Args:
+            file_path: Path to the file to modify
+            transformers: List of LibCST transformers to apply sequentially
+            
+        Returns:
+            True if the file was modified, False otherwise
+        """
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 source = f.read()
             module = cst.parse_module(source)
             original_code = module.code
-            for fix in fixes:
-                transformer = self._transformer_for_fix(fix, file_path)
+            
+            # Apply all transformers sequentially
+            for transformer in transformers:
                 if transformer is not None:
                     module = module.visit(transformer)
+            
+            # Only write if code changed
             if module.code != original_code:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(module.code)
@@ -29,271 +41,3 @@ class LibCSTFixerGateway(FixerGatewayProtocol):
         except Exception:
             return False
 
-    def _transformer_for_fix(
-        self, fix: FixSuggestion, file_path: str
-    ) -> Optional[cst.CSTTransformer]:
-        """Return a transformer instance for the fix command, or None if unknown."""
-        cmd = fix.context.get("command")
-        if not cmd:
-            return None
-        ctx = dict(fix.context)
-        if cmd == "enforce_frozen_dataclasses":
-            ctx["file_path"] = file_path
-        cls = _cmd_to_transformer(cmd)
-        return cls(ctx) if cls else None
-
-class AddImportTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict) -> None:
-        self.module = context.get("module")
-        self.imports = context.get("imports", []) # List[str]
-        self.added = False
-
-    def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
-        if not self.added:
-            names = [cst.ImportAlias(name=cst.Name(n)) for n in self.imports]
-            import_stmt = cst.ImportFrom(
-                module=cst.Name(self.module),
-                names=names,
-                whitespace_after_import=cst.SimpleWhitespace(" ")
-            )
-
-            new_body = list(updated_node.body)
-            insert_idx: int = 0
-            for i, stmt in enumerate(new_body):
-                if isinstance(stmt, (cst.Import, cst.ImportFrom)):
-                    insert_idx = i + 1
-
-            new_body.insert(insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
-            self.added = True
-            return updated_node.with_changes(body=new_body)
-        return updated_node
-
-class FreezeDataclassTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict) -> None:
-        self.class_name = context.get("class_name")
-
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        match: bool = False
-        if self.class_name:
-            if original_node.name.value == self.class_name:
-                match: bool = True
-        else:
-            match: bool = True
-
-        if match:
-             return self._apply_frozen(updated_node)
-        return updated_node
-
-    def _apply_frozen(self, node: cst.ClassDef) -> cst.ClassDef:
-        new_decorators = []
-        found: bool = False
-        compact_eq = cst.AssignEqual(
-            whitespace_before=cst.SimpleWhitespace(""),
-            whitespace_after=cst.SimpleWhitespace("")
-        )
-
-        for decorator in node.decorators:
-            if isinstance(decorator.decorator, cst.Name) and decorator.decorator.value == "dataclass":
-                new_decorators.append(decorator.with_changes(
-                    decorator=cst.Call(
-                        func=cst.Name("dataclass"),
-                        args=[cst.Arg(keyword=cst.Name("frozen"), value=cst.Name("True"), equal=compact_eq)],
-                        whitespace_before_args=cst.SimpleWhitespace("")
-                    )
-                ))
-                found: bool = True
-            elif (
-                isinstance(decorator.decorator, cst.Call)
-                and isinstance(decorator.decorator.func, cst.Name)
-                and decorator.decorator.func.value == "dataclass"
-            ):
-                args = list(decorator.decorator.args)
-                has_frozen = any(arg.keyword and arg.keyword.value == "frozen" for arg in args)
-                if not has_frozen:
-                    args.append(cst.Arg(keyword=cst.Name("frozen"), value=cst.Name("True"), equal=compact_eq))
-                    new_decorators.append(decorator.with_changes(
-                        decorator=decorator.decorator.with_changes(args=args)
-                    ))
-                else:
-                    new_decorators.append(decorator)
-                found: bool = True
-            else:
-                new_decorators.append(decorator)
-
-        if found:
-            return node.with_changes(decorators=new_decorators)
-        return node
-
-class DomainImmutabilityTransformer(FreezeDataclassTransformer):
-    def __init__(self, context: dict) -> None:
-        super().__init__({"class_name": None})
-        self.file_path = context.get("file_path", "")
-
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-         # Simplified: Assuming ApplyFixesUseCase filtered the file_path to be in Domain
-         return super().leave_ClassDef(original_node, updated_node)
-
-class AddReturnTypeTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict) -> None:
-        self.function_name = context.get("function_name")
-        self.return_type = context.get("return_type")
-
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
-        if original_node.name.value == self.function_name:
-            if not original_node.returns:
-                return updated_node.with_changes(
-                    returns=cst.Annotation(annotation=cst.Name(self.return_type))
-                )
-        return updated_node
-
-class AddParameterTypeTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict) -> None:
-        self.function_name = context.get("function_name")
-        self.param_name = context.get("param_name")
-        self.param_type = context.get("param_type")
-
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
-        if original_node.name.value == self.function_name:
-            new_params_list = []
-            modified: bool = False
-
-            # Handle default parameters (params.params)
-            for param in updated_node.params.params:
-                if param.name.value == self.param_name and not param.annotation:
-                    new_param = param.with_changes(
-                        annotation=cst.Annotation(
-                            annotation=cst.Name(self.param_type),
-                            whitespace_before_indicator=cst.SimpleWhitespace("")
-                        )
-                    )
-                    new_params_list.append(new_param)
-                    modified: bool = True
-                else:
-                    new_params_list.append(param)
-
-            if modified:
-                 new_params = updated_node.params.with_changes(params=new_params_list)
-                 return updated_node.with_changes(params=new_params)
-
-        return updated_node
-
-class LifecycleReturnTypeTransformer(cst.CSTTransformer):
-    def __init__(self, context: dict) -> None:
-        pass
-
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
-        name = original_node.name.value
-        if name in ("__init__", "setUp", "tearDown") or name.startswith("test_"):
-             if not original_node.returns:
-                 return updated_node.with_changes(
-                     returns=cst.Annotation(
-                         annotation=cst.Name("None"),
-                         whitespace_before_indicator=cst.SimpleWhitespace(" ")
-                     )
-                 )
-        return updated_node
-
-class DeterministicTypeHintsTransformer(cst.CSTTransformer):
-    """Enforce type hints on literals (e.g. x = "foo" -> x: str = "foo")."""
-    def __init__(self, context: dict) -> None:
-        pass
-
-    def leave_Assign(self, original_node: cst.Assign, updated_node: cst.Assign) -> cst.Assign:
-        if len(updated_node.targets) == 1 and isinstance(updated_node.targets[0], cst.AssignTarget):
-            # Check if annotation exists? cst.Assign doesn't have annotation directly?
-            # AssignTarget(target=Name(..)) -> AnnAssign is different node type.
-            # If it's Assign, it lacks annotation. AnnAssign is separate.
-            # So if we visit Assign, it's definitely unannotated.
-
-            target = updated_node.targets[0]
-            val = updated_node.value
-
-            annot: Optional[str] = None
-            if isinstance(val, cst.SimpleString):
-                annot: str = "str"
-            elif isinstance(val, cst.Integer):
-                annot: str = "int"
-            elif isinstance(val, cst.Name) and val.value in ("True", "False"):
-                annot: str = "bool"
-
-            if annot and isinstance(target.target, cst.Name):
-                # Convert Assign to AnnAssign
-                return cst.AnnAssign(
-                    target=target.target,
-                    annotation=cst.Annotation(
-                        annotation=cst.Name(annot),
-                        whitespace_before_indicator=cst.SimpleWhitespace("")
-                    ),
-                    value=val,
-                    equal=cst.AssignEqual(
-                        whitespace_before=cst.SimpleWhitespace(" "),
-                        whitespace_after=cst.SimpleWhitespace(" ")
-                    )
-                ) # type: ignore
-        return updated_node
-
-class TypeIntegrityTransformer(cst.CSTTransformer):
-    """Auto-import common typing missing imports."""
-    def __init__(self, context: dict) -> None:
-        self.used_types: Set[str] = set()
-        self.existing_typing_imports: Set[str] = set()
-        self.typing_aliases = {"List", "Dict", "Optional", "Any", "Union", "Iterable", "Callable"}
-
-    def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
-        if isinstance(node.module, cst.Name) and node.module.value == "typing":
-            if isinstance(node.names, cst.ImportStar):
-                return # Can't know
-            for alias in node.names:
-                if isinstance(alias.name, cst.Name):
-                    self.existing_typing_imports.add(alias.name.value)
-
-    def visit_Annotation(self, node: cst.Annotation) -> None:
-        # Check annotation name
-        if isinstance(node.annotation, cst.Name):
-            if node.annotation.value in self.typing_aliases:
-                self.used_types.add(node.annotation.value)
-        # Check Subscript (List[str])
-        if isinstance(node.annotation, cst.Subscript):
-             if isinstance(node.annotation.value, cst.Name):
-                 if node.annotation.value.value in self.typing_aliases:
-                     self.used_types.add(node.annotation.value.value)
-
-    def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
-        missing = self.used_types - self.existing_typing_imports
-        if missing:
-            _ = [cst.ImportAlias(name=cst.Name(n)) for n in sorted(missing)]  # Prepared for import merging
-            # Check if we should merge with existing 'from typing import ...'
-            # For simplicity, add new import statement (libcst ensures valid python, but might duplicate lines)
-            # A smart implementation would find existing import and append.
-            # I will prepend a new import line for simplicity as 'clean enough' for Turn 2.
-
-            import_stmt = cst.ImportFrom(
-                module=cst.Name("typing"),
-                names=[cst.ImportAlias(name=cst.Name(n)) for n in sorted(missing)],
-                whitespace_after_import=cst.SimpleWhitespace(" ")
-            )
-
-            new_body = list(updated_node.body)
-            insert_idx: int = 0
-            for i, stmt in enumerate(new_body):
-                if isinstance(stmt, (cst.Import, cst.ImportFrom)):
-                    insert_idx = i + 1
-            new_body.insert(insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
-            return updated_node.with_changes(body=new_body)
-
-        return updated_node
-
-
-def _cmd_to_transformer(cmd: str):
-    """Map fix command to transformer class. Defined after all transformers."""
-    _map = {
-        "add_import": AddImportTransformer,
-        "freeze_dataclass": FreezeDataclassTransformer,
-        "add_return_type": AddReturnTypeTransformer,
-        "fix_lifecycle_methods": LifecycleReturnTypeTransformer,
-        "enforce_frozen_dataclasses": DomainImmutabilityTransformer,
-        "fix_deterministic_type_hints": DeterministicTypeHintsTransformer,
-        "add_parameter_type": AddParameterTypeTransformer,
-        "type_integrity": TypeIntegrityTransformer,
-    }
-    return _map.get(cmd)

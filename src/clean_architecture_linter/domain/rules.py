@@ -1,9 +1,12 @@
 """Domain models for rules and violations."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
 import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    import libcst as cst
 
 
 @dataclass(frozen=True)
@@ -25,6 +28,10 @@ class BaseRule(Protocol):
 
     def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
         """Interrogate a node for a specific architectural breach."""
+        ...
+
+    def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
+        """Return a LibCST transformer to resolve the violation."""
         ...
 
     def get_fix_instructions(self, violation: Violation) -> str:

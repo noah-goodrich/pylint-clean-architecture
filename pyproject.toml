@@ -140,6 +140,7 @@ shared_kernel_modules = ["stellar_ui_kit"]
 "clean_architecture_linter.use_cases" = "UseCase"
 "clean_architecture_linter.infrastructure.services" = "Infrastructure"
 "clean_architecture_linter.domain.rules" = "Domain"
+"clean_architecture_linter.constants" = "Domain"
 
 [tool.coverage.run]
 source = ["clean_architecture_linter"]

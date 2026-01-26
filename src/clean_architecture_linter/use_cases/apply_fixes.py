@@ -4,10 +4,15 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+import astroid  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    import libcst as cst
 
 from clean_architecture_linter.domain.protocols import FixerGatewayProtocol, LinterAdapterProtocol, TelemetryPort
-from clean_architecture_linter.domain.rules import BaseRule, FixSuggestion
+from clean_architecture_linter.domain.rules import BaseRule
 
 
 class ApplyFixesUseCase:
@@ -46,14 +51,17 @@ class ApplyFixesUseCase:
         for file_path in files:
             if file_path.suffix != ".py":
                 continue
-            fixes = self._get_fixes_for_file(file_path)
-            if not fixes:
+            
+            # Rule-based discovery: collect transformers from rules
+            transformers = self._collect_transformers_from_rules(rules, file_path)
+            if not transformers:
                 continue
-            if self._skip_confirmation(file_path, fixes):
+            
+            if self._skip_confirmation(file_path, transformers):
                 continue
 
             backup_path = self._create_backup(file_path) if self.create_backups else None
-            success = self.fixer_gateway.apply_fixes(str(file_path), fixes)
+            success = self.fixer_gateway.apply_fixes(str(file_path), transformers)
 
             if success:
                 mod_delta, did_rollback = self._handle_successful_fix(
@@ -82,11 +90,11 @@ class ApplyFixesUseCase:
             failures = "passed" if self._test_baseline == 0 else f"{self._test_baseline} failures"
             self.telemetry.step(f"📊 Test baseline: {failures}")
 
-    def _skip_confirmation(self, file_path: Path, fixes: List[FixSuggestion]) -> bool:
+    def _skip_confirmation(self, file_path: Path, transformers: List["cst.CSTTransformer"]) -> bool:
         """True if user skips (require_confirmation and not confirm). Emits telemetry when skipping."""
         if not self.require_confirmation:
             return False
-        if self._confirm_fix(file_path, fixes):
+        if self._confirm_fix(file_path, transformers):
             return False
         if self.telemetry:
             self.telemetry.step(f"⏭️  Skipped: {file_path.name}")
@@ -126,37 +134,59 @@ class ApplyFixesUseCase:
             return self.fixer_gateway.get_manual_suggestions(target_path)
         return []
 
-    def _get_fixes_for_file(self, file_path: Path) -> List[FixSuggestion]:
-        """Get applicable fixes for a file."""
-        fixes = []
+    def _collect_transformers_from_rules(
+        self, rules: List[BaseRule], file_path: Path
+    ) -> List["cst.CSTTransformer"]:
+        """
+        Discover and collect transformers from enabled rules.
+        
+        For each rule:
+        1. Parse file with astroid to get module node
+        2. Call rule.check(module_node) to get violations
+        3. For each fixable violation, call rule.fix(violation) to get transformer
+        4. Collect all transformers
+        """
+        transformers: List["cst.CSTTransformer"] = []
+        
+        try:
+            # Parse file with astroid to get module node
+            with open(file_path, "r", encoding="utf-8") as f:
+                source = f.read()
+            
+            module_node = astroid.parse(source, str(file_path))
+            
+            # Iterate through all enabled rules
+            for rule in rules:
+                try:
+                    # Run rule.check() to find violations
+                    violations = rule.check(module_node)
+                    
+                    # For each fixable violation, get transformer
+                    for violation in violations:
+                        if violation.fixable:
+                            transformer = rule.fix(violation)
+                            if transformer is not None:
+                                transformers.append(transformer)
+                except Exception as e:
+                    # Log error but continue with other rules
+                    if self.telemetry:
+                        self.telemetry.error(f"Rule {rule.code} failed on {file_path}: {e}")
+                    continue
+                    
+        except Exception as e:
+            if self.telemetry:
+                self.telemetry.error(f"Failed to parse {file_path}: {e}")
+        
+        return transformers
 
-        # 1. Structural/Macros
-        fixes.append(FixSuggestion(description="Fix Lifecycle", context={"command": "fix_lifecycle_methods"}))
-        fixes.append(FixSuggestion(description="Code Integrity", context={"command": "type_integrity"}))
-        fixes.append(
-            FixSuggestion(
-                description="Deterministic Types",
-                context={"command": "fix_deterministic_type_hints"},
-            )
-        )
-
-        # 2. Domain Specific
-        if "domain" in str(file_path).lower():
-            fixes.append(FixSuggestion(
-                description="Enforce Immutability",
-                context={"command": "enforce_frozen_dataclasses", "file_path": str(file_path)}
-            ))
-
-        return fixes
-
-    def _confirm_fix(self, file_path: Path, fixes: List[FixSuggestion]) -> bool:
+    def _confirm_fix(self, file_path: Path, transformers: List["cst.CSTTransformer"]) -> bool:
         """Ask user for confirmation before applying fix."""
         if not sys.stdin.isatty():
             # Non-interactive mode, apply automatically
             return True
 
         print(f"\n📝 File: {file_path.name}")
-        print(f"   Fixes: {', '.join(f.description for f in fixes)}")
+        print(f"   Transformers: {len(transformers)} transformer(s) will be applied")
         response = input("   Apply fixes? [y/N]: ").strip().lower()
         return response in ['y', 'yes']
 
