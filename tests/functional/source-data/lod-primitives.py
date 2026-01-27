@@ -1,4 +1,17 @@
 from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
+
+
+@dataclass
+class Locatable:
+    """Minimal stand-in for Violation-like objects with location: str (path:line)."""
+    location: str
+
+
+def parse_location_from_obj(loc: Locatable) -> None:
+    # Allowed: .location is string-typed (path:line or path:line:column); .split is str method.
+    # Inference often fails for attrs on params; "location" fallback treats it as primitive.
+    _ = loc.location.split(":")
 
 
 def typing_collections_trust(items: Iterable[str]) -> None:

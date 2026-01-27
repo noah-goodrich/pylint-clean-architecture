@@ -101,6 +101,11 @@ class AuditTrailService:
         violations = []
         for result in results:
             fixable = self.rule_fixability_service.is_rule_fixable(adapter, result.code)
+            comment_only = (
+                adapter.is_comment_only_rule(result.code)
+                if hasattr(adapter, "is_comment_only_rule")
+                else False
+            )
             manual_instructions = None
             if not fixable and hasattr(adapter, "get_manual_fix_instructions"):
                 manual_instructions = adapter.get_manual_fix_instructions(result.code)
@@ -112,6 +117,7 @@ class AuditTrailService:
                 locations=result.locations,
                 fixable=fixable,
                 manual_instructions=manual_instructions,
+                comment_only=comment_only,
             )
             violations.append(violation)
         return violations
@@ -156,9 +162,13 @@ class AuditTrailService:
         """Append a violations section to lines list."""
         lines.append(f"\n--- {title} ---")
         for violation in violations:
-            lines.append(
-                f"[{violation.code}] {'✅ Auto-fixable' if violation.fixable else '⚠️ Manual fix required'}"
-            )
+            if violation.comment_only:
+                label = "💬 Comment"
+            elif violation.fixable:
+                label = "✅ Auto-fixable"
+            else:
+                label = "⚠️ Manual fix required"
+            lines.append(f"[{violation.code}] {label}")
             lines.append(f"  {violation.message}")
             if include_locations and violation.locations:
                 for loc in violation.locations:

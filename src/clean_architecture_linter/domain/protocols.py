@@ -1,10 +1,8 @@
 from typing import TYPE_CHECKING, List, Optional, Protocol
 
 if TYPE_CHECKING:
-    # JUSTIFICATION: Type checking imports for Domain Protocol definitions
-    import astroid  # type: ignore[import-untyped] # pylint: disable=clean-arch-resources
+    import astroid  # type: ignore[import-untyped]  # pylint: disable=clean-arch-resources
 
-    # JUSTIFICATION: Type checking imports for Domain Protocol definitions
     from clean_architecture_linter.domain.config import ConfigurationLoader  # pylint: disable=clean-arch-resources
     from clean_architecture_linter.domain.entities import LinterResult
 
@@ -38,6 +36,14 @@ class AstroidProtocol(Protocol):
         ...
 
     def get_call_name(self, node: "astroid.nodes.Call") -> Optional[str]:
+        ...
+
+    def clear_inference_cache(self) -> None:
+        """Clear the astroid inference cache to force fresh inference after code changes."""
+        ...
+
+    def parse_file(self, file_path: str) -> Optional["astroid.nodes.Module"]:
+        """Parse a file and return the astroid Module node."""
         ...
 
 

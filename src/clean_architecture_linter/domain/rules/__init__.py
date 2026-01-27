@@ -1,7 +1,7 @@
 """Domain models for rules and violations."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Protocol
 
 import astroid  # type: ignore[import-untyped]
 
@@ -29,6 +29,8 @@ class BaseRule(Protocol):
 
     code: str
     description: str
+    fix_type: Literal["code", "comment"]
+    """Type of fix: 'code' for structural changes, 'comment' for governance comments only."""
 
     def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
         """Interrogate a node for a specific architectural breach."""

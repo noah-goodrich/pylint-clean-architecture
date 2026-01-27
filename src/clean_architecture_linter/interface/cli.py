@@ -218,14 +218,15 @@ def _run_fix_excelsior(
         config_loader=config_loader,
     )
 
-    # Create W9015 rule
+    # Create rules for auto-fixable violations
+    from clean_architecture_linter.domain.rules.immutability import DomainImmutabilityRule
     from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
 
     w9015_rule = MissingTypeHintRule(astroid_gateway)
+    w9601_rule = DomainImmutabilityRule()
 
-    # TODO: Get all Excelsior rules (currently only W9015 is implemented)
-    # For now, use W9015 rule only
-    rules = [w9015_rule]
+    # Get all Excelsior rules that support auto-fix
+    rules = [w9015_rule, w9601_rule]
 
     use_case = ApplyFixesUseCase(
         LibCSTFixerGateway(),

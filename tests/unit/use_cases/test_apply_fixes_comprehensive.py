@@ -478,7 +478,7 @@ class TestMultiPassExecution:
     """Test multi-pass execution methods."""
 
     def test_execute_multi_pass_calls_all_passes(self) -> None:
-        """Test execute_multi_pass calls all three passes."""
+        """Test execute_multi_pass calls all passes including cache clear."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
@@ -487,10 +487,12 @@ class TestMultiPassExecution:
         with patch.object(use_case, '_run_baseline_if_enabled'), \
              patch.object(use_case, '_execute_pass1_ruff', return_value=1), \
              patch.object(use_case, '_execute_pass2_type_hints', return_value=2), \
-             patch.object(use_case, '_execute_pass3_architecture', return_value=3):
+             patch.object(use_case, '_clear_astroid_cache'), \
+             patch.object(use_case, '_execute_pass3_architecture_code', return_value=3), \
+             patch.object(use_case, '_execute_pass4_governance_comments', return_value=4):
             result = use_case.execute_multi_pass([], "test_path")
 
-        assert result == 6
+        assert result == 10  # 1 + 2 + 3 + 4
         telemetry.step.assert_called()
 
     def test_execute_pass1_ruff_returns_zero_when_disabled(self) -> None:
@@ -530,8 +532,8 @@ class TestMultiPassExecution:
         assert result == 2
         telemetry.step.assert_called()
 
-    def test_execute_pass3_architecture_applies_governance_comments(self) -> None:
-        """Test _execute_pass3_architecture applies governance comments."""
+    def test_execute_pass4_governance_comments_applies_comments(self) -> None:
+        """Test _execute_pass4_governance_comments applies governance comments."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
@@ -545,16 +547,14 @@ class TestMultiPassExecution:
             fixer_gateway, filesystem, telemetry=telemetry, check_audit_use_case=check_audit
         )
 
-        with patch.object(use_case, '_get_architecture_rules', return_value=[]), \
-             patch.object(use_case, '_apply_governance_comments', return_value=1), \
-             patch.object(use_case, '_apply_rule_fixes', return_value=2):
-            result = use_case._execute_pass3_architecture([], "test_path")
+        with patch.object(use_case, '_apply_governance_comments', return_value=1):
+            result = use_case._execute_pass4_governance_comments([], "test_path")
 
-        assert result == 3
+        assert result == 1
         telemetry.step.assert_called()
 
-    def test_execute_pass3_architecture_skips_when_blocked(self) -> None:
-        """Test _execute_pass3_architecture skips when audit is blocked."""
+    def test_execute_pass4_governance_comments_skips_when_blocked(self) -> None:
+        """Test _execute_pass4_governance_comments skips when audit is blocked."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
@@ -567,7 +567,7 @@ class TestMultiPassExecution:
             fixer_gateway, filesystem, telemetry=telemetry, check_audit_use_case=check_audit
         )
 
-        result = use_case._execute_pass3_architecture([], "test_path")
+        result = use_case._execute_pass4_governance_comments([], "test_path")
 
         assert result == 0
         telemetry.step.assert_called()

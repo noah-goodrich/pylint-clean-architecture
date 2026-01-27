@@ -68,7 +68,7 @@ class ConfigurationLoader:
 
     def set_registry(self, registry: LayerRegistry) -> None:
         """Set the layer registry."""
-        ConfigurationLoader._registry = registry
+        self.__class__._registry = registry
 
     def load_config(self) -> None:
         """Find and load pyproject.toml configuration."""
@@ -84,26 +84,21 @@ class ConfigurationLoader:
                         tool_section = data.get("tool", {})
 
                         # Store full tool section for ruff, mypy, etc.
-                        ConfigurationLoader._tool_section = tool_section
+                        self.__class__._tool_section = tool_section
 
                         # 1. Check for [tool.clean-arch] (New)
-                        # JUSTIFICATION: Internal access to static configuration singleton
-                        ConfigurationLoader._config = tool_section.get("clean-arch", {})  # pylint: disable=clean-arch-visibility
+                        self.__class__._config = tool_section.get("clean-arch", {})
 
                         # 2. Check for [tool.clean-architecture-linter] (Oldest Legacy)
                         # We keep this strictly for smooth upgrades, but undocumented.
-                        # JUSTIFICATION: Internal access to static configuration singleton
-                        if not ConfigurationLoader._config:  # pylint: disable=clean-arch-visibility
-                            # JUSTIFICATION: Internal access to static configuration singleton
-                            ConfigurationLoader._config = tool_section.get(  # pylint: disable=clean-arch-visibility
+                        if not self.__class__._config:
+                            self.__class__._config = tool_section.get(
                                 "clean-architecture-linter", {}
                             )
 
-                        # JUSTIFICATION: Internal access to static configuration singleton
-                        if ConfigurationLoader._config:  # pylint: disable=clean-arch-visibility
-                             # JUSTIFICATION: Internal access to static configuration singleton
-                             self.validate_config(ConfigurationLoader._config)  # pylint: disable=clean-arch-visibility
-                             return
+                        if self.__class__._config:
+                            self.validate_config(self.__class__._config)
+                            return
                 except OSError:
                     # Keep looking in parent dirs
                     pass
@@ -123,21 +118,17 @@ class ConfigurationLoader:
     @property
     def config(self) -> dict[str, object]:
         """Return the loaded configuration."""
-        # JUSTIFICATION: Exposing internal static configuration via instance property
-        return ConfigurationLoader._config  # pylint: disable=clean-arch-visibility
+        return self.__class__._config
 
     @property
     def registry(self) -> LayerRegistry:
         """Return the layer registry."""
-        # JUSTIFICATION: Exposing internal static registry via instance property
-        if ConfigurationLoader._registry is None:  # pylint: disable=clean-arch-visibility
+        if self.__class__._registry is None:
             # Fallback for unconfigured cases (e.g. tests without config loading)
-            # JUSTIFICATION: Lazy initialization of singleton default
-            ConfigurationLoader._registry = LayerRegistry(  # pylint: disable=clean-arch-visibility
+            self.__class__._registry = LayerRegistry(
                 LayerRegistryConfig(project_type="generic")
             )
-        # JUSTIFICATION: Exposing internal static registry
-        return ConfigurationLoader._registry  # pylint: disable=clean-arch-visibility
+        return self.__class__._registry
 
     def get_layer_for_module(self, module_name: str, file_path: str = "") -> str | None:
         """Get the architectural layer for a module/file."""
@@ -254,11 +245,11 @@ class ConfigurationLoader:
 
     def get_project_ruff_config(self) -> dict[str, object]:
         """Get [tool.ruff] configuration from pyproject.toml."""
-        return ConfigurationLoader._tool_section.get("ruff", {})  # type: ignore
+        return self.__class__._tool_section.get("ruff", {})  # type: ignore
 
     def get_excelsior_ruff_config(self) -> dict[str, object]:
         """Get [tool.excelsior.ruff] configuration from pyproject.toml."""
-        excelsior_section = ConfigurationLoader._tool_section.get("excelsior", {})
+        excelsior_section = self.__class__._tool_section.get("excelsior", {})
         if isinstance(excelsior_section, dict):
             return excelsior_section.get("ruff", {})  # type: ignore
         return {}
@@ -288,7 +279,7 @@ class ConfigurationLoader:
     @property
     def ruff_enabled(self) -> bool:
         """Check if Ruff is enabled (default: True)."""
-        excelsior_section = ConfigurationLoader._tool_section.get("excelsior", {})
+        excelsior_section = self.__class__._tool_section.get("excelsior", {})
         if isinstance(excelsior_section, dict):
             return bool(excelsior_section.get("ruff_enabled", True))
         return True  # Enabled by default

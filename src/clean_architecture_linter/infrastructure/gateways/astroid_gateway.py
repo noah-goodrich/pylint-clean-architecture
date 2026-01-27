@@ -20,6 +20,24 @@ class AstroidGateway(AstroidProtocol):
         from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
         self.python_gateway = PythonGateway()
 
+    def clear_inference_cache(self) -> None:
+        """Clear the astroid inference cache to force fresh inference after code changes."""
+        astroid.MANAGER.clear_cache()
+
+    def parse_file(self, file_path: str) -> Optional[astroid.nodes.Module]:
+        """Parse a file and return the astroid Module node."""
+        try:
+            # JUSTIFICATION: File reading requires Path for file I/O
+            from pathlib import Path
+            file_path_obj = Path(file_path)
+            if not file_path_obj.exists():
+                return None
+            with open(file_path_obj, encoding="utf-8") as f:
+                source = f.read()
+            return astroid.parse(source, file_path)
+        except Exception:
+            return None
+
     def get_node_return_type_qname(self, node: astroid.nodes.NodeNG) -> Optional[str]:
         """Dynamically discovers fully qualified names using AST inference and signature hints."""
         # 1. Sticker Reading (Explicit Annotations / Casts)

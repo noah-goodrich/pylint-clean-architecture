@@ -291,6 +291,29 @@ class CouplingChecker(BaseChecker):
                 return True
         return False
 
+    def _is_assigned_from_container_get(self, var_node: astroid.nodes.Name) -> bool:
+        """True if var is assigned from obj.get(key) and obj is a friend (locally instantiated or self)."""
+        func_node = var_node.frame()
+        if not isinstance(func_node, astroid.nodes.FunctionDef):
+            return False
+        for assign in func_node.nodes_of_class(astroid.nodes.Assign):
+            for target in assign.targets:
+                if not (isinstance(target, astroid.nodes.AssignName) and target.name == var_node.name):
+                    continue
+                if not isinstance(assign.value, astroid.nodes.Call):
+                    return False
+                if not isinstance(assign.value.func, astroid.nodes.Attribute):
+                    return False
+                if assign.value.func.attrname != "get":
+                    return False
+                container = assign.value.func.expr
+                if self._is_locally_instantiated(container):
+                    return True
+                if isinstance(container, astroid.nodes.Name) and container.name == "self":
+                    return True
+                return False
+        return False
+
     def _check_stranger_variable(self, node: astroid.nodes.Call) -> None:
         """Case 2: Method called on a 'stranger' variable."""
         if isinstance(node.func, astroid.nodes.Attribute):
@@ -305,6 +328,10 @@ class CouplingChecker(BaseChecker):
                 # Additional check: Look up the assignment and check if it came from a primitive method
                 if self._is_assigned_from_primitive_method(expr):
                     return  # Assigned from primitive.method(), safe
+
+                # Exempt: assigned from container.get(key) when container is a friend (H1)
+                if self._is_assigned_from_container_get(expr):
+                    return  # Resolved from DI container / factory, treat as friend
 
                 if self._is_chain_excluded(node, [node.func.attrname], expr):
                     return
@@ -373,6 +400,23 @@ class CouplingChecker(BaseChecker):
     def _is_primitive_receiver(self, receiver: astroid.nodes.NodeNG) -> bool:
         """Check if the receiver of a call is a primitive type (LEGO brick)."""
         qname = self._ast_gateway.get_return_type_qname_from_expr(receiver)
+        ok = bool(qname and self._ast_gateway.is_primitive(qname))
+        if not ok and qname is None:
+            # Fallback when inference fails: common string-typed attr/call (H2, H3, H5)
+            # "location" is typically "path:line" or "path:line:column" (str); inference
+            # often fails for attrs on params (e.g. violation.location in governance_comments).
+            if isinstance(receiver, astroid.nodes.Attribute) and getattr(
+                receiver, "attrname", None
+            ) in ("name", "qname", "value", "msg", "message", "location"):
+                ok = True
+            elif isinstance(receiver, astroid.nodes.Call):
+                func = getattr(receiver, "func", None)
+                if isinstance(func, astroid.nodes.Attribute) and getattr(
+                    func, "attrname", None
+                ) == "qname":
+                    ok = True
+        if ok:
+            return True
         if qname:
             return self._ast_gateway.is_primitive(qname)
         return False

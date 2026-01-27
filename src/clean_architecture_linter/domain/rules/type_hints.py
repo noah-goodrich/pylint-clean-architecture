@@ -24,6 +24,7 @@ class MissingTypeHintRule:
 
     code: str = "W9015"
     description: str = "Missing Type Hint: All function and method signatures must be fully type-hinted."
+    fix_type: str = "code"
 
     def __init__(self, ast_gateway: AstroidProtocol) -> None:
         self.ast_gateway = ast_gateway

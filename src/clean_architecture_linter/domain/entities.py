@@ -63,6 +63,7 @@ class ViolationWithFixInfo:
     locations: List[str]
     fixable: bool
     manual_instructions: Optional[str] = None
+    comment_only: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -73,6 +74,7 @@ class ViolationWithFixInfo:
             "locations": self.locations,
             "fixable": self.fixable,
             "manual_instructions": self.manual_instructions,
+            "comment_only": self.comment_only,
         }
 
 

@@ -25,6 +25,7 @@ from clean_architecture_linter.domain.protocols import (
 )
 from clean_architecture_linter.domain.rules import BaseRule
 from clean_architecture_linter.domain.rules.governance_comments import LawOfDemeterRule
+from clean_architecture_linter.domain.rules.immutability import DomainImmutabilityRule
 from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
 from clean_architecture_linter.infrastructure.services.violation_bridge import (
     ViolationBridgeService,
@@ -125,7 +126,8 @@ class ApplyFixesUseCase:
 
     def execute_multi_pass(self, rules: List[BaseRule], target_path: str) -> int:
         """
-        Execute multi-pass fixer: Pass 1 (Ruff) → Pass 2 (W9015) → Pass 3 (Re-audit + Architecture).
+        Execute multi-pass fixer with cache clearing:
+        Pass 1 (Ruff + W9015) → Clear Cache → Pass 2 (Architecture) → Pass 3 (LoD Comments).
 
         Args:
             rules: List of BaseRule instances (Excelsior rules)
@@ -139,11 +141,20 @@ class ApplyFixesUseCase:
 
         self._run_baseline_if_enabled()
 
+        # Phase 1: Deterministic fixes (Ruff + Type Hints)
         pass1_modified = self._execute_pass1_ruff(target_path)
         pass2_modified = self._execute_pass2_type_hints(rules, target_path)
-        pass3_modified = self._execute_pass3_architecture(rules, target_path)
 
-        total_modified = pass1_modified + pass2_modified + pass3_modified
+        # The Reset: Clear astroid inference cache after type hints are added
+        self._clear_astroid_cache()
+
+        # Phase 2: Architectural fixes (excluding W9015 and W9006)
+        pass3_modified = self._execute_pass3_architecture_code(rules, target_path)
+
+        # Phase 3: Governance Comments (W9006 only - comment-only fixes)
+        pass4_modified = self._execute_pass4_governance_comments(rules, target_path)
+
+        total_modified = pass1_modified + pass2_modified + pass3_modified + pass4_modified
 
         if self.telemetry:
             self.telemetry.step(f"🛠️ Multi-Pass Fix Suite complete. Total files repaired: {total_modified}")
@@ -180,14 +191,21 @@ class ApplyFixesUseCase:
 
         return pass2_modified
 
-    def _execute_pass3_architecture(self, rules: List[BaseRule], target_path: str) -> int:
-        """Pass 3: Re-audit and apply Architecture/Commentary fixes."""
+    def _clear_astroid_cache(self) -> None:
+        """Clear astroid inference cache to force fresh inference after code changes."""
+        if self.astroid_gateway:
+            self.astroid_gateway.clear_inference_cache()
+            if self.telemetry:
+                self.telemetry.step("🔄 Cleared astroid inference cache for fresh analysis")
+
+    def _execute_pass3_architecture_code(self, rules: List[BaseRule], target_path: str) -> int:
+        """Pass 3: Apply architectural code fixes (excluding W9015 and W9006)."""
         if self.telemetry:
-            self.telemetry.step("Pass 3: Re-auditing and applying Architecture/Commentary fixes...")
+            self.telemetry.step("Pass 3: Applying architectural code fixes...")
 
         if not self.check_audit_use_case:
             # Fallback: apply remaining rules without re-audit
-            architecture_rules = self._get_architecture_rules(rules)
+            architecture_rules = self._get_architecture_code_rules(rules)
             return self._apply_rule_fixes(architecture_rules, target_path)
 
         audit_result = self.check_audit_use_case.execute(target_path)
@@ -197,27 +215,44 @@ class ApplyFixesUseCase:
                 self.telemetry.step(f"⚠️  Pass 3 skipped: Audit blocked by {audit_result.blocked_by}")
             return 0
 
+        # Apply architecture rules (code fixes only, not comments)
+        architecture_rules = self._get_architecture_code_rules(rules)
+        rule_modified = self._apply_rule_fixes(architecture_rules, target_path)
+
+        if self.telemetry and rule_modified > 0:
+            self.telemetry.step(f"✅ Pass 3 complete: {rule_modified} file(s) fixed with architectural code changes")
+
+        return rule_modified
+
+    def _execute_pass4_governance_comments(self, rules: List[BaseRule], target_path: str) -> int:
+        """Pass 4: Apply governance comments for LoD (W9006) violations."""
+        if self.telemetry:
+            self.telemetry.step("Pass 4: Applying governance comments (Law of Demeter)...")
+
+        if not self.check_audit_use_case:
+            # Fallback: apply LoD rule directly
+            lod_rules = [r for r in rules if hasattr(r, 'code') and r.code == "W9006"]
+            return self._apply_rule_fixes(lod_rules, target_path)
+
+        audit_result = self.check_audit_use_case.execute(target_path)
+
+        if audit_result.is_blocked():
+            if self.telemetry:
+                self.telemetry.step(f"⚠️  Pass 4 skipped: Audit blocked by {audit_result.blocked_by}")
+            return 0
+
         if not audit_result.excelsior_results:
             return 0
 
-        # Apply governance comment fixes for manual-fix violations
+        # Apply governance comment fixes for LoD violations only
         governance_modified = self._apply_governance_comments(
             audit_result.excelsior_results, target_path
         )
 
-        # Apply other architecture rules
-        architecture_rules = self._get_architecture_rules(rules)
-        rule_modified = self._apply_rule_fixes(architecture_rules, target_path)
+        if self.telemetry and governance_modified > 0:
+            self.telemetry.step(f"✅ Pass 4 complete: {governance_modified} file(s) fixed with governance comments")
 
-        pass3_modified = governance_modified + rule_modified
-
-        if self.telemetry and pass3_modified > 0:
-            self.telemetry.step(
-                f"✅ Pass 3 complete: {pass3_modified} file(s) fixed "
-                f"({governance_modified} with governance comments, {rule_modified} with rule fixes)"
-            )
-
-        return pass3_modified
+        return governance_modified
 
     def _apply_governance_comments(
         self, excelsior_results: List[LinterResult], target_path: str
@@ -273,10 +308,11 @@ class ApplyFixesUseCase:
     def _build_governance_transformers(
         self, violations: List["Violation"]
     ) -> List["cst.CSTTransformer"]:
-        """Build governance comment transformers for violations."""
+        """Build governance comment transformers for violations (W9006 only)."""
         transformers = []
         for violation in violations:
-            if not violation.is_comment_only:
+            # Only process W9006 (Law of Demeter) for governance comments
+            if violation.code != "W9006" and violation.code != "clean-arch-demeter":
                 continue
 
             rule = self._get_governance_rule_for_violation(violation)
@@ -327,6 +363,23 @@ class ApplyFixesUseCase:
 
         return None
 
+    def _get_rule_for_violation(self, violation: "Violation") -> Optional[BaseRule]:
+        """Get the appropriate rule for a violation (code or comment fixes)."""
+
+        # Map violation codes to rule classes
+        rule_map = {
+            "W9006": LawOfDemeterRule,
+            "clean-arch-demeter": LawOfDemeterRule,
+            "W9601": DomainImmutabilityRule,
+            "domain-immutability-violation": DomainImmutabilityRule,
+        }
+
+        rule_class = rule_map.get(violation.code)
+        if rule_class:
+            return rule_class()
+
+        return None
+
     def _get_w9015_rules(self, rules: List[BaseRule]) -> List[BaseRule]:
         """Get W9015 rules from list, creating if missing."""
         w9015_rules = [r for r in rules if hasattr(r, 'code') and r.code == "W9015"]
@@ -337,6 +390,14 @@ class ApplyFixesUseCase:
     def _get_architecture_rules(self, rules: List[BaseRule]) -> List[BaseRule]:
         """Get architecture rules excluding W9015 (already fixed in Pass 2)."""
         return [r for r in rules if not (hasattr(r, 'code') and r.code == "W9015")]
+
+    def _get_architecture_code_rules(self, rules: List[BaseRule]) -> List[BaseRule]:
+        """Get architecture rules for code fixes (excluding W9015 and W9006)."""
+        return [
+            r for r in rules
+            if not (hasattr(r, 'code') and r.code in ("W9015", "W9006"))
+            and (not hasattr(r, 'fix_type') or getattr(r, 'fix_type', 'code') == 'code')
+        ]
 
     def _apply_rule_fixes(self, rules: List[BaseRule], target_path: str) -> int:
         """

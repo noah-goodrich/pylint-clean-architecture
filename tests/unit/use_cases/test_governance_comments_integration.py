@@ -61,8 +61,8 @@ class TestGovernanceCommentsIntegration:
             validate_with_tests=False,
         )
 
-        # Execute Pass 3
-        modified = use_case._execute_pass3_architecture([], str(tmp_path))
+        # Execute Pass 4 (governance comments)
+        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
 
         # Check that file was modified (may be 0 if no violations found or parsing issues)
         # The key is that the method runs without error
@@ -110,8 +110,8 @@ class TestGovernanceCommentsIntegration:
         )
 
         # W9015 is not comment-only, so governance comments won't be applied
-        # Test by checking that _execute_pass3_architecture doesn't apply comments for W9015
-        modified = use_case._execute_pass3_architecture([], str(tmp_path))
+        # Test by checking that _execute_pass4_governance_comments doesn't apply comments for W9015
+        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
         
         # Should not modify with governance comments (W9015 is not comment-only)
         # But may modify with other rules, so just check it runs
@@ -195,7 +195,7 @@ class TestGovernanceCommentsIntegration:
         )
 
         # Should return 0 when no astroid gateway
-        modified = use_case._execute_pass3_architecture([], str(tmp_path))
+        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
         assert modified == 0
 
     def test_apply_governance_comments_groups_by_file(self, tmp_path) -> None:
@@ -236,7 +236,7 @@ class TestGovernanceCommentsIntegration:
             validate_with_tests=False,
         )
 
-        modified = use_case._execute_pass3_architecture([], str(tmp_path))
+        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
 
         # Should attempt to modify files (may be 0 if node matching fails)
         # The key is that the method runs without error

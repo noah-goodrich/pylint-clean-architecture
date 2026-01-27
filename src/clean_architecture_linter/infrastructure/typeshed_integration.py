@@ -16,21 +16,12 @@ class TypeshedService(TypeshedProtocol):
     def __new__(cls) -> "TypeshedService":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            # JUSTIFICATION: Internal singleton initialization
-            cls._instance._load_stdlib_modules() # pylint: disable=clean-arch-visibility
+            # Inline stdlib init to avoid protected method call from __new__
+            try:
+                _ = finder.get_search_context()  # Reserved for future use
+            except Exception:
+                logging.warning("Failed to initialize TypeshedService")
         return cls._instance
-
-    def _load_stdlib_modules(self) -> None:
-        """Cache list of standard library modules from typeshed."""
-        try:
-             # typeshed-client finder can list all modules in stdlib
-             # We iterate known stdlib versions or just check 'stdlib' folder
-             _ = finder.get_search_context()  # Reserved for future use
-             # This is a bit implementation dependent, but we want to know
-             # if a module is in the stdlib search path.
-             pass
-        except Exception:
-             logging.warning("Failed to initialize TypeshedService")
 
     def is_stdlib_module(self, module_name: str) -> bool:
         """Check if a module is part of the standard library."""

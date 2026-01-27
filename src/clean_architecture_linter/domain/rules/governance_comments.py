@@ -19,6 +19,8 @@ class LawOfDemeterRule:
 
     Injects governance comments above violations to provide contextual
     guidance for both humans and AI (Cursor) to understand and fix the issue.
+
+    This is a COMMENT-ONLY fix - it does NOT modify code structure.
     """
 
     code: str = "W9006"
@@ -26,6 +28,7 @@ class LawOfDemeterRule:
         "Law of Demeter: Chain access exceeds one level. "
         "Governance comment will be injected to guide fix."
     )
+    fix_type: str = "comment"
 
     def __init__(self) -> None:
         pass
@@ -34,14 +37,10 @@ class LawOfDemeterRule:
         """
         Check for Law of Demeter violations.
 
-        Note: This is a simplified implementation. In practice, violations
-        are detected by Pylint's CouplingChecker. This method would ideally
-        bridge from Pylint violations or re-check using astroid.
-
-        For now, this returns an empty list - violations come from Pylint,
-        and we'll handle them in fix() when called with a Violation.
+        Note: Violations are detected by Pylint's CouplingChecker. This check()
+        is a no-op in the fix pipeline; violations are supplied by Pylint.
+        fix() is invoked with those Violation instances.
         """
-        # TODO: Bridge from Pylint violations or re-implement detection
         return []
 
     def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
