@@ -1,3 +1,17 @@
+class Inner:
+    def run(self) -> None:
+        pass
+
+
+class Outer:
+    attr: Inner
+
+
+def violation_3(obj: Outer) -> None:
+    # VIOLATION: two-level chain through attr (obj.attr.run). (transformers.py:103, 214)
+    obj.attr.run()
+
+
 class Stranger:
     def get_data(self) -> 'Stranger':
         return self

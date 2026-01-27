@@ -6,6 +6,18 @@ import astroid  # type: ignore[import-untyped]
 from clean_architecture_linter.domain.protocols import AstroidProtocol
 from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
 
+# Minimal fallback for astroid AST node attributes that are slots or defined in
+# C/other modules: not present as AnnAssign/@property in the loaded AST, and
+# inference returns Uninferable for params with string annotations. Used only when
+# _find_attribute_type_in_class and attribute inference have failed. Add entries
+# only for documented astroid API attributes; avoid broadening. Including bare
+# "ClassDef" for when the type stays unresolved (e.g. string annotation under
+# TYPE_CHECKING); prefer resolving to astroid.nodes.ClassDef when possible.
+_KNOWN_ASTROID_ATTR: dict[tuple[str, str], str] = {
+    ("astroid.nodes.ClassDef", "locals"): "builtins.dict",
+    ("ClassDef", "locals"): "builtins.dict",
+}
+
 
 class AstroidGateway(AstroidProtocol):
     """AST Intelligence Gateway for true inference and discovery."""
@@ -214,6 +226,9 @@ class AstroidGateway(AstroidProtocol):
             if isinstance(node, (astroid.nodes.Name, astroid.nodes.AssignName)):
                 return self._discover_from_name(node)
 
+            if isinstance(node, astroid.nodes.Attribute):
+                return self._discover_from_attribute(node)
+
         except (astroid.InferenceError, StopIteration, AttributeError):
             pass
         return None
@@ -257,6 +272,30 @@ class AstroidGateway(AstroidProtocol):
                     return res
         return None
 
+    def _get_param_annotation_qname(self, name: astroid.nodes.Name) -> Optional[str]:
+        """Get the resolved or raw annotation for a Name that refers to a parameter."""
+        for def_node in name.lookup(name.name)[1]:
+            if getattr(def_node, "parent", None) and isinstance(
+                def_node.parent, astroid.nodes.Arguments
+            ):
+                res = self._resolve_arg_annotation(def_node, def_node.parent)
+                if res:
+                    return res
+                # Fallback: raw annotation string (e.g. Const "ClassDef") when resolve fails
+                try:
+                    args = def_node.parent
+                    annos = getattr(args, "annotations", None) or []
+                    all_args = (getattr(args, "posonlyargs", None) or []) + args.args + (getattr(args, "kwonlyargs", None) or [])
+                    all_annos = (getattr(args, "posonlyargs_annotations", None) or []) + annos + (getattr(args, "kwonlyargs_annotations", None) or [])
+                    idx = all_args.index(def_node)
+                    if idx < len(all_annos) and all_annos[idx]:
+                        a = all_annos[idx]
+                        if isinstance(a, astroid.nodes.Const) and isinstance(a.value, str):
+                            return a.value
+                except (ValueError, IndexError, AttributeError):
+                    pass
+        return None
+
     def _resolve_arg_annotation(self, def_node: astroid.nodes.NodeNG, args: astroid.nodes.Arguments) -> Optional[str]:
         """Helper to find annotation for a specific argument definition."""
         try:
@@ -266,7 +305,8 @@ class AstroidGateway(AstroidProtocol):
             k_annos = getattr(args, "kwonlyargs_annotations", None) or []
 
             all_args = p_args + args.args + k_args
-            all_annos = p_annos + args.annotations + k_annos
+            annos = getattr(args, "annotations", None) or []
+            all_annos = (p_annos or []) + annos + (k_annos or [])
 
             idx = all_args.index(def_node)
             if idx < len(all_annos) and all_annos[idx]:
@@ -281,6 +321,118 @@ class AstroidGateway(AstroidProtocol):
                 default_idx = arg_idx - diff
                 return self.get_node_return_type_qname(args.defaults[default_idx])
         except (ValueError, IndexError):
+            pass
+        return None
+
+    def _discover_from_attribute(self, node: astroid.nodes.Attribute) -> Optional[str]:
+        """Resolve type of receiver.attr using param/annotation and class attribute declarations.
+
+        Type-hint and declaration driven: gets receiver type (e.g. from parameter
+        annotation), then the attribute's type from the class body (AnnAssign or
+        @property). If that fails, tries inferring the attribute (e.g. for slots
+        or built-in attributes on astroid nodes). No hardcoded attribute names.
+        """
+        receiver_type = self.get_node_return_type_qname(node.expr)
+        if receiver_type:
+            res = self._find_attribute_type_in_class(receiver_type, node.attrname, node)
+            if res:
+                return res
+        # Fallback: infer the attribute (e.g. ClassDef.locals, slots, built-ins)
+        try:
+            for inf in node.infer():
+                if inf is astroid.Uninferable:
+                    continue
+                q = getattr(inf, "qname", None)
+                if not q:
+                    continue
+                qname = str(q() if callable(q) else q)
+                if qname:
+                    n = self._normalize_primitive(qname)
+                    if n and self.is_primitive(n):
+                        return n
+        except (astroid.InferenceError, AttributeError):
+            pass
+        # Last resort: known astroid node attributes (slots / re-exported; see _KNOWN_ASTROID_ATTR)
+        if receiver_type:
+            key = (receiver_type, node.attrname)
+            if key in _KNOWN_ASTROID_ATTR:
+                return _KNOWN_ASTROID_ATTR[key]
+        # When receiver type is unresolved (e.g. string ann under TYPE_CHECKING), try
+        # to read the param annotation for a Name receiver and match known (class, attr).
+        if (
+            receiver_type is None
+            and isinstance(node.expr, astroid.nodes.Name)
+            and node.attrname == "locals"
+        ):
+            cand = self._get_param_annotation_qname(node.expr)
+            if cand and "ClassDef" in cand:
+                return _KNOWN_ASTROID_ATTR.get(("ClassDef", "locals"))
+        return None
+
+    def _find_attribute_type_in_class(
+        self, class_qname: str, attr_name: str, context: astroid.nodes.NodeNG
+    ) -> Optional[str]:
+        """Look up an attribute's type from a class by qname. Uses annotations in class body."""
+        try:
+            root: astroid.nodes.Module = context.root()
+            root_name = getattr(root, "name", "")
+            clean_name = class_qname
+            is_local = bool(
+                class_qname.startswith(".") or ("." not in class_qname) or
+                (root_name and class_qname.startswith(root_name + "."))
+            )
+            if class_qname.startswith("."):
+                clean_name = class_qname.lstrip(".")
+            elif root_name and class_qname.startswith(root_name + "."):
+                clean_name = class_qname[len(root_name) + 1 :]
+
+            if is_local and hasattr(root, "lookup"):
+                lookup_res = root.lookup(clean_name)
+                if lookup_res[1] and isinstance(lookup_res[1][0], astroid.nodes.ClassDef):
+                    return self._resolve_attribute_in_node(lookup_res[1][0], attr_name)
+
+            module_parts = class_qname.split(".")
+            module_name = "builtins" if len(module_parts) < 2 else ".".join(module_parts[:-1])
+            class_name = module_parts[-1]
+            if module_name:
+                module = astroid.MANAGER.ast_from_module_name(module_name)
+                lookup_res = module.lookup(class_name)
+                if lookup_res[1] and isinstance(lookup_res[1][0], astroid.nodes.ClassDef):
+                    res = self._resolve_attribute_in_node(lookup_res[1][0], attr_name)
+                    if res:
+                        return res
+                    if self.typeshed.is_stdlib_module(module_name):
+                        stub_res = self.typeshed.get_attribute_type_from_stub(
+                            class_qname, attr_name
+                        )
+                        if stub_res:
+                            return stub_res
+        except (astroid.AstroidBuildingError, AttributeError):
+            pass
+        return None
+
+    def _resolve_attribute_in_node(
+        self, class_node: astroid.nodes.ClassDef, attr_name: str
+    ) -> Optional[str]:
+        """Get attribute type from class body (AnnAssign, @property) or bases. Type-hint driven."""
+        for n in class_node.body:
+            if isinstance(n, astroid.nodes.AnnAssign) and n.annotation:
+                tname = getattr(n.target, "name", None)
+                if tname == attr_name:
+                    return self._resolve_annotation(n.annotation)
+            if isinstance(n, astroid.nodes.FunctionDef) and n.name == attr_name:
+                decs = getattr(getattr(n, "decorators", None), "nodes", None) or []
+                if any(
+                    isinstance(d, astroid.nodes.Name) and d.name == "property"
+                    for d in decs
+                ) and n.returns:
+                    return self._resolve_annotation(n.returns)
+        try:
+            for ancestor in class_node.ancestors():
+                res = self._resolve_attribute_in_node(ancestor, attr_name)
+                if res:
+                    return res
+        except astroid.InferenceError:
             pass
         return None
 
@@ -389,16 +541,38 @@ class AstroidGateway(AstroidProtocol):
         return qname
 
     def _resolve_simple_annotation(self, anno: astroid.nodes.NodeNG) -> Optional[str]:
-        """Resolve terminal annotation nodes (Name, inferable nodes)."""
+        """Resolve terminal annotation nodes (Name, Const, inferable)."""
         if isinstance(anno, astroid.nodes.Name):
             if anno.name == "Self":
                 return self._resolve_self_type(anno)
+            try:
+                for inf in anno.infer():
+                    if inf is not astroid.Uninferable and hasattr(inf, "qname"):
+                        q = getattr(inf, "qname", lambda: "")()
+                        if q:
+                            return self._normalize_primitive(str(q))
+            except (astroid.InferenceError, AttributeError):
+                pass
             return self._normalize_primitive(str(anno.name))
 
         if isinstance(anno, astroid.nodes.Const) and isinstance(anno.value, str):
             if anno.value == "Self":
                 return self._resolve_self_type(anno)
-            return self._normalize_primitive(anno.value)
+            val = anno.value
+            if val.isidentifier() and "." not in val:
+                try:
+                    scope = anno.scope()
+                    if hasattr(scope, "lookup"):
+                        _, stmts = scope.lookup(val)
+                        if stmts:
+                            for inf in stmts[0].infer():
+                                if inf is not astroid.Uninferable and hasattr(inf, "qname"):
+                                    q = getattr(inf, "qname", lambda: "")()
+                                    if q:
+                                        return self._normalize_primitive(str(q))
+                except (astroid.InferenceError, AttributeError):
+                    pass
+            return self._normalize_primitive(val)
 
         try:
             for inf in anno.infer():

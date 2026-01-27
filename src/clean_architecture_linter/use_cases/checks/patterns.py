@@ -388,6 +388,17 @@ class CouplingChecker(BaseChecker):
         curr: astroid.nodes.NodeNG,
     ) -> bool:
         """Tiered logic for chain exclusion."""
+        # Astroid ClassDef.locals.get(key, default): .locals is dict-like but not always
+        # inferable (string annos, TYPE_CHECKING, re-exports). Allow this specific chain.
+        # (chain order is [innermost, ...]; for x.locals.get we get ['get', 'locals'])
+        if (
+            chain == ["get", "locals"]
+            and isinstance(node.func, astroid.nodes.Attribute)
+            and isinstance(node.func.expr, astroid.nodes.Attribute)
+            and node.func.expr.attrname == "locals"
+        ):
+            return True
+
         config_loader = ConfigurationLoader()
         if self._excluded_by_environment_or_trust(node, curr, config_loader):
             return True
@@ -398,28 +409,13 @@ class CouplingChecker(BaseChecker):
         return self._is_allowed_by_inference(curr, config_loader)
 
     def _is_primitive_receiver(self, receiver: astroid.nodes.NodeNG) -> bool:
-        """Check if the receiver of a call is a primitive type (LEGO brick)."""
+        """Check if the receiver of a call is a primitive type (LEGO brick).
+
+        Uses type inference and type hints via the astroid gateway only;
+        no hardcoded attribute or type lists.
+        """
         qname = self._ast_gateway.get_return_type_qname_from_expr(receiver)
-        ok = bool(qname and self._ast_gateway.is_primitive(qname))
-        if not ok and qname is None:
-            # Fallback when inference fails: common string-typed attr/call (H2, H3, H5)
-            # "location" is typically "path:line" or "path:line:column" (str); inference
-            # often fails for attrs on params (e.g. violation.location in governance_comments).
-            if isinstance(receiver, astroid.nodes.Attribute) and getattr(
-                receiver, "attrname", None
-            ) in ("name", "qname", "value", "msg", "message", "location"):
-                ok = True
-            elif isinstance(receiver, astroid.nodes.Call):
-                func = getattr(receiver, "func", None)
-                if isinstance(func, astroid.nodes.Attribute) and getattr(
-                    func, "attrname", None
-                ) == "qname":
-                    ok = True
-        if ok:
-            return True
-        if qname:
-            return self._ast_gateway.is_primitive(qname)
-        return False
+        return bool(qname and self._ast_gateway.is_primitive(qname))
 
     def _is_self_or_cls(self, curr: astroid.nodes.NodeNG, chain: List[str]) -> bool:
         """Check if call is on self/cls within limits."""
