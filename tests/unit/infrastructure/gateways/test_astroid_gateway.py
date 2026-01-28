@@ -361,3 +361,68 @@ class Derived(Base):
         result = self.gateway._resolve_method_in_node(mock_class, "method")
         # Should handle InferenceError gracefully
         assert result is None
+
+    # --- StubAuthority integration: stub-first attribute resolution ---
+
+    def test_find_attribute_type_in_class_classdef_locals_via_stub(self) -> None:
+        """ClassDef.locals resolves to builtins.dict via core stub when class body has no AnnAssign for it."""
+        # Use a minimal module with a ClassDef that has no "locals" in body, so
+        # _resolve_attribute_in_node returns None and StubAuthority is used.
+        self.gateway.typeshed.is_stdlib_module.return_value = False  # astroid is not stdlib
+        mod_parse = astroid.parse("class ClassDef: pass\nx = 1\n", path=str(Path(__file__).resolve()))
+        empty_class = mod_parse.body[0]
+        context = mod_parse.body[1]
+        mock_mod = MagicMock()
+        mock_mod.lookup.return_value = (None, [empty_class])
+        with patch("astroid.MANAGER.ast_from_module_name", return_value=mock_mod):
+            res = self.gateway._find_attribute_type_in_class(
+                "astroid.nodes.ClassDef", "locals", context
+            )
+        assert res == "builtins.dict"
+
+    def test_find_attribute_type_in_class_violation_location_via_stub(self) -> None:
+        """Violation.location should resolve to builtins.str via core stub or source."""
+        module = astroid.parse("x = 1\n", path=str(Path(__file__).resolve()))
+        context = module.body[0]
+        res = self.gateway._find_attribute_type_in_class(
+            "clean_architecture_linter.domain.rules.Violation", "location", context
+        )
+        assert res == "builtins.str"
+
+    def test_find_attribute_type_in_class_functiondef_name_via_stub(self) -> None:
+        """FunctionDef.name resolves to builtins.str via core stub when class body has no AnnAssign for it."""
+        self.gateway.typeshed.is_stdlib_module.return_value = False  # astroid is not stdlib
+        mod_parse2 = astroid.parse("class FunctionDef: pass\nx = 1\n", path=str(Path(__file__).resolve()))
+        empty_class = mod_parse2.body[0]  # ClassDef with no "name" AnnAssign in body
+        context = mod_parse2.body[1]
+        mock_mod = MagicMock()
+        mock_mod.lookup.return_value = (None, [empty_class])
+        with patch("astroid.MANAGER.ast_from_module_name", return_value=mock_mod):
+            res = self.gateway._find_attribute_type_in_class(
+                "astroid.nodes.FunctionDef", "name", context
+            )
+        assert res == "builtins.str"
+
+    def test_find_attribute_type_in_class_nonexistent_returns_none(self) -> None:
+        """Unknown class or attribute should return None (no nominal fallback)."""
+        module = astroid.parse("x = 1\n", path=str(Path(__file__).resolve()))
+        context = module.body[0]
+        res = self.gateway._find_attribute_type_in_class(
+            "astroid.nodes.ClassDef", "nonexistent_attr", context
+        )
+        assert res is None
+
+    def test_get_node_return_type_qname_attribute_uses_stub_when_inference_fails(self) -> None:
+        """E2E: resolving obj.locals when obj is ClassDef uses stub for .locals -> dict."""
+        code = """
+from astroid.nodes import ClassDef
+def f(node: ClassDef):
+    return node.locals.get("x", [])
+"""
+        module = astroid.parse(code)
+        func = module.body[1]
+        ret = func.body[0].value  # node.locals.get(...)
+        # The attribute for .get's receiver is node.locals (Attribute)
+        attr = ret.func.expr  # node.locals
+        qname = self.gateway.get_node_return_type_qname(attr)
+        assert qname == "builtins.dict"

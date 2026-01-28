@@ -9,13 +9,17 @@ from clean_architecture_linter.infrastructure.di.container import ExcelsiorConta
 from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
 
 
+# W9019 smoke tests: intended LoD violations (snowflake chains); exclude from LoD benchmarks.
+_LOD_BENCHMARK_SKIP = frozenset({"snowflake_stable.py", "snowflake_unstable.py"})
+
+
 def _collect_samples() -> list:
     """Helper to parse all benchmark files in source-data."""
     source_dir: str = "tests/functional/source-data"
     all_samples = []
 
     for filename in sorted(os.listdir(source_dir)):
-        if not filename.endswith(".py"):
+        if not filename.endswith(".py") or filename in _LOD_BENCHMARK_SKIP:
             continue
 
         path = os.path.join(source_dir, filename)
@@ -40,10 +44,16 @@ def _collect_samples() -> list:
     return all_samples
 
 def get_safe_samples():
-    return [s for s in _collect_samples() if not s[2]]
+    return [
+        s for s in _collect_samples()
+        if not s[2] and s[0].split("::")[0] not in _LOD_BENCHMARK_SKIP
+    ]
 
 def get_violation_samples():
-    return [s for s in _collect_samples() if s[2]]
+    return [
+        s for s in _collect_samples()
+        if s[2] and s[0].split("::")[0] not in _LOD_BENCHMARK_SKIP
+    ]
 
 class TestLoDExhaustive(CheckerTestCase):
     CHECKER_CLASS = CouplingChecker

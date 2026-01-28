@@ -196,7 +196,9 @@ class ApplyFixesUseCase:
         if self.astroid_gateway:
             self.astroid_gateway.clear_inference_cache()
             if self.telemetry:
-                self.telemetry.step("🔄 Cleared astroid inference cache for fresh analysis")
+                self.telemetry.step(
+                    "🔄 Pass 1–2 complete. Cleared astroid cache. Re-inferring architecture for Pass 3…"
+                )
 
     def _execute_pass3_architecture_code(self, rules: List[BaseRule], target_path: str) -> int:
         """Pass 3: Apply architectural code fixes (excluding W9015 and W9006)."""

@@ -13,7 +13,7 @@ from pylint.checkers import BaseChecker
 _MOCK_LIMIT: int = 4
 
 
-class TestingChecker(BaseChecker):
+class CleanArchTestingChecker(BaseChecker):
     """Enforce loose test coupling following Uncle Bob's TDD principles."""
 
     name: str = "clean-arch-testing"

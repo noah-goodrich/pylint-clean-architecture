@@ -1,5 +1,6 @@
-"""Pattern checks (W9005, W9006)."""
+"""Pattern checks (W9005, W9006, W9019)."""
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import astroid  # type: ignore[import-untyped]
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
+from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
 
 _MIN_CHAIN_LENGTH: int = 2
 _MAX_SELF_CHAIN_LENGTH: int = 2
@@ -108,6 +110,11 @@ class CouplingChecker(BaseChecker):
                 "clean-arch-demeter",
                 "OBJECTS SHOULD NOT EXPOSE INTERNALS. Violating Demeter (a.b.c) couples code to structure.",
             ),
+            "W9019": (
+                "Dependency %s is uninferable. Create stubs/%s.pyi to establish architectural truth.",
+                "clean-arch-unstable-dep",
+                "External modules without .pyi stubs cannot be reliably checked for LoD. Add a stub.",
+            ),
         }
         super().__init__(linter)
         self._locals_map: Dict[str, bool] = {}
@@ -199,6 +206,22 @@ class CouplingChecker(BaseChecker):
 
         if len(chain) < _MIN_CHAIN_LENGTH:
             return False
+
+        # W9019: Unstable Dependency gate — if receiver is Uninferable and from external
+        # module with no stub, report W9019 instead of W9006.
+        receiver_qname = self._ast_gateway.get_return_type_qname_from_expr(curr)
+        if receiver_qname is None:
+            ext_mod = self._get_external_module_for_uninferable(curr)
+            if ext_mod:
+                project_root = self._get_project_root(node)
+                if StubAuthority().get_stub_path(ext_mod, project_root) is None:
+                    stub_path_arg = ext_mod.replace(".", "/")
+                    self.add_message(
+                        "clean-arch-unstable-dep",
+                        node=node,
+                        args=(ext_mod, stub_path_arg),
+                    )
+                    return True
 
         if self._is_chain_excluded(node, chain, curr):
             return False
@@ -325,6 +348,20 @@ class CouplingChecker(BaseChecker):
                 if var_qname and self._ast_gateway.is_primitive(var_qname):
                     return  # It's a primitive, not a stranger
 
+                # W9019: If stranger is Uninferable and from external module with no stub
+                if var_qname is None:
+                    ext_mod = self._get_external_module_for_uninferable(expr)
+                    if ext_mod:
+                        project_root = self._get_project_root(node)
+                        if StubAuthority().get_stub_path(ext_mod, project_root) is None:
+                            stub_path_arg = ext_mod.replace(".", "/")
+                            self.add_message(
+                                "clean-arch-unstable-dep",
+                                node=node,
+                                args=(ext_mod, stub_path_arg),
+                            )
+                            return
+
                 # Additional check: Look up the assignment and check if it came from a primitive method
                 if self._is_assigned_from_primitive_method(expr):
                     return  # Assigned from primitive.method(), safe
@@ -341,6 +378,149 @@ class CouplingChecker(BaseChecker):
                     node=node,
                     args=(f"{expr.name}.{node.func.attrname} (Stranger)",),
                 )
+
+    def _get_project_root(self, node: astroid.nodes.NodeNG) -> Optional[str]:
+        """Find project root (directory containing pyproject.toml) from the current file."""
+        try:
+            root = node.root()
+            path = getattr(root, "file", None)
+            if not path:
+                return None
+            current = Path(path).resolve().parent
+            while True:
+                if (current / "pyproject.toml").exists():
+                    return str(current)
+                parent = current.parent
+                if parent == current:
+                    break
+                current = parent
+        except (AttributeError, OSError):
+            pass
+        return None
+
+    def _is_module_in_project(self, module_name: str) -> bool:
+        """True if the module is part of the project (layer_map), not an external dependency."""
+        config = ConfigurationLoader()
+        layer_map = config.config.get("layer_map") or {}
+        if not isinstance(layer_map, dict):
+            return False
+        tops = {k.split(".")[0] for k in layer_map if isinstance(k, str)}
+        return any(
+            module_name == t or module_name.startswith(t + ".")
+            for t in tops
+        )
+
+    def _dotted_from_expr(self, expr: astroid.nodes.NodeNG) -> Optional[str]:
+        """Build dotted module path from Attribute/Name (for inferring external module)."""
+        if isinstance(expr, astroid.nodes.Attribute):
+            base = self._dotted_from_expr(expr.expr)
+            return f"{base}.{expr.attrname}" if base else None
+        if isinstance(expr, astroid.nodes.Name):
+            stmts = expr.lookup(expr.name)[1]
+            if not stmts:
+                return None
+            s = stmts[0]
+            if isinstance(s, astroid.nodes.ImportFrom):
+                return s.modname or None
+            if isinstance(s, astroid.nodes.Import) and s.names:
+                full, alias = s.names[0]
+                return full if alias else expr.name
+        return None
+
+    def _module_from_call(self, call_node: astroid.nodes.Call) -> Optional[str]:
+        """Infer the module that defines the called function (for Uninferable return)."""
+        try:
+            for inf in call_node.func.infer():
+                if inf is astroid.Uninferable:
+                    continue
+                q = getattr(inf, "qname", None)
+                if q is None:
+                    continue
+                qn = q() if callable(q) else q
+                if isinstance(qn, str) and "." in qn:
+                    return qn.rsplit(".", 1)[0]
+        except (astroid.InferenceError, AttributeError):
+            pass
+        func = call_node.func
+        if isinstance(func, astroid.nodes.Attribute):
+            return self._dotted_from_expr(func.expr)
+        if isinstance(func, astroid.nodes.Name):
+            stmts = func.lookup(func.name)[1]
+            if stmts and isinstance(stmts[0], astroid.nodes.ImportFrom):
+                return stmts[0].modname or None
+        return None
+
+    def _module_from_assign(
+        self, parent: astroid.nodes.Assign, name: str
+    ) -> Optional[str]:
+        """Infer module from Assign RHS: Call -> _module_from_call, Attribute/Name -> _dotted_from_expr."""
+        for t in parent.targets:
+            if isinstance(t, astroid.nodes.AssignName) and t.name == name:
+                if isinstance(parent.value, astroid.nodes.Call):
+                    return self._module_from_call(parent.value)
+                if isinstance(
+                    parent.value,
+                    (astroid.nodes.Attribute, astroid.nodes.Name),
+                ):
+                    return self._dotted_from_expr(parent.value)
+                break
+        return None
+
+    def _module_from_import(self, parent: astroid.nodes.Import, name: str) -> Optional[str]:
+        """Infer module from Import: match by alias or first component of full name."""
+        for (full, alias) in parent.names:
+            if (alias or (full.split(".")[0] if full else "")) == name:
+                return full
+        full, alias = parent.names[0]
+        return (
+            full
+            if alias
+            else (name if full and full.split(".")[0] == name else full)
+        )
+
+    def _module_from_name(self, name_node: astroid.nodes.Name) -> Optional[str]:
+        """Infer module for a Name: from assignment (Call/Attribute) or from import."""
+        try:
+            scope = name_node.scope()
+        except (AttributeError, astroid.InferenceError):
+            return None
+        for def_node in name_node.lookup(name_node.name)[1]:
+            try:
+                if def_node.scope() != scope:
+                    continue
+            except (AttributeError, astroid.InferenceError):
+                pass
+            parent = getattr(def_node, "parent", None)
+            if isinstance(parent, astroid.nodes.Assign) and parent.value:
+                r = self._module_from_assign(parent, name_node.name)
+                if r is not None:
+                    return r
+            elif isinstance(parent, astroid.nodes.ImportFrom):
+                return parent.modname or None
+            elif isinstance(parent, astroid.nodes.Import) and parent.names:
+                return self._module_from_import(parent, name_node.name)
+        return None
+
+    def _get_external_module_for_uninferable(self, node: astroid.nodes.NodeNG) -> Optional[str]:
+        """
+        When the receiver is Uninferable, try to infer the external module.
+        Returns None for stdlib or in-project modules (do not emit W9019 for those).
+        """
+        if not self._python_gateway:
+            return None
+        mod: Optional[str] = None
+        if isinstance(node, astroid.nodes.Call):
+            mod = self._module_from_call(node)
+        elif isinstance(node, astroid.nodes.Name):
+            mod = self._module_from_name(node)
+        if not mod:
+            return None
+        top = mod.split(".")[0]
+        if self._python_gateway.is_stdlib_module(top):
+            return None
+        if self._is_module_in_project(mod):
+            return None
+        return mod
 
     def _excluded_by_environment_or_trust(
         self,
@@ -387,18 +567,7 @@ class CouplingChecker(BaseChecker):
         chain: List[str],
         curr: astroid.nodes.NodeNG,
     ) -> bool:
-        """Tiered logic for chain exclusion."""
-        # Astroid ClassDef.locals.get(key, default): .locals is dict-like but not always
-        # inferable (string annos, TYPE_CHECKING, re-exports). Allow this specific chain.
-        # (chain order is [innermost, ...]; for x.locals.get we get ['get', 'locals'])
-        if (
-            chain == ["get", "locals"]
-            and isinstance(node.func, astroid.nodes.Attribute)
-            and isinstance(node.func.expr, astroid.nodes.Attribute)
-            and node.func.expr.attrname == "locals"
-        ):
-            return True
-
+        """Tiered logic for chain exclusion. Stub-First: no nominal/attribute-name matching."""
         config_loader = ConfigurationLoader()
         if self._excluded_by_environment_or_trust(node, curr, config_loader):
             return True

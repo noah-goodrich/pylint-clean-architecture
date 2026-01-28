@@ -34,7 +34,9 @@ class TestMultiPassRefinement:
 
         # Verify cache was cleared after Pass 2
         astroid_gateway.clear_inference_cache.assert_called_once()
-        telemetry.step.assert_any_call("🔄 Cleared astroid inference cache for fresh analysis")
+        telemetry.step.assert_any_call(
+            "🔄 Pass 1–2 complete. Cleared astroid cache. Re-inferring architecture for Pass 3…"
+        )
 
     def test_multi_pass_phases_execute_in_order(self) -> None:
         """Test that multi-pass executes phases in correct order."""

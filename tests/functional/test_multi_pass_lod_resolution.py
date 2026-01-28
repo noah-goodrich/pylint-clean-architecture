@@ -97,7 +97,9 @@ def main():
         mock_clear.assert_called_once()
         # Verify Pass 2 modified file (type hint added)
         assert result >= 1
-        telemetry.step.assert_any_call("🔄 Cleared astroid inference cache for fresh analysis")
+        telemetry.step.assert_any_call(
+            "🔄 Pass 1–2 complete. Cleared astroid cache. Re-inferring architecture for Pass 3…"
+        )
 
     def test_lod_comment_integrity_no_code_changes(self, tmp_path) -> None:
         """Test that LoD governance comment doesn't change code logic."""

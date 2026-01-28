@@ -49,7 +49,7 @@ package-dir = {"" = "src"}
 packages = ["clean_architecture_linter"]
 
 [tool.setuptools.package-data]
-"clean_architecture_linter" = ["py.typed"]
+"clean_architecture_linter" = ["py.typed", "stubs/core/*.pyi", "stubs/core/**/*.pyi"]
 "*" = ["assets/*.png"]
 
 [tool.pytest.ini_options]
@@ -103,6 +103,7 @@ disable = ["all"]
 enable = [
     "clean-arch-delegation",
     "clean-arch-demeter",
+    "clean-arch-unstable-dep",
     "clean-arch-visibility",
     "clean-arch-resources",
     "clean-arch-bypass",

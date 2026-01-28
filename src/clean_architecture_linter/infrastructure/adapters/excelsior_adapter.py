@@ -116,6 +116,8 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
             "banned-any-usage",
             "W9501",  # Anti-Bypass
             "clean-arch-bypass",
+            "W9019",  # Unstable Dependency (create stub)
+            "clean-arch-unstable-dep",
         ]
 
     def is_comment_only_rule(self, rule_code: str) -> bool:
@@ -240,6 +242,14 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
             "F0002": (
                 "Pylint/astroid crash. Ensure types passed to inference (e.g. qname) "
                 "are strings. Report reproducible cases to the plugin repo."
+            ),
+            "W9019": (
+                "Create stubs/<module>.pyi for the external dependency so the linter "
+                "can resolve types. Example: stubs/snowflake/connector.pyi for snowflake.connector."
+            ),
+            "clean-arch-unstable-dep": (
+                "Create stubs/<module>.pyi for the external dependency so the linter "
+                "can resolve types. Example: stubs/snowflake/connector.pyi for snowflake.connector."
             ),
         }
         default = (

@@ -20,7 +20,7 @@ from clean_architecture_linter.use_cases.checks.di import DIChecker
 from clean_architecture_linter.use_cases.checks.immutability import ImmutabilityChecker
 from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker, PatternChecker
 from clean_architecture_linter.use_cases.checks.structure import ModuleStructureChecker
-from clean_architecture_linter.use_cases.checks.testing import TestingChecker
+from clean_architecture_linter.use_cases.checks.testing import CleanArchTestingChecker
 
 
 def register(linter: PyLinter) -> None:
@@ -39,7 +39,7 @@ def register(linter: PyLinter) -> None:
     linter.register_checker(DesignChecker(linter, ast_gateway=ast_gateway))
     linter.register_checker(CouplingChecker(linter, ast_gateway=ast_gateway, python_gateway=python_gateway))
     linter.register_checker(PatternChecker(linter))
-    linter.register_checker(TestingChecker(linter))
+    linter.register_checker(CleanArchTestingChecker(linter))
     linter.register_checker(ImmutabilityChecker(linter, python_gateway=python_gateway))
     linter.register_checker(BypassChecker(linter))
     linter.register_checker(DIChecker(linter, ast_gateway=ast_gateway, python_gateway=python_gateway))

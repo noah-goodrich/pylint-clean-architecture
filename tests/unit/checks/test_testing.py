@@ -5,7 +5,9 @@ from unittest.mock import MagicMock
 
 import astroid
 
-from clean_architecture_linter.use_cases.checks.testing import TestingChecker
+from clean_architecture_linter.use_cases.checks.testing import (
+    CleanArchTestingChecker as _TestingCheckerCls,
+)
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
@@ -15,7 +17,7 @@ class TestTestingChecker(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         """Set up test fixtures."""
         self.linter = MagicMock()
-        self.checker = TestingChecker(self.linter)
+        self.checker = _TestingCheckerCls(self.linter)
 
     def test_visit_functiondef_skips_non_test_functions(self) -> None:
         """Test visit_functiondef skips non-test functions."""
