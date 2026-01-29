@@ -19,7 +19,8 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
-        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -39,7 +40,8 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
-        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -48,8 +50,10 @@ class TestAuditTrailService:
                 Path(".excelsior").mkdir(exist_ok=True)
 
                 audit_result = AuditResult(
-                    mypy_results=[LinterResult("M001", "Type error", ["file.py:1"])],
-                    excelsior_results=[LinterResult("W9015", "Missing hint", ["file.py:2"])],
+                    mypy_results=[LinterResult(
+                        "M001", "Type error", ["file.py:1"])],
+                    excelsior_results=[LinterResult(
+                        "W9015", "Missing hint", ["file.py:2"])],
                 )
                 service.save_audit_trail(audit_result)
 
@@ -69,7 +73,8 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
-        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -78,7 +83,8 @@ class TestAuditTrailService:
                 Path(".excelsior").mkdir(exist_ok=True)
 
                 audit_result = AuditResult(
-                    excelsior_results=[LinterResult("W9015", "Missing hint", ["file.py:2"])],
+                    excelsior_results=[LinterResult(
+                        "W9015", "Missing hint", ["file.py:2"])],
                 )
                 service.save_audit_trail(audit_result)
 
@@ -96,7 +102,8 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
-        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -105,7 +112,8 @@ class TestAuditTrailService:
                 Path(".excelsior").mkdir(exist_ok=True)
 
                 audit_result = AuditResult(
-                    excelsior_results=[LinterResult("W9015", "Missing hint", ["file.py:2"])],
+                    excelsior_results=[LinterResult(
+                        "W9015", "Missing hint", ["file.py:2"])],
                 )
                 service.save_audit_trail(audit_result)
 
@@ -125,7 +133,8 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
-        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -151,7 +160,8 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
-        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -164,8 +174,10 @@ class TestAuditTrailService:
 
                 telemetry.step.assert_called()
                 # Check that the call includes the path
-                call_args = [str(call) for call in telemetry.step.call_args_list]
-                assert any("Audit Trail persisted" in str(call) for call in call_args)
+                call_args = [str(call)
+                             for call in telemetry.step.call_args_list]
+                assert any("Audit Trail persisted" in str(call)
+                           for call in call_args)
             finally:
                 os.chdir(original_cwd)
 
@@ -174,7 +186,8 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
-        service = AuditTrailService(telemetry, rule_fixability_service, filesystem)
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -183,7 +196,8 @@ class TestAuditTrailService:
                 Path(".excelsior").mkdir(exist_ok=True)
 
                 audit_result = AuditResult(
-                    ruff_results=[LinterResult("E501", "Line too long", ["file.py:1"])],
+                    ruff_results=[LinterResult(
+                        "E501", "Line too long", ["file.py:1"])],
                     ruff_enabled=False,
                 )
                 service.save_audit_trail(audit_result)
@@ -192,5 +206,257 @@ class TestAuditTrailService:
                 json_path = Path(".excelsior/last_audit.json")
                 data = json.loads(json_path.read_text())
                 assert data["violations"]["code_quality"] == []
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_creates_json_file(self) -> None:
+        """Test that save_ai_handover creates .excelsior/ai_handover.json and returns path."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    ruff_results=[LinterResult(
+                        "E501", "Line too long", ["src/foo.py:10"])],
+                    excelsior_results=[
+                        LinterResult(
+                            "W9006",
+                            "Law of Demeter",
+                            ["src/bar.py:20"],
+                        )
+                    ],
+                    ruff_enabled=True,
+                )
+                path = service.save_ai_handover(audit_result)
+
+                assert path == ".excelsior/ai_handover.json"
+                assert Path(path).exists()
+                telemetry.step.assert_called()
+                call_str = str(telemetry.step.call_args)
+                assert "ai_handover" in call_str or "AI Handover" in call_str
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_json_structure(self) -> None:
+        """Test that ai_handover.json has version, summary, violations_by_rule, next_steps."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    excelsior_results=[
+                        LinterResult("W9015", "Missing hint", ["file.py:2"]),
+                    ],
+                )
+                service.save_ai_handover(audit_result)
+
+                import json
+                data = json.loads(
+                    Path(".excelsior/ai_handover.json").read_text())
+                assert data["version"] == "1.0.0"
+                assert "summary" in data
+                assert "total_violations" in data["summary"]
+                assert "violations_by_rule" in data
+                assert "next_steps" in data
+                assert "files_with_governance_comments" in data
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_next_steps_when_blocked(self) -> None:
+        """Test next_steps when audit is blocked."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    blocked_by="ruff", ruff_enabled=True)
+                service.save_ai_handover(audit_result)
+
+                import json
+                data = json.loads(
+                    Path(".excelsior/ai_handover.json").read_text())
+                steps = data["next_steps"]
+                assert any("BLOCKED" in s for s in steps)
+                assert any("ruff" in s.lower() for s in steps)
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_next_steps_comment_only_violations(self) -> None:
+        """Test next_steps when there are comment-only (governance) violations."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    excelsior_results=[
+                        LinterResult(
+                            "W9006",
+                            "Law of Demeter",
+                            ["src/bar.py:20"],
+                        ),
+                    ],
+                    ruff_enabled=True,
+                )
+                service.save_ai_handover(audit_result)
+
+                import json
+                data = json.loads(
+                    Path(".excelsior/ai_handover.json").read_text())
+                steps = data["next_steps"]
+                assert any("governance" in s.lower()
+                           or "EXCELSIOR" in s for s in steps)
+                assert "files_with_governance_comments" in data
+                assert "src/bar.py" in data["files_with_governance_comments"]
+                assert 20 in data["files_with_governance_comments"]["src/bar.py"]
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_next_steps_no_violations(self) -> None:
+        """Test next_steps when there are no violations."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(ruff_enabled=True)
+                service.save_ai_handover(audit_result)
+
+                import json
+                data = json.loads(
+                    Path(".excelsior/ai_handover.json").read_text())
+                steps = data["next_steps"]
+                assert any("clean" in s.lower() for s in steps)
+                assert data["summary"]["total_violations"] == 0
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_next_steps_auto_fixable(self) -> None:
+        """Test next_steps when there are auto-fixable violations (e.g. Ruff fixable)."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    ruff_results=[
+                        LinterResult("I001", "Import order", ["file.py:1"]),
+                    ],
+                    ruff_enabled=True,
+                )
+                service.save_ai_handover(audit_result)
+
+                import json
+                data = json.loads(
+                    Path(".excelsior/ai_handover.json").read_text())
+                steps = data["next_steps"]
+                assert any("auto" in s.lower() or "fix" in s.lower()
+                           for s in steps)
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_next_steps_manual_fix_only(self) -> None:
+        """Test next_steps when there are only manual-fix (non-comment-only) violations."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    mypy_results=[
+                        LinterResult("error", "Type error", ["file.py:1"]),
+                    ],
+                    ruff_enabled=True,
+                )
+                service.save_ai_handover(audit_result)
+
+                import json
+                data = json.loads(
+                    Path(".excelsior/ai_handover.json").read_text())
+                steps = data["next_steps"]
+                assert any("manual" in s.lower() for s in steps)
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_audit_trail_txt_includes_comment_label_for_comment_only(self) -> None:
+        """Test that last_audit.txt uses Comment label for comment-only (W9006) violations."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    excelsior_results=[
+                        LinterResult(
+                            "W9006",
+                            "Law of Demeter: Chain access (x.y) exceeds one level",
+                            ["file.py:1"],
+                        ),
+                    ],
+                    ruff_enabled=True,
+                )
+                service.save_audit_trail(audit_result)
+
+                txt_content = Path(".excelsior/last_audit.txt").read_text()
+                assert "Comment" in txt_content or "💬" in txt_content
             finally:
                 os.chdir(original_cwd)

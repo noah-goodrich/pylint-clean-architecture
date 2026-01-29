@@ -1,12 +1,12 @@
 """Tests for governance comment rules."""
 
-from unittest.mock import MagicMock
-
 import astroid
-import pytest
 
 from clean_architecture_linter.domain.rules import Violation
-from clean_architecture_linter.domain.rules.governance_comments import LawOfDemeterRule
+from clean_architecture_linter.domain.rules.governance_comments import (
+    GenericGovernanceCommentRule,
+    LawOfDemeterRule,
+)
 
 
 class TestLawOfDemeterRule:
@@ -113,7 +113,8 @@ class TestLawOfDemeterRule:
 
         transformer = rule.fix(violation)
         assert transformer is not None
-        assert "delegate" in transformer.recommendation.lower() or "method" in transformer.recommendation.lower()
+        assert "delegate" in transformer.recommendation.lower(
+        ) or "method" in transformer.recommendation.lower()
 
     def test_get_fix_instructions(self) -> None:
         """Test that get_fix_instructions returns helpful guidance."""
@@ -185,3 +186,62 @@ class TestLawOfDemeterRule:
         transformer = rule.fix(violation)
         # Should handle gracefully, target_line might be 0
         assert transformer is not None
+
+
+class TestGenericGovernanceCommentRule:
+    """Test GenericGovernanceCommentRule for non-LoD comment-only rules."""
+
+    def test_fix_returns_transformer_for_matching_code(self) -> None:
+        """GenericGovernanceCommentRule.fix returns transformer for matching violation."""
+        rule = GenericGovernanceCommentRule("W9201", "Contract Integrity")
+        node = astroid.parse("class Foo: pass\n").body[0]
+
+        violation = Violation(
+            code="W9201",
+            message="Contract Integrity Violation: Class X must inherit from Protocol.",
+            location="test.py:10",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        assert transformer.rule_code == "W9201"
+        assert transformer.rule_name == "Contract Integrity"
+        assert transformer.target_line == 10
+
+    def test_fix_returns_none_for_wrong_code(self) -> None:
+        """GenericGovernanceCommentRule.fix returns None for non-matching violation."""
+        rule = GenericGovernanceCommentRule("W9201", "Contract Integrity")
+        node = astroid.parse("x = 1\n").body[0]
+
+        violation = Violation(
+            code="W9006",
+            message="Other",
+            location="test.py:1",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        assert rule.fix(violation) is None
+
+    def test_fix_truncates_long_problem_message(self) -> None:
+        """GenericGovernanceCommentRule.fix truncates problem message over 120 chars."""
+        rule = GenericGovernanceCommentRule("W9016", "Banned Any")
+        node = astroid.parse("x = 1\n").body[0]
+
+        long_msg = "A" * 130
+        violation = Violation(
+            code="W9016",
+            message=long_msg,
+            location="test.py:1",
+            node=node,
+            fixable=True,
+            is_comment_only=True,
+        )
+
+        transformer = rule.fix(violation)
+        assert transformer is not None
+        assert len(transformer.problem) <= 120

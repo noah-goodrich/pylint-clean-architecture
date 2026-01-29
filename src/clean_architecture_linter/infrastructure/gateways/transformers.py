@@ -1,6 +1,7 @@
 """LibCST Transformers for code fixes."""
 
-from typing import Iterator, List, Optional, Sequence, Set
+from collections.abc import Iterator, Sequence
+from typing import List, Optional, Set
 
 import libcst as cst
 
@@ -16,8 +17,19 @@ class AddImportTransformer(cst.CSTTransformer):
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
         if not self.added:
             names = [cst.ImportAlias(name=cst.Name(n)) for n in self.imports]
+
+            # Support dotted module paths like "a.b.c"
+            module_expr: cst.BaseExpression
+            if isinstance(self.module, str) and "." in self.module:
+                parts = self.module.split(".")
+                module_expr = cst.Name(parts[0])
+                for part in parts[1:]:
+                    module_expr = cst.Attribute(value=module_expr, attr=cst.Name(part))
+            else:
+                module_expr = cst.Name(self.module)
+
             import_stmt = cst.ImportFrom(
-                module=cst.Name(self.module),
+                module=module_expr,
                 names=names,
                 whitespace_after_import=cst.SimpleWhitespace(" ")
             )

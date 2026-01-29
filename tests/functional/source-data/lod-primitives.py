@@ -21,11 +21,14 @@ def typing_collections_trust(items: Iterable[str]) -> None:
     # next(it) returns str, upper() and strip() are str methods
     _res: str = next(it).upper().strip()
 
+
 class CustomService:
     def get_version(self) -> str:
         return "1.0"
+
     def is_active(self) -> bool:
         return True
+
 
 def primitive_chain_exemption(service: CustomService) -> None:
     # Allowed: get_version returns 'str' (primitive)
@@ -100,7 +103,7 @@ def path_name_startswith(p: Path, prefix: str) -> bool:
 
 class OneLevel:
     def foo(self) -> None:
-        pass
+        return None
 
 
 def one_level_call(o: OneLevel) -> None:

@@ -1,15 +1,13 @@
 """Unit tests for Typer-based CLI interface."""
 
-import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.interface.cli import app, _resolve_target_path
+from clean_architecture_linter.interface.cli import _resolve_target_path, app
 
 runner = CliRunner()
 
@@ -152,7 +150,8 @@ class TestCheckCommand:
         # Mock use case with violations
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
-            ruff_results=[LinterResult("R001", "Ruff violation", ["file.py:1"])],
+            ruff_results=[LinterResult(
+                "R001", "Ruff violation", ["file.py:1"])],
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
@@ -230,7 +229,7 @@ class TestFixCommand:
         mock_container.get.return_value = mock_telemetry
         mock_container_class.return_value = mock_container
 
-        result = runner.invoke(app, ["fix", "src"])
+        runner.invoke(app, ["fix", "src"])
 
         # Should call excelsior fixer
         mock_run_fix_excelsior.assert_called_once()
@@ -247,7 +246,7 @@ class TestFixCommand:
         mock_container.get.return_value = mock_telemetry
         mock_container_class.return_value = mock_container
 
-        result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
+        runner.invoke(app, ["fix", "src", "--linter", "ruff"])
 
         # Should call ruff fixer
         mock_run_fix_ruff.assert_called_once()
@@ -263,7 +262,7 @@ class TestFixCommand:
         mock_container.get.return_value = mock_telemetry
         mock_container_class.return_value = mock_container
 
-        result = runner.invoke(app, ["fix", "src", "--manual-only"])
+        runner.invoke(app, ["fix", "src", "--manual-only"])
 
         # Should call manual only handler
         mock_run_fix_manual_only.assert_called_once()
@@ -290,10 +289,11 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        result = runner.invoke(app, ["init"])
+        runner.invoke(app, ["init"])
 
         # Verify use case was created and executed
-        mock_use_case_class.assert_called_once_with(mock_scaffolder, mock_telemetry)
+        mock_use_case_class.assert_called_once_with(
+            mock_scaffolder, mock_telemetry)
         mock_use_case_instance.execute.assert_called_once_with(
             template=None, check_layers=False
         )
@@ -317,7 +317,7 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        result = runner.invoke(
+        runner.invoke(
             app, ["init", "--template", "fastapi", "--check-layers"]
         )
 
@@ -344,7 +344,7 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        result = runner.invoke(app, ["init", "--template", "sqlalchemy"])
+        runner.invoke(app, ["init", "--template", "sqlalchemy"])
 
         mock_use_case_instance.execute.assert_called_once_with(
             template="sqlalchemy", check_layers=False
@@ -368,7 +368,7 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        result = runner.invoke(app, ["init", "--check-layers"])
+        runner.invoke(app, ["init", "--check-layers"])
 
         mock_use_case_instance.execute.assert_called_once_with(
             template=None, check_layers=True
@@ -412,7 +412,8 @@ class TestGatedAuditLogic:
         # Mock blocked result from Ruff
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
-            ruff_results=[LinterResult("R001", "Ruff violation", ["file.py:1"])],
+            ruff_results=[LinterResult(
+                "R001", "Ruff violation", ["file.py:1"])],
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
@@ -464,7 +465,8 @@ class TestFixManualOnly:
         _run_fix_manual_only(mock_telemetry, "src", "all")
 
         # Verify all adapters were queried
-        mock_telemetry.step.assert_called_with("📋 Gathering manual fix suggestions from all linters...")
+        mock_telemetry.step.assert_called_with(
+            "📋 Gathering manual fix suggestions from all linters...")
 
     @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     def test_manual_only_ruff_only(self, mock_container_class) -> None:
@@ -480,7 +482,8 @@ class TestFixManualOnly:
 
         _run_fix_manual_only(mock_telemetry, "src", "ruff")
 
-        mock_telemetry.step.assert_called_with("📋 Gathering manual fix suggestions from Ruff...")
+        mock_telemetry.step.assert_called_with(
+            "📋 Gathering manual fix suggestions from Ruff...")
 
     @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     def test_manual_only_excelsior_suite(self, mock_container_class) -> None:
@@ -506,7 +509,8 @@ class TestFixManualOnly:
 
         _run_fix_manual_only(mock_telemetry, "src", "excelsior")
 
-        mock_telemetry.step.assert_called_with("📋 Gathering manual fix suggestions from Excelsior suite...")
+        mock_telemetry.step.assert_called_with(
+            "📋 Gathering manual fix suggestions from Excelsior suite...")
 
     @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     def test_manual_only_with_results(self, mock_container_class) -> None:
@@ -517,7 +521,18 @@ class TestFixManualOnly:
         mock_telemetry = Mock()
         mock_adapter = Mock()
         results = [
-            LinterResult("R001", "Test violation", ["file.py:1", "file.py:2", "file.py:3", "file.py:4", "file.py:5", "file.py:6"])
+            LinterResult(
+                "R001",
+                "Test violation",
+                [
+                    "file.py:1",
+                    "file.py:2",
+                    "file.py:3",
+                    "file.py:4",
+                    "file.py:5",
+                    "file.py:6",
+                ]
+            )
         ]
         mock_adapter.gather_results.return_value = results
         mock_adapter.supports_autofix.return_value = False
@@ -565,7 +580,8 @@ class TestFixRuff:
         _run_fix_ruff(mock_telemetry, "src")
 
         mock_telemetry.step.assert_any_call("🔧 Applying Ruff fixes...")
-        mock_telemetry.step.assert_any_call("✅ Ruff fixes complete. Run 'excelsior check' to verify.")
+        mock_telemetry.step.assert_any_call(
+            "✅ Ruff fixes complete. Run 'excelsior check' to verify.")
         mock_ruff_adapter.apply_fixes.assert_called_once_with(Path("src"))
         mock_exit.assert_called_once_with(0)
 

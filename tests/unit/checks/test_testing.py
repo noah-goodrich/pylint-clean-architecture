@@ -8,7 +8,7 @@ import astroid
 from clean_architecture_linter.use_cases.checks.testing import (
     CleanArchTestingChecker as _TestingCheckerCls,
 )
-from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
+from tests.unit.checker_test_utils import CheckerTestCase
 
 
 class TestTestingChecker(unittest.TestCase, CheckerTestCase):

@@ -8,6 +8,9 @@ if TYPE_CHECKING:
     import libcst as cst
 
 from clean_architecture_linter.domain.rules import Violation
+from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import (
+    ExcelsiorAdapter,
+)
 from clean_architecture_linter.infrastructure.gateways.transformers import (
     GovernanceCommentTransformer,
 )
@@ -119,3 +122,128 @@ class LawOfDemeterRule:
             "to preserve encapsulation. Do not use temporary variables as a workaround - "
             "this is a linter cheat that bypasses the architectural issue."
         )
+
+
+class GenericGovernanceCommentRule:
+    """
+    Generic governance comment rule for all comment-only violations.
+
+    Uses ExcelsiorAdapter's manual fix instructions to generate standardized
+    governance comments for any rule that requires manual architectural fixes.
+    """
+
+    def __init__(
+        self,
+        rule_code: str,
+        rule_name: str,
+        adapter: Optional[ExcelsiorAdapter] = None,
+    ) -> None:
+        """
+        Initialize generic governance comment rule.
+
+        Args:
+            rule_code: The rule code (e.g., "W9201", "W9001", "W9016")
+            rule_name: Human-readable rule name (e.g., "Contract Integrity")
+            adapter: Optional ExcelsiorAdapter instance for fetching instructions
+        """
+        self.code = rule_code
+        self.rule_name = rule_name
+        self._adapter = adapter or ExcelsiorAdapter()
+
+    def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
+        """
+        Check for violations.
+
+        Note: Violations are detected by Pylint checkers. This check()
+        is a no-op in the fix pipeline; violations are supplied by Pylint.
+        """
+        return []
+
+    def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
+        """
+        Return a transformer that injects governance comment above the violation.
+
+        Uses ExcelsiorAdapter's manual fix instructions to build the comment.
+        """
+        if violation.code != self.code:
+            return None
+
+        # Extract line number from violation location
+        location_parts = violation.location.split(":")
+        target_line = int(location_parts[1]) if len(location_parts) > 1 else 0
+
+        # Get manual fix instructions from adapter
+        manual_instructions = self._adapter.get_manual_fix_instructions(
+            self.code)
+
+        # Build problem description from violation message
+        problem = violation.message
+        # Truncate if too long (keep first sentence or first 120 chars)
+        if len(problem) > 120:
+            if "." in problem:
+                problem = problem.split(".")[0] + "."
+            else:
+                problem = problem[:117] + "..."
+
+        # Use manual instructions as recommendation
+        recommendation = manual_instructions
+
+        # Build context
+        context_info = f"Violation detected at line {target_line}."
+
+        return GovernanceCommentTransformer({
+            "rule_code": self.code,
+            "rule_name": self.rule_name,
+            "problem": problem,
+            "recommendation": recommendation,
+            "context_info": context_info,
+            "target_line": target_line,
+        })
+
+
+# Rule name mapping for common architectural violations
+RULE_NAME_MAP = {
+    "W9001": "Illegal Dependency",
+    "clean-arch-dependency": "Illegal Dependency",
+    "W9003": "Protected Member Access",
+    "clean-arch-visibility": "Protected Member Access",
+    "W9004": "Forbidden I/O",
+    "clean-arch-resources": "Forbidden I/O",
+    "W9005": "Delegation Anti-Pattern",
+    "clean-arch-delegation": "Delegation Anti-Pattern",
+    "W9007": "Naked Return",
+    "W9009": "Missing Abstraction",
+    "W9010": "God File",
+    "clean-arch-god-file": "God File",
+    "W9011": "Deep Structure",
+    "clean-arch-layer": "Deep Structure",
+    "W9012": "Defensive None Check",
+    "W9013": "Illegal I/O Operation",
+    "W9201": "Contract Integrity",
+    "contract-integrity-violation": "Contract Integrity",
+    "W9301": "DI Violation",
+    "clean-arch-di": "DI Violation",
+    "W9016": "Banned Any",
+    "banned-any-usage": "Banned Any",
+    "W9501": "Anti-Bypass",
+    "clean-arch-bypass": "Anti-Bypass",
+}
+
+
+def create_governance_rule(
+    rule_code: str,
+    adapter: Optional[ExcelsiorAdapter] = None,
+) -> Optional[GenericGovernanceCommentRule]:
+    """
+    Factory function to create appropriate governance comment rule.
+
+    Returns:
+        LawOfDemeterRule for W9006; GenericGovernanceCommentRule for others;
+        None if not comment-only.
+    """
+    if rule_code == "W9006" or rule_code == "clean-arch-demeter":
+        return LawOfDemeterRule()
+
+    rule_name = RULE_NAME_MAP.get(
+        rule_code, rule_code.replace("-", " ").title())
+    return GenericGovernanceCommentRule(rule_code, rule_name, adapter)

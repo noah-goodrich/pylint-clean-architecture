@@ -8,9 +8,12 @@ from pylint.testutils import CheckerTestCase
 from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
 from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
 
+# JUSTIFICATION: Test harness dispatches on AST node class names; LoD rules are not relevant here.
+# pylint: disable=clean-arch-demeter
 
 # W9019 smoke tests: intended LoD violations (snowflake chains); exclude from LoD benchmarks.
-_LOD_BENCHMARK_SKIP = frozenset({"snowflake_stable.py", "snowflake_unstable.py"})
+_LOD_BENCHMARK_SKIP = frozenset(
+    {"snowflake_stable.py", "snowflake_unstable.py"})
 
 
 def _collect_samples() -> list:
@@ -33,15 +36,18 @@ def _collect_samples() -> list:
             if isinstance(child, astroid.nodes.FunctionDef):
                 if is_violation_file and "violation" not in child.name.lower():
                     continue
-                all_samples.append((f"{filename}::{child.name}", child, is_violation_file))
+                all_samples.append(
+                    (f"{filename}::{child.name}", child, is_violation_file))
             elif isinstance(child, astroid.nodes.ClassDef):
                 for method in child.body:
                     if isinstance(method, astroid.nodes.FunctionDef):
                         if is_violation_file and "violation" not in method.name.lower():
                             continue
-                        all_samples.append((f"{filename}::{child.name}.{method.name}", method, is_violation_file))
+                        all_samples.append(
+                            (f"{filename}::{child.name}.{method.name}", method, is_violation_file))
 
     return all_samples
+
 
 def get_safe_samples():
     return [
@@ -49,11 +55,13 @@ def get_safe_samples():
         if not s[2] and s[0].split("::")[0] not in _LOD_BENCHMARK_SKIP
     ]
 
+
 def get_violation_samples():
     return [
         s for s in _collect_samples()
         if s[2] and s[0].split("::")[0] not in _LOD_BENCHMARK_SKIP
     ]
+
 
 class TestLoDExhaustive(CheckerTestCase):
     CHECKER_CLASS = CouplingChecker
@@ -76,16 +84,19 @@ class TestLoDExhaustive(CheckerTestCase):
 
             self._manual_walk(node)
 
-            messages = [m for m in self.linter.release_messages() if m.msg_id in ["clean-arch-demeter", "W9006"]]
+            messages = [m for m in self.linter.release_messages() if m.msg_id in [
+                "clean-arch-demeter", "W9006"]]
 
             if expected_violation:
-                assert len(messages) > 0, f"Expected LoD violation in '{name}', but found none."
+                assert len(
+                    messages) > 0, f"Expected LoD violation in '{name}', but found none."
             else:
                 if len(messages) > 0:
-                     print(f"\nViolations in {name}:")
-                     for m in messages:
-                         print(f"  - {m.args}")
-                assert len(messages) == 0, f"Unexpected LoD violation in '{name}': {[m.args for m in messages]}."
+                    print(f"\nViolations in {name}:")
+                    for m in messages:
+                        print(f"  - {m.args}")
+                assert len(
+                    messages) == 0, f"Unexpected LoD violation in '{name}': {[m.args for m in messages]}."
 
     def _manual_walk(self, node):
         """Recursively walk the AST and call checker visit methods."""

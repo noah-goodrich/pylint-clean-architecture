@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 from clean_architecture_linter.domain.protocols import AstroidProtocol
 from clean_architecture_linter.domain.rules import Violation
 from clean_architecture_linter.infrastructure.gateways.transformers import (
+    AddImportTransformer,
     AddParameterTypeTransformer,
     AddReturnTypeTransformer,
 )
@@ -132,7 +133,8 @@ class MissingTypeHintRule:
         if "Uninferable" in type_qname:
             return (False, "Inference failed: Type could not be determined from context or stubs.")
 
-        # Type is specific and non-Any - can fix
+        # Type is specific and non-Any - can fix. Import safety is handled in fix()
+        # by injecting required imports when needed.
         return (True, None)
 
     def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
@@ -153,10 +155,18 @@ class MissingTypeHintRule:
             if return_type_qname:
                 # Convert qname to simple type name (e.g., "builtins.str" -> "str")
                 type_name = self._qname_to_type_name(return_type_qname)
-                return AddReturnTypeTransformer({
+                transformers = []
+
+                import_ctx = self._import_context_for_qname(return_type_qname, node)
+                if import_ctx:
+                    transformers.append(AddImportTransformer(import_ctx))
+
+                transformers.append(AddReturnTypeTransformer({
                     "function_name": node.name,
-                    "return_type": type_name
-                })
+                    "return_type": type_name,
+                }))
+
+                return transformers
 
         elif isinstance(node, astroid.nodes.Arguments):
             # Parameter type violation
@@ -169,13 +179,47 @@ class MissingTypeHintRule:
                         param_type_qname = self._infer_parameter_type(func_def, arg, i)
                         if param_type_qname:
                             type_name = self._qname_to_type_name(param_type_qname)
-                            return AddParameterTypeTransformer({
+                            transformers = []
+
+                            import_ctx = self._import_context_for_qname(param_type_qname, arg)
+                            if import_ctx:
+                                transformers.append(AddImportTransformer(import_ctx))
+
+                            transformers.append(AddParameterTypeTransformer({
                                 "function_name": func_def.name,
                                 "param_name": arg.name,
-                                "param_type": type_name
-                            })
+                                "param_type": type_name,
+                            }))
+
+                            return transformers
 
         return None
+
+    def _import_context_for_qname(
+        self, type_qname: str, node: astroid.nodes.NodeNG
+    ) -> Optional[dict]:
+        """Build AddImportTransformer context for a qname, or None if no import needed."""
+        # builtins.* never needs imports
+        if type_qname.startswith("builtins."):
+            return None
+
+        # typing.* types: import the short name from typing
+        if type_qname.startswith("typing."):
+            return {"module": "typing", "imports": [type_qname.split(".")[-1]]}
+
+        # For module-qualified types, import the leaf name from its module.
+        if "." not in type_qname:
+            return None
+
+        import_module, import_name = type_qname.rsplit(".", 1)
+
+        # Avoid importing from the same module the node is defined in.
+        root = node.root()
+        current_module = getattr(root, "name", None)
+        if current_module and current_module == import_module:
+            return None
+
+        return {"module": import_module, "imports": [import_name]}
 
     def _qname_to_type_name(self, qname: str) -> str:
         """Convert fully qualified name to simple type name."""

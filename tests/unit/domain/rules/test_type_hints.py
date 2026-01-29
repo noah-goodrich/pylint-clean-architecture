@@ -1,13 +1,12 @@
 """Comprehensive tests for MissingTypeHintRule (W9015)."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import astroid
-import pytest
+import libcst as cst
 
-from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
 from clean_architecture_linter.domain.rules import Violation
+from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
 from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
 
 
@@ -109,7 +108,8 @@ def get_value() -> int:
         violations = rule.check(module)
 
         # Should not detect return type violation
-        return_violations = [v for v in violations if "return type" in v.message]
+        return_violations = [
+            v for v in violations if "return type" in v.message]
         assert len(return_violations) == 0
 
     def test_check_handles_function_with_existing_parameter_types(self) -> None:
@@ -206,7 +206,8 @@ def process(name="default"):
         module = astroid.parse(code)
         func_def = module.body[0]
 
-        param_type = rule._infer_parameter_type(func_def, func_def.args.args[0], 0)
+        param_type = rule._infer_parameter_type(
+            func_def, func_def.args.args[0], 0)
         assert param_type is not None
         assert "str" in param_type
 
@@ -222,7 +223,8 @@ def process(name):
         module = astroid.parse(code)
         func_def = module.body[0]
 
-        param_type = rule._infer_parameter_type(func_def, func_def.args.args[0], 0)
+        param_type = rule._infer_parameter_type(
+            func_def, func_def.args.args[0], 0)
         # Without default, inference from usage is complex, may return None
         # This is acceptable - the rule marks it as non-fixable
         assert param_type is None or isinstance(param_type, str)
@@ -289,6 +291,17 @@ class TestMissingTypeHintRuleCanFixType:
         assert fixable is True
         assert reason is None
 
+    def test_can_fix_type_returns_true_for_project_types(self) -> None:
+        """Test _can_fix_type returns True for deterministic project types (imports handled in fix)."""
+        gateway = AstroidGateway()
+        rule = MissingTypeHintRule(gateway)
+
+        fixable, reason = rule._can_fix_type(
+            "clean_architecture_linter.infrastructure.services.stub_authority.StubAuthority"
+        )
+        assert fixable is True
+        assert reason is None
+
 
 class TestMissingTypeHintRuleFix:
     """Test fix() method that generates transformers."""
@@ -305,7 +318,7 @@ class TestMissingTypeHintRuleFix:
         assert result is None
 
     def test_fix_returns_transformer_for_return_type(self) -> None:
-        """Test fix returns AddReturnTypeTransformer for return type violations."""
+        """Test fix adds return type (and imports if needed)."""
         code = """
 def get_value():
     return "hello"
@@ -326,10 +339,55 @@ def get_value():
             fixable=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        assert transformer.function_name == "get_value"
-        assert transformer.return_type == "str"
+        transformers = rule.fix(violation)
+        assert transformers is not None
+        assert isinstance(transformers, list)
+
+        cst_module = cst.parse_module(code)
+        for t in transformers:
+            cst_module = cst_module.visit(t)
+
+        assert "def get_value() -> str:" in cst_module.code
+
+    def test_fix_injects_import_for_non_builtin_type(self) -> None:
+        """Fix should inject an import when annotating with a module-qualified type."""
+        code = """
+def get_value():
+    return something()
+"""
+        gateway = AstroidGateway()
+        rule = MissingTypeHintRule(gateway)
+
+        module = astroid.parse(code)
+        func_def = module.body[0]
+
+        # Force inference to return a project-qualified type
+        rule._infer_return_type = MagicMock(
+            return_value="clean_architecture_linter.infrastructure.services.stub_authority.StubAuthority"
+        )
+
+        from clean_architecture_linter.domain.rules import Violation
+        violation = Violation(
+            code="W9015",
+            message="Missing return type",
+            location="test.py:2",
+            node=func_def,
+            fixable=True,
+        )
+
+        transformers = rule.fix(violation)
+        assert transformers is not None
+        assert isinstance(transformers, list)
+
+        cst_module = cst.parse_module(code)
+        for t in transformers:
+            cst_module = cst_module.visit(t)
+
+        assert (
+            "from clean_architecture_linter.infrastructure.services.stub_authority "
+            "import StubAuthority"
+        ) in cst_module.code
+        assert "def get_value() -> StubAuthority:" in cst_module.code
 
     def test_fix_returns_none_when_inference_fails(self) -> None:
         """Test fix returns None when type inference fails."""
@@ -381,9 +439,9 @@ def process(name="default"):
         # Mock the parent relationship
         arg.parent = func_def
 
-        transformer = rule.fix(violation)
-        # May return None if inference fails, or transformer if it succeeds
-        assert transformer is None or hasattr(transformer, 'param_name')
+        transformers = rule.fix(violation)
+        # May return None if inference fails, or transformer list if it succeeds
+        assert transformers is None or isinstance(transformers, list)
 
 
 class TestMissingTypeHintRuleQnameToTypeName:
@@ -413,7 +471,8 @@ class TestMissingTypeHintRuleQnameToTypeName:
         rule = MissingTypeHintRule(gateway)
 
         assert rule._qname_to_type_name("pathlib.Path") == "Path"
-        assert rule._qname_to_type_name("collections.abc.Iterable") == "Iterable"
+        assert rule._qname_to_type_name(
+            "collections.abc.Iterable") == "Iterable"
 
 
 class TestMissingTypeHintRuleGetFixInstructions:
@@ -481,7 +540,8 @@ def process(x):
         with patch.object(gateway, 'get_node_return_type_qname', return_value='builtins.str'):
             result = rule.fix(violation)
             # Should return a transformer if type can be inferred
-            assert result is not None or result is None  # May return None if inference fails
+            # May return None if inference fails
+            assert result is not None or result is None
 
     def test_fix_handles_arguments_node_finds_parameter_index(self) -> None:
         """Test fix finds correct parameter index in Arguments node."""

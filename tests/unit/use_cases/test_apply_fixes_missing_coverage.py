@@ -1,12 +1,7 @@
 """Tests for missing coverage in ApplyFixesUseCase."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.domain.rules.immutability import DomainImmutabilityRule
 from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
 from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
 
@@ -22,7 +17,8 @@ class TestMissingCoverageLines:
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, telemetry=telemetry, validate_with_tests=False)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, telemetry=telemetry, validate_with_tests=False)
 
         use_case.execute([], str(tmp_path))
 
@@ -35,7 +31,8 @@ class TestMissingCoverageLines:
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, validate_with_tests=False)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, validate_with_tests=False)
 
         # No rules = no transformers
         result = use_case.execute([], str(tmp_path))
@@ -67,7 +64,7 @@ class TestMissingCoverageLines:
             use_case.execute([mock_rule], str(tmp_path))
 
         # Backup should be cleaned up after rollback
-        backup_file = tmp_path / "example.py.bak"
+
         # Backup exists but may be cleaned up
         assert True  # Just verify it doesn't crash
 
@@ -79,7 +76,8 @@ class TestMissingCoverageLines:
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = False  # Fix fails
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, create_backups=True, validate_with_tests=False)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, create_backups=True, validate_with_tests=False)
 
         mock_rule = MagicMock()
         mock_violation = MagicMock()
@@ -102,7 +100,8 @@ class TestMissingCoverageLines:
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, telemetry=telemetry, validate_with_tests=False)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, telemetry=telemetry, validate_with_tests=False)
 
         mock_rule = MagicMock()
         mock_violation = MagicMock()
@@ -124,14 +123,15 @@ class TestMissingCoverageLines:
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, telemetry=telemetry)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, telemetry=telemetry)
 
         with patch.object(use_case, '_run_baseline_if_enabled'), \
-             patch.object(use_case, '_execute_pass1_ruff', return_value=0), \
-             patch.object(use_case, '_execute_pass2_type_hints', return_value=0), \
-             patch.object(use_case, '_clear_astroid_cache'), \
-             patch.object(use_case, '_execute_pass3_architecture_code', return_value=0), \
-             patch.object(use_case, '_execute_pass4_governance_comments', return_value=0):
+                patch.object(use_case, '_execute_pass1_ruff', return_value=0), \
+                patch.object(use_case, '_execute_pass2_type_hints', return_value=0), \
+                patch.object(use_case, '_clear_astroid_cache'), \
+                patch.object(use_case, '_execute_pass3_architecture_code', return_value=0), \
+                patch.object(use_case, '_execute_pass4_governance_comments', return_value=0):
             use_case.execute_multi_pass([], "test_path")
 
         telemetry.step.assert_called()
@@ -140,10 +140,11 @@ class TestMissingCoverageLines:
         """Test lines 207-209: fallback when check_audit_use_case is None."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, check_audit_use_case=None)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, check_audit_use_case=None)
 
         with patch.object(use_case, '_get_architecture_code_rules', return_value=[]), \
-             patch.object(use_case, '_apply_rule_fixes', return_value=2):
+                patch.object(use_case, '_apply_rule_fixes', return_value=2):
             result = use_case._execute_pass3_architecture_code([], "test_path")
 
         assert result == 2
@@ -168,15 +169,15 @@ class TestMissingCoverageLines:
         telemetry.step.assert_called()
 
     def test_execute_pass4_governance_comments_fallback(self) -> None:
-        """Test lines 232-235: fallback when check_audit_use_case is None."""
+        """When check_audit_use_case is None, Pass 4 skips (returns 0)."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, check_audit_use_case=None)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, check_audit_use_case=None)
 
-        with patch.object(use_case, '_apply_rule_fixes', return_value=1):
-            result = use_case._execute_pass4_governance_comments([], "test_path")
+        result = use_case._execute_pass4_governance_comments([], "test_path")
 
-        assert result == 1
+        assert result == 0
 
     def test_execute_pass4_governance_comments_empty_results(self) -> None:
         """Test line 245: handling when excelsior_results is empty."""
@@ -187,40 +188,47 @@ class TestMissingCoverageLines:
             is_blocked=lambda: False,
             excelsior_results=[]
         )
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, check_audit_use_case=check_audit)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, check_audit_use_case=check_audit)
 
         result = use_case._execute_pass4_governance_comments([], "test_path")
 
         assert result == 0
 
-    def test_get_rule_for_violation_returns_immutability_rule(self) -> None:
-        """Test lines 368-382: _get_rule_for_violation for W9601."""
+    def test_execute_pass4_skipped_when_w9015_present(self) -> None:
+        """Pass 4 is skipped when W9015 (missing type hints) is in excelsior_results."""
+        from clean_architecture_linter.domain.entities import LinterResult
+
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem)
-
-        from clean_architecture_linter.domain.rules import Violation
-        import astroid
-
-        node = astroid.parse("class User: pass\n").body[0]
-        violation = Violation(
-            code="W9601",
-            message="Domain Immutability Violation",
-            location="test.py:1",
-            node=node,
-            fixable=True
+        telemetry = MagicMock()
+        check_audit = MagicMock()
+        check_audit.execute.return_value = MagicMock(
+            is_blocked=lambda: False,
+            excelsior_results=[LinterResult(
+                "W9015", "Missing type hint", ["file.py:1"])],
+        )
+        use_case = ApplyFixesUseCase(
+            fixer_gateway,
+            filesystem,
+            check_audit_use_case=check_audit,
+            telemetry=telemetry,
         )
 
-        rule = use_case._get_rule_for_violation(violation)
-        assert rule is not None
-        assert isinstance(rule, DomainImmutabilityRule)
+        result = use_case._execute_pass4_governance_comments([], "test_path")
+
+        assert result == 0
+        telemetry.step.assert_any_call(
+            "⚠️  Pass 4 skipped: W9015 missing type hints must be resolved first"
+        )
 
     def test_get_w9015_rules_creates_if_missing(self) -> None:
         """Test lines 387-388: creating W9015 rule if missing."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         astroid_gateway = MagicMock()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, astroid_gateway=astroid_gateway)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, astroid_gateway=astroid_gateway)
 
         rules = use_case._get_w9015_rules([])
 
@@ -243,7 +251,8 @@ class TestMissingCoverageLines:
         transformer = MagicMock()
 
         with patch.object(use_case, '_run_pytest', return_value=1):  # Regression
-            result = use_case._apply_transformers_to_file(str(test_file), [transformer])
+            result = use_case._apply_transformers_to_file(
+                str(test_file), [transformer])
 
         assert result == 0  # Should rollback
 
@@ -261,7 +270,8 @@ class TestMissingCoverageLines:
 
         transformer = MagicMock()
 
-        result = use_case._apply_transformers_to_file(str(test_file), [transformer])
+        result = use_case._apply_transformers_to_file(
+            str(test_file), [transformer])
 
         assert result == 1  # Should succeed
 
@@ -324,7 +334,7 @@ class TestMissingCoverageLines:
         """Test line 505: get_manual_fixes returns empty when not supported."""
         # Create a gateway without get_manual_suggestions method
         class SimpleGateway:
-            def apply_fixes(self, path, transformers):
+            def apply_fixes(self, path, transformers) -> bool:
                 return True
 
         fixer_gateway = SimpleGateway()
@@ -338,11 +348,13 @@ class TestMissingCoverageLines:
     def test_get_manual_fixes_calls_gateway_when_supported(self) -> None:
         """Test lines 503-504: get_manual_fixes calls gateway when supported."""
         fixer_gateway = MagicMock()
-        fixer_gateway.get_manual_suggestions.return_value = [{"code": "W9001", "message": "Test"}]
+        fixer_gateway.get_manual_suggestions.return_value = [
+            {"code": "W9001", "message": "Test"}]
         filesystem = FileSystemGateway()
         use_case = ApplyFixesUseCase(fixer_gateway, filesystem)
 
         result = use_case.get_manual_fixes("test_path")
 
         assert len(result) == 1
-        fixer_gateway.get_manual_suggestions.assert_called_once_with("test_path")
+        fixer_gateway.get_manual_suggestions.assert_called_once_with(
+            "test_path")

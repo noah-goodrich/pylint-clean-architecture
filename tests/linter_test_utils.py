@@ -1,5 +1,8 @@
 import astroid  # type: ignore[import-untyped]
 
+# JUSTIFICATION: Test helper dispatches on node class names; LoD rules not relevant here.
+# pylint: disable=clean-arch-demeter
+
 
 class MockLinter:
     def __init__(self) -> None:
@@ -22,9 +25,7 @@ def run_checker(checker_cls, code, filename="test.py", **checker_kwargs) -> list
     tree.file = filename
 
     def _walk(node):
-        node_name = node.__class__.__name__.lower()  # pylint: disable=law-of-demeter-violation
-
-        # pylint: disable=law-of-demeter-violation
+        node_name = node.__class__.__name__.lower()
         if hasattr(checker, f"visit_{node_name}"):
             getattr(checker, f"visit_{node_name}")(node)
 

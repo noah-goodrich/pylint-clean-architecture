@@ -49,16 +49,21 @@ class TestRuleFixabilityService:
         assert result is False
 
     def test_is_rule_fixable_uses_prefix_match_for_ruff_adapter(self) -> None:
-        """Test that RuffAdapter uses prefix matching for rule codes."""
+        """Test that RuffAdapter uses prefix matching with unsafe/unfixable exclusions."""
         service = RuleFixabilityService()
         adapter = Mock()
         adapter.supports_autofix.return_value = True
-        adapter.get_fixable_rules.return_value = ["E", "F"]
+        adapter.get_fixable_rules.return_value = ["E", "F", "I"]
+        adapter.get_unfixable_or_unsafe_ruff_codes.return_value = {
+            "E501", "F821", "F841", "B018"}
         adapter.__class__.__name__ = "RuffAdapter"
 
-        # Should match prefix
-        assert service.is_rule_fixable(adapter, "E501") is True
+        # Should match prefix for safe-fix rules
         assert service.is_rule_fixable(adapter, "F401") is True
+        assert service.is_rule_fixable(adapter, "I001") is True
+        # Exclusions (not fixable without unsafe fixes / manual)
+        assert service.is_rule_fixable(adapter, "E501") is False
+        assert service.is_rule_fixable(adapter, "F841") is False
         assert service.is_rule_fixable(adapter, "W9015") is False
 
     def test_is_rule_fixable_handles_missing_get_fixable_rules_gracefully(self) -> None:

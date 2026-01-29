@@ -4,9 +4,8 @@ from typing import List, Optional, Set, Union
 import astroid  # type: ignore[import-untyped]
 
 from clean_architecture_linter.domain.protocols import AstroidProtocol
+from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
 from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
-
-# Stub-First: no nominal/attribute-name maps. StubAuthority provides .pyi truth.
 
 
 class AstroidGateway(AstroidProtocol):
@@ -300,7 +299,8 @@ class AstroidGateway(AstroidProtocol):
         """
         receiver_type = self.get_node_return_type_qname(node.expr)
         if receiver_type:
-            res = self._find_attribute_type_in_class(receiver_type, node.attrname, node)
+            res = self._find_attribute_type_in_class(
+                receiver_type, node.attrname, node)
             if res:
                 return res
         # Fallback: infer the attribute (slots, built-ins)
@@ -320,22 +320,40 @@ class AstroidGateway(AstroidProtocol):
             pass
         return None
 
+    def _normalize_class_qname_for_local_lookup(
+        self, class_qname: str, context: astroid.nodes.NodeNG
+    ) -> tuple[astroid.nodes.Module, str, bool, str]:
+        """
+        Normalize a class qname for local lookups against a module root.
+
+        Returns:
+            (root_module, clean_name, is_local, root_name)
+        """
+        root: astroid.nodes.Module = context.root()
+        root_name = getattr(root, "name", "")
+
+        clean_name = class_qname
+        is_local = bool(
+            class_qname.startswith(".")
+            or ("." not in class_qname)
+            or (root_name and class_qname.startswith(root_name + "."))
+        )
+
+        if class_qname.startswith("."):
+            clean_name = class_qname.lstrip(".")
+        elif root_name and class_qname.startswith(root_name + "."):
+            clean_name = class_qname[len(root_name) + 1:]
+
+        return (root, clean_name, is_local, root_name)
+
     def _find_attribute_type_in_class(
         self, class_qname: str, attr_name: str, context: astroid.nodes.NodeNG
     ) -> Optional[str]:
         """Look up an attribute's type from a class by qname. Uses annotations in class body."""
         try:
-            root: astroid.nodes.Module = context.root()
-            root_name = getattr(root, "name", "")
-            clean_name = class_qname
-            is_local = bool(
-                class_qname.startswith(".") or ("." not in class_qname) or
-                (root_name and class_qname.startswith(root_name + "."))
+            root, clean_name, is_local, _root_name = self._normalize_class_qname_for_local_lookup(
+                class_qname, context
             )
-            if class_qname.startswith("."):
-                clean_name = class_qname.lstrip(".")
-            elif root_name and class_qname.startswith(root_name + "."):
-                clean_name = class_qname[len(root_name) + 1 :]
 
             if is_local:
                 res = self._try_local_root_lookup(root, clean_name, attr_name)
@@ -343,7 +361,8 @@ class AstroidGateway(AstroidProtocol):
                     return res
 
             module_parts = class_qname.split(".")
-            module_name = "builtins" if len(module_parts) < 2 else ".".join(module_parts[:-1])
+            module_name = "builtins" if len(
+                module_parts) < 2 else ".".join(module_parts[:-1])
             class_name = module_parts[-1]
             if module_name:
                 res = self._try_module_lookup_and_stub(
@@ -387,12 +406,13 @@ class AstroidGateway(AstroidProtocol):
             if res:
                 return res
             if self.typeshed.is_stdlib_module(module_name):
-                stub_res = self.typeshed.get_attribute_type_from_stub(class_qname, attr_name)
+                stub_res = self.typeshed.get_attribute_type_from_stub(
+                    class_qname, attr_name)
                 if stub_res:
                     return stub_res
         return self._get_stub_attribute_type(module_name, class_name, attr_name, context)
 
-    def _get_stub_authority(self):
+    def _get_stub_authority(self) -> Optional[StubAuthority]:
         """Lazy StubAuthority for core and project .pyi. Stub-First, no nominal maps."""
         try:
             from clean_architecture_linter.infrastructure.services.stub_authority import (
@@ -441,7 +461,8 @@ class AstroidGateway(AstroidProtocol):
                 if tname == attr_name:
                     return self._resolve_annotation(n.annotation)
             if isinstance(n, astroid.nodes.FunctionDef) and n.name == attr_name:
-                decs = getattr(getattr(n, "decorators", None), "nodes", None) or []
+                decs = getattr(getattr(n, "decorators", None),
+                               "nodes", None) or []
                 if any(
                     isinstance(d, astroid.nodes.Name) and d.name == "property"
                     for d in decs
@@ -465,18 +486,9 @@ class AstroidGateway(AstroidProtocol):
         """Look up a method in a class by its fully qualified name with local context."""
         try:
             # 1. Local Lookup (handle relative and bare names)
-            root: astroid.nodes.Module = context.root()
-            root_name = getattr(root, "name", "")
-
-            clean_name = class_qname
-            is_local: bool = False
-
-            if class_qname.startswith(".") or "." not in class_qname:
-                clean_name = class_qname.lstrip(".")
-                is_local: bool = True
-            elif root_name and class_qname.startswith(root_name + "."):
-                clean_name = class_qname[len(root_name)+1:]
-                is_local: bool = True
+            root, clean_name, is_local, _root_name = self._normalize_class_qname_for_local_lookup(
+                class_qname, context
+            )
 
             if is_local and hasattr(root, "lookup"):
                 # JUSTIFICATION: Core AST traversal.

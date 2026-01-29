@@ -1,9 +1,6 @@
 """Tests for missing coverage in Scaffolder."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
 
@@ -23,7 +20,8 @@ class TestScaffolderMissingCoverage:
 
         with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {}
-            mock_config.return_value.get_layers_file_path.return_value = str(layers_file)
+            mock_config.return_value.get_layers_file_path.return_value = str(
+                layers_file)
             # Mock _check_layers to return True (layers exist, so early return)
             with patch.object(scaffolder, '_check_layers', return_value=True):
                 scaffolder.init_project()
@@ -119,12 +117,15 @@ name = "test"
         scaffolder = Scaffolder(telemetry)
 
         with patch('sys.version_info', (3, 10)), \
-             patch('importlib.util.find_spec', return_value=None):
+                patch('importlib.util.find_spec', return_value=None):
             result = scaffolder._ruff_wizard_can_use_toml()
 
         assert result is False
         telemetry.step.assert_called()
-        assert "tomli not available" in str(telemetry.step.call_args) or "skipping" in str(telemetry.step.call_args).lower()
+        _assert = "tomli not available" in str(telemetry.step.call_args)
+        _assert = _assert or "skipping" in str(
+            telemetry.step.call_args).lower()
+        assert _assert
 
     def test_configure_ruff_wizard_handles_existing_config_prompt_no(self, tmp_path, monkeypatch) -> None:
         """Test lines 218-219: handling prompt to overwrite existing config."""
@@ -138,9 +139,9 @@ line-length = 100
         scaffolder = Scaffolder(telemetry)
 
         with patch('sys.stdin.isatty', return_value=True), \
-             patch('builtins.input', return_value='n'), \
-             patch.object(scaffolder, '_ruff_wizard_has_existing_config', return_value=True), \
-             patch.object(scaffolder, '_ruff_wizard_prompt_overwrite', return_value=False):
+                patch('builtins.input', return_value='n'), \
+                patch.object(scaffolder, '_ruff_wizard_has_existing_config', return_value=True), \
+                patch.object(scaffolder, '_ruff_wizard_prompt_overwrite', return_value=False):
             scaffolder._configure_ruff_wizard()
 
         # Should return early if user declines
@@ -156,11 +157,11 @@ line-length = 100
         scaffolder = Scaffolder(telemetry)
 
         with patch('sys.stdin.isatty', return_value=True), \
-             patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=True), \
-             patch.object(scaffolder, '_ruff_wizard_has_existing_config', return_value=False), \
-             patch.object(scaffolder, '_ruff_wizard_prompt_use_defaults', return_value=True), \
-             patch.object(scaffolder, '_ruff_wizard_customize') as mock_customize, \
-             patch.object(scaffolder, '_write_ruff_config'):
+                patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=True), \
+                patch.object(scaffolder, '_ruff_wizard_has_existing_config', return_value=False), \
+                patch.object(scaffolder, '_ruff_wizard_prompt_use_defaults', return_value=True), \
+                patch.object(scaffolder, '_ruff_wizard_customize') as mock_customize, \
+                patch.object(scaffolder, '_write_ruff_config'):
             mock_customize.return_value = (120, 10, ["E", "F"])
             scaffolder._configure_ruff_wizard()
 
@@ -181,7 +182,7 @@ line-length = 100
         }
 
         with patch('builtins.input', return_value='n'), \
-             patch('builtins.print'):
+                patch('builtins.print'):
             result = scaffolder._ruff_wizard_prompt_use_defaults(defaults)
 
         assert result is False
@@ -200,7 +201,7 @@ line-length = 100
         }
 
         with patch('builtins.input', return_value='y'), \
-             patch('builtins.print'):
+                patch('builtins.print'):
             result = scaffolder._ruff_wizard_prompt_use_defaults(defaults)
 
         assert result is True
@@ -219,7 +220,7 @@ line-length = 100
         }
 
         with patch('builtins.input', return_value=''), \
-             patch('builtins.print'):
+                patch('builtins.print'):
             result = scaffolder._ruff_wizard_prompt_use_defaults(defaults)
 
         assert result is True
@@ -238,8 +239,9 @@ line-length = 100
         }
 
         with patch('builtins.input', side_effect=['', '']), \
-             patch('builtins.print'):
-            line_length, max_complexity, select_rules = scaffolder._ruff_wizard_customize(defaults)
+                patch('builtins.print'):
+            line_length, max_complexity, select_rules = scaffolder._ruff_wizard_customize(
+                defaults)
 
         assert line_length == 120  # Default
         assert max_complexity == 10  # Default
@@ -259,8 +261,9 @@ line-length = 100
         }
 
         with patch('builtins.input', side_effect=['100', '15']), \
-             patch('builtins.print'):
-            line_length, max_complexity, select_rules = scaffolder._ruff_wizard_customize(defaults)
+                patch('builtins.print'):
+            line_length, max_complexity, select_rules = scaffolder._ruff_wizard_customize(
+                defaults)
 
         assert line_length == 100  # Custom
         assert max_complexity == 15  # Custom
@@ -280,8 +283,9 @@ line-length = 100
         }
 
         with patch('builtins.input', side_effect=['invalid', 'also_invalid']), \
-             patch('builtins.print'):
-            line_length, max_complexity, select_rules = scaffolder._ruff_wizard_customize(defaults)
+                patch('builtins.print'):
+            line_length, max_complexity, select_rules = scaffolder._ruff_wizard_customize(
+                defaults)
 
         assert line_length == 120  # Default (invalid input ignored)
         assert max_complexity == 10  # Default (invalid input ignored)
@@ -292,7 +296,7 @@ line-length = 100
         scaffolder = Scaffolder(telemetry)
 
         with patch('builtins.input', return_value='n'), \
-             patch('builtins.print'):
+                patch('builtins.print'):
             result = scaffolder._ruff_wizard_prompt_overwrite()
 
         assert result is False
@@ -303,7 +307,7 @@ line-length = 100
         scaffolder = Scaffolder(telemetry)
 
         with patch('builtins.input', return_value='yes'), \
-             patch('builtins.print'):
+                patch('builtins.print'):
             result = scaffolder._ruff_wizard_prompt_overwrite()
 
         assert result is True
@@ -349,7 +353,7 @@ name = "test"
 
         # Mock Python < 3.11 and tomli import failure
         with patch('sys.version_info', (3, 10)), \
-             patch('builtins.__import__', side_effect=ImportError("No module named tomli")):
+                patch('builtins.__import__', side_effect=ImportError("No module named tomli")):
             result = scaffolder._load_pyproject(test_file)
 
         assert result is None
@@ -387,7 +391,7 @@ name = "test"
         scaffolder = Scaffolder(telemetry)
 
         with patch('sys.stdin.isatty', return_value=True), \
-             patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=False):
+                patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=False):
             scaffolder._configure_ruff_wizard()
 
         # Should return early
@@ -403,9 +407,9 @@ name = "test"
         scaffolder = Scaffolder(telemetry)
 
         with patch('sys.stdin.isatty', return_value=True), \
-             patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=True), \
-             patch.object(scaffolder, '_ruff_wizard_has_existing_config', return_value=False), \
-             patch.object(scaffolder, '_ruff_wizard_prompt_use_defaults', return_value=False):
+                patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=True), \
+                patch.object(scaffolder, '_ruff_wizard_has_existing_config', return_value=False), \
+                patch.object(scaffolder, '_ruff_wizard_prompt_use_defaults', return_value=False):
             scaffolder._configure_ruff_wizard()
 
         # Should return early when user declines
@@ -417,7 +421,7 @@ name = "test"
         scaffolder = Scaffolder(telemetry)
 
         with patch('sys.version_info', (3, 10)), \
-             patch('importlib.util.find_spec', return_value=MagicMock()):  # tomli found
+                patch('importlib.util.find_spec', return_value=MagicMock()):  # tomli found
             result = scaffolder._ruff_wizard_can_use_toml()
 
         assert result is True
@@ -444,7 +448,7 @@ name = "test"
 
         # Mock Python < 3.11 and tomli import failure
         with patch('sys.version_info', (3, 10)), \
-             patch('builtins.__import__', side_effect=ImportError("No module named tomli")):
+                patch('builtins.__import__', side_effect=ImportError("No module named tomli")):
             result = scaffolder._load_pyproject_toml()
 
         assert result is None
@@ -460,7 +464,7 @@ name = "test"
 
         # Mock toml_lib.load to raise exception
         with patch('sys.version_info', (3, 11)), \
-             patch('tomllib.load', side_effect=ValueError("Invalid TOML")):
+                patch('tomllib.load', side_effect=ValueError("Invalid TOML")):
             result = scaffolder._load_pyproject_toml()
 
         assert result is None
@@ -476,22 +480,19 @@ name = "test"
 
         # Mock Python < 3.11 and tomli_w import failure
         # We need to patch the import that happens inside the method
-        import sys
-        original_version = sys.version_info
-        
+
         # Temporarily change version to trigger tomli path
         with patch('sys.version_info', (3, 10, 0)):
             # Mock the import of tomli_w to fail
-            import importlib
             original_import = __import__
-            
+
             def mock_import(name, *args, **kwargs):
                 if name == 'tomli_w':
                     raise ImportError("No module named tomli_w")
                 return original_import(name, *args, **kwargs)
-            
+
             with patch('builtins.__import__', side_effect=mock_import), \
-                 patch('builtins.print'):
+                    patch('builtins.print'):
                 # Should handle error gracefully and print warning
                 scaffolder._write_ruff_config(120, 10, ["E", "F"])
 

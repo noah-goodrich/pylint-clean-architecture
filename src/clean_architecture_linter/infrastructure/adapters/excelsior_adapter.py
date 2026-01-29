@@ -5,6 +5,7 @@ import sys
 from collections import defaultdict
 from typing import Dict, List
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 
@@ -17,16 +18,24 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
         env = os.environ.copy()
         env["PYTHONPATH"] = "src"
         try:
-            # We use --output-format=text to get standard output
-            result = subprocess.run(
-                [
+            # Build pylint command
+            cmd = [
                     sys.executable,
                     "-m",
                     "pylint",
                     target_path,
                     "--load-plugins=clean_architecture_linter",
                     "--msg-template={path}:{line}: {msg_id}: {msg} ({symbol})",
-                ],
+            ]
+
+            # Exclude deliberate-violation fixtures from the main audit
+            exclude = ConfigurationLoader().audit_exclude_paths
+            if exclude:
+                regex = "|".join([rf".*{re.escape(p)}.*" for p in exclude])
+                cmd.append(f"--ignore-paths={regex}")
+
+            result = subprocess.run(
+                cmd,
                 env=env,
                 capture_output=True,
                 text=True,

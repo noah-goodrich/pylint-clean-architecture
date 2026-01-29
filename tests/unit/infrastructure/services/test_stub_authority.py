@@ -2,9 +2,6 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from clean_architecture_linter.infrastructure.services.stub_authority import (
     StubAuthority,

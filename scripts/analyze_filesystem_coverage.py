@@ -64,7 +64,8 @@ def main() -> int:
             file_path = file_path.split("clean_architecture_linter/")[-1]
 
         print(
-            f"{priority:<10.2f} {score:<8.2f} {coverage:<10.1f}% {impact:<8.1f} {complexity:<12.2f} {file_path:<50} {func_name:<30}"
+            f"{priority:<10.2f} {score:<8.2f} {coverage:<10.1f}% {impact:<8.1f} "
+            f"{complexity:<12.2f} {file_path:<50} {func_name:<30}"
         )
 
     print()

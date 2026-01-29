@@ -23,16 +23,16 @@ def _run_coupling_checker_on_code(code: str, path: str) -> list:
     python_gateway = container.get("PythonGateway")
     linter = mock.MagicMock()
     try:
-        linter.release_messages
+        _ = linter.release_messages
     except AttributeError:
         linter._msg_store = []
 
-        def _release():
+        def _release() -> list:
             out = getattr(linter, "_msg_store", [])
             linter._msg_store = []
             return out
 
-        linter.release_messages = _release
+        _ = linter.release_messages = _release
     msgs = []
 
     def _add(*args, **kwargs):

@@ -32,7 +32,7 @@ class TestImmutabilityChecker(unittest.TestCase, CheckerTestCase):
         """Test visit_assignattr flags assignment in Domain layer."""
         node = create_mock_node(astroid.nodes.AssignAttr)
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_DOMAIN
-        
+
         # Mock frame to not be __init__
         frame = create_mock_node(astroid.nodes.FunctionDef, name="some_method")
         node.frame = MagicMock(return_value=frame)
@@ -54,7 +54,7 @@ class MyClass:
         class_def = module.body[0]
         init_func = class_def.body[0]
         assign_attr = init_func.body[0].targets[0]
-        
+
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_DOMAIN
 
         self.checker.visit_assignattr(assign_attr)
@@ -165,7 +165,7 @@ class MyClass:
 """
         module = astroid.parse(code)
         node = module.body[0]  # ClassDef
-        
+
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_DOMAIN
 
         self.checker.visit_classdef(node)
@@ -183,7 +183,7 @@ class MyClass:
 """
         module = astroid.parse(code)
         node = module.body[0]  # ClassDef
-        
+
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_DOMAIN
 
         self.checker.visit_classdef(node)

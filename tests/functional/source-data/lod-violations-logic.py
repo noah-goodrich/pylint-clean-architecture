@@ -1,6 +1,6 @@
 class Inner:
     def run(self) -> None:
-        pass
+        return None
 
 
 class Outer:
@@ -15,12 +15,15 @@ def violation_3(obj: Outer) -> None:
 class Stranger:
     def get_data(self) -> 'Stranger':
         return self
+
     def process(self) -> None:
-        pass
+        return None
+
 
 def violation_1(obj: Stranger) -> None:
     # VIOLATION: Chaining across two stranger objects
     obj.get_data().get_data().process()
+
 
 def violation_2(obj: Stranger) -> None:
     # Assigned from method (Stranger)

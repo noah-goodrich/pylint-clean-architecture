@@ -1,8 +1,10 @@
 # SAFE_ZONE
+from __future__ import annotations
+
 import os
 
 
-def safe_calls() -> A:
+def safe_calls() -> None:
     # Builtins/Primitives (Category 1)
     "abc".strip().lower()
     x = [1, 2]
@@ -16,16 +18,21 @@ def safe_calls() -> A:
     class A:
         def b(self) -> A: return self
         def c(self) -> A: return self
+
         def test(self):
             # Self calls (depth 2 max)
             self.b().c()
 
 # VIOLATION_ZONE
+
+
 class Stranger:
     def do_it(self): pass
 
+
 class Friend:
     def get_stranger(self) -> Stranger: return Stranger()
+
 
 def bad_calls(f: Friend):
     # Direct chain on non-safe root (f is trusted but not local)

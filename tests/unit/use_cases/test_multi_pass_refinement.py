@@ -1,9 +1,6 @@
 """Tests for multi-pass fix refinement with cache clearing and LoD resolution."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from clean_architecture_linter.domain.rules.governance_comments import LawOfDemeterRule
 from clean_architecture_linter.domain.rules.immutability import DomainImmutabilityRule
@@ -26,10 +23,10 @@ class TestMultiPassRefinement:
         )
 
         with patch.object(use_case, '_run_baseline_if_enabled'), \
-             patch.object(use_case, '_execute_pass1_ruff', return_value=0), \
-             patch.object(use_case, '_execute_pass2_type_hints', return_value=1), \
-             patch.object(use_case, '_execute_pass3_architecture_code', return_value=0), \
-             patch.object(use_case, '_execute_pass4_governance_comments', return_value=0):
+                patch.object(use_case, '_execute_pass1_ruff', return_value=0), \
+                patch.object(use_case, '_execute_pass2_type_hints', return_value=1), \
+                patch.object(use_case, '_execute_pass3_architecture_code', return_value=0), \
+                patch.object(use_case, '_execute_pass4_governance_comments', return_value=0):
             use_case.execute_multi_pass([], "test_path")
 
         # Verify cache was cleared after Pass 2
@@ -43,46 +40,49 @@ class TestMultiPassRefinement:
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, telemetry=telemetry)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, telemetry=telemetry)
 
         call_order = []
 
-        def track_pass1(*args, **kwargs):
+        def track_pass1(*args, **kwargs) -> int:
             call_order.append("pass1")
             return 1
 
-        def track_pass2(*args, **kwargs):
+        def track_pass2(*args, **kwargs) -> int:
             call_order.append("pass2")
             return 2
 
         def track_cache_clear(*args, **kwargs):
             call_order.append("clear_cache")
 
-        def track_pass3(*args, **kwargs):
+        def track_pass3(*args, **kwargs) -> int:
             call_order.append("pass3")
             return 3
 
-        def track_pass4(*args, **kwargs):
+        def track_pass4(*args, **kwargs) -> int:
             call_order.append("pass4")
             return 4
 
         with patch.object(use_case, '_run_baseline_if_enabled'), \
-             patch.object(use_case, '_execute_pass1_ruff', side_effect=track_pass1), \
-             patch.object(use_case, '_execute_pass2_type_hints', side_effect=track_pass2), \
-             patch.object(use_case, '_clear_astroid_cache', side_effect=track_cache_clear), \
-             patch.object(use_case, '_execute_pass3_architecture_code', side_effect=track_pass3), \
-             patch.object(use_case, '_execute_pass4_governance_comments', side_effect=track_pass4):
+                patch.object(use_case, '_execute_pass1_ruff', side_effect=track_pass1), \
+                patch.object(use_case, '_execute_pass2_type_hints', side_effect=track_pass2), \
+                patch.object(use_case, '_clear_astroid_cache', side_effect=track_cache_clear), \
+                patch.object(use_case, '_execute_pass3_architecture_code', side_effect=track_pass3), \
+                patch.object(use_case, '_execute_pass4_governance_comments', side_effect=track_pass4):
             result = use_case.execute_multi_pass([], "test_path")
 
         assert result == 10  # 1 + 2 + 3 + 4
-        assert call_order == ["pass1", "pass2", "clear_cache", "pass3", "pass4"]
+        assert call_order == ["pass1", "pass2",
+                              "clear_cache", "pass3", "pass4"]
 
     def test_pass3_excludes_w9015_and_w9006(self) -> None:
         """Test that Pass 3 excludes W9015 (type hints) and W9006 (LoD comments)."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, telemetry=telemetry)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, telemetry=telemetry)
 
         w9015_rule = MissingTypeHintRule(MagicMock())
         w9015_rule.code = "W9015"
@@ -142,10 +142,13 @@ class TestMultiPassRefinement:
         )
 
         with patch.object(use_case, '_apply_transformers_to_file', return_value=1):
-            result = use_case._execute_pass4_governance_comments([], str(tmp_path))
+            result = use_case._execute_pass4_governance_comments(
+                [], str(tmp_path))
 
         assert result == 1
-        telemetry.step.assert_any_call("Pass 4: Applying governance comments (Law of Demeter)...")
+        telemetry.step.assert_any_call(
+            "Pass 4: Applying governance comments for architectural violations..."
+        )
 
 
 class TestDomainImmutabilityFix:
@@ -161,6 +164,7 @@ class TestDomainImmutabilityFix:
         """Test that fix() aborts when custom __setattr__ is detected."""
         rule = DomainImmutabilityRule()
         import astroid
+
         from clean_architecture_linter.domain.rules import Violation
 
         # Create a class with custom __setattr__
@@ -189,6 +193,7 @@ class User:
         """Test that fix() returns transformer for valid Domain class."""
         rule = DomainImmutabilityRule()
         import astroid
+
         from clean_architecture_linter.domain.rules import Violation
 
         # Create a class without custom __setattr__

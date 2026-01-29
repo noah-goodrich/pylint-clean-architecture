@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest import mock
 
 import astroid
-import pytest
 
 from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
 from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker

@@ -1,9 +1,7 @@
 """Integration tests for governance comments in ApplyFixesUseCase."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from clean_architecture_linter.domain.entities import AuditResult, LinterResult
 from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import (
@@ -62,11 +60,11 @@ class TestGovernanceCommentsIntegration:
         )
 
         # Execute Pass 4 (governance comments)
-        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
+        modified = use_case._execute_pass4_governance_comments(
+            [], str(tmp_path))
 
         # Check that file was modified (may be 0 if no violations found or parsing issues)
         # The key is that the method runs without error
-        content = test_file.read_text()
         # Comments may or may not be injected depending on node matching
         # At minimum, verify the method executed
         assert modified >= 0
@@ -111,66 +109,48 @@ class TestGovernanceCommentsIntegration:
 
         # W9015 is not comment-only, so governance comments won't be applied
         # Test by checking that _execute_pass4_governance_comments doesn't apply comments for W9015
-        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
-        
+        modified = use_case._execute_pass4_governance_comments(
+            [], str(tmp_path))
+
         # Should not modify with governance comments (W9015 is not comment-only)
         # But may modify with other rules, so just check it runs
         assert modified >= 0
 
-    def test_get_governance_rule_for_violation(self) -> None:
-        """Test getting appropriate rule for violation."""
-        use_case = ApplyFixesUseCase(
-            MagicMock(),
-            filesystem=MagicMock(),
+    def test_create_governance_rule_returns_rule_for_violation(self) -> None:
+        """Test create_governance_rule returns correct rule for W9006 and others."""
+        from clean_architecture_linter.domain.rules.governance_comments import (
+            create_governance_rule,
+            LawOfDemeterRule,
+            GenericGovernanceCommentRule,
         )
 
-        from clean_architecture_linter.domain.rules import Violation
-        import astroid
-
-        node = astroid.parse("x = 1\n").body[0]
-
-        # Test W9006
-        violation = Violation(
-            code="W9006",
-            message="Test",
-            location="test.py:1",
-            node=node,
-            fixable=True,
-            is_comment_only=True,
-        )
-        rule = use_case._get_governance_rule_for_violation(violation)
+        # W9006 returns LawOfDemeterRule
+        rule = create_governance_rule("W9006")
         assert rule is not None
+        assert isinstance(rule, LawOfDemeterRule)
         assert rule.code == "W9006"
 
-        # Test clean-arch-demeter
-        violation2 = Violation(
-            code="clean-arch-demeter",
-            message="Test",
-            location="test.py:1",
-            node=node,
-            fixable=True,
-            is_comment_only=True,
-        )
-        rule2 = use_case._get_governance_rule_for_violation(violation2)
+        # clean-arch-demeter returns LawOfDemeterRule
+        rule2 = create_governance_rule("clean-arch-demeter")
         assert rule2 is not None
+        assert isinstance(rule2, LawOfDemeterRule)
 
-        # Test unknown code
-        violation3 = Violation(
-            code="UNKNOWN",
-            message="Test",
-            location="test.py:1",
-            node=node,
-            fixable=True,
-            is_comment_only=True,
-        )
-        rule3 = use_case._get_governance_rule_for_violation(violation3)
-        assert rule3 is None
+        # W9201 returns GenericGovernanceCommentRule
+        rule3 = create_governance_rule("W9201")
+        assert rule3 is not None
+        assert isinstance(rule3, GenericGovernanceCommentRule)
+        assert rule3.code == "W9201"
+
+        # Unknown comment-only code returns GenericGovernanceCommentRule
+        rule4 = create_governance_rule("W9001")
+        assert rule4 is not None
+        assert isinstance(rule4, GenericGovernanceCommentRule)
 
     def test_apply_governance_comments_handles_no_astroid_gateway(self, tmp_path) -> None:
         """Test that missing astroid gateway is handled."""
         test_file = tmp_path / "test.py"
         test_file.write_text("x = obj.a.b.c()\n")
-        
+
         check_audit = MagicMock()
         audit_result = AuditResult(
             ruff_results=[],
@@ -186,7 +166,7 @@ class TestGovernanceCommentsIntegration:
             ruff_enabled=True,
         )
         check_audit.execute.return_value = audit_result
-        
+
         use_case = ApplyFixesUseCase(
             MagicMock(),
             filesystem=FileSystemGateway(),
@@ -195,7 +175,8 @@ class TestGovernanceCommentsIntegration:
         )
 
         # Should return 0 when no astroid gateway
-        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
+        modified = use_case._execute_pass4_governance_comments(
+            [], str(tmp_path))
         assert modified == 0
 
     def test_apply_governance_comments_groups_by_file(self, tmp_path) -> None:
@@ -207,10 +188,11 @@ class TestGovernanceCommentsIntegration:
 
         astroid_gateway = MagicMock()
         import astroid
-        astroid_gateway.parse_file.side_effect = lambda f: astroid.parse(Path(f).read_text())
+        astroid_gateway.parse_file.side_effect = lambda f: astroid.parse(
+            Path(f).read_text())
 
         check_audit = MagicMock()
-        audit_result = AuditResult(
+        AuditResult(
             ruff_results=[],
             mypy_results=[],
             excelsior_results=[
@@ -236,7 +218,8 @@ class TestGovernanceCommentsIntegration:
             validate_with_tests=False,
         )
 
-        modified = use_case._execute_pass4_governance_comments([], str(tmp_path))
+        modified = use_case._execute_pass4_governance_comments(
+            [], str(tmp_path))
 
         # Should attempt to modify files (may be 0 if node matching fails)
         # The key is that the method runs without error

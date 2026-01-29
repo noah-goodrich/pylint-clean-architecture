@@ -24,8 +24,9 @@ from clean_architecture_linter.domain.protocols import (
     TelemetryPort,
 )
 from clean_architecture_linter.domain.rules import BaseRule
-from clean_architecture_linter.domain.rules.governance_comments import LawOfDemeterRule
-from clean_architecture_linter.domain.rules.immutability import DomainImmutabilityRule
+from clean_architecture_linter.domain.rules.governance_comments import (
+    create_governance_rule,
+)
 from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
 from clean_architecture_linter.infrastructure.services.violation_bridge import (
     ViolationBridgeService,
@@ -137,7 +138,8 @@ class ApplyFixesUseCase:
             Total number of files modified across all passes
         """
         if self.telemetry:
-            self.telemetry.step(f"🔧 Starting Multi-Pass Fix Logic on {target_path}")
+            self.telemetry.step(
+                f"🔧 Starting Multi-Pass Fix Logic on {target_path}")
 
         self._run_baseline_if_enabled()
 
@@ -149,15 +151,18 @@ class ApplyFixesUseCase:
         self._clear_astroid_cache()
 
         # Phase 2: Architectural fixes (excluding W9015 and W9006)
-        pass3_modified = self._execute_pass3_architecture_code(rules, target_path)
+        pass3_modified = self._execute_pass3_architecture_code(
+            rules, target_path)
 
         # Phase 3: Governance Comments (W9006 only - comment-only fixes)
-        pass4_modified = self._execute_pass4_governance_comments(rules, target_path)
+        pass4_modified = self._execute_pass4_governance_comments(
+            rules, target_path)
 
         total_modified = pass1_modified + pass2_modified + pass3_modified + pass4_modified
 
         if self.telemetry:
-            self.telemetry.step(f"🛠️ Multi-Pass Fix Suite complete. Total files repaired: {total_modified}")
+            self.telemetry.step(
+                f"🛠️ Multi-Pass Fix Suite complete. Total files repaired: {total_modified}")
 
         return total_modified
 
@@ -167,7 +172,8 @@ class ApplyFixesUseCase:
             return 0
 
         if self.telemetry:
-            self.telemetry.step("Pass 1: Applying Ruff fixes (Code Hygiene)...")
+            self.telemetry.step(
+                "Pass 1: Applying Ruff fixes (Code Hygiene)...")
 
         # JUSTIFICATION: RuffAdapter.apply_fixes requires Path for subprocess call
         from pathlib import Path
@@ -181,13 +187,15 @@ class ApplyFixesUseCase:
     def _execute_pass2_type_hints(self, rules: List[BaseRule], target_path: str) -> int:
         """Pass 2: Apply type-hint injections (W9015 only)."""
         if self.telemetry:
-            self.telemetry.step("Pass 2: Applying type-hint injections (W9015)...")
+            self.telemetry.step(
+                "Pass 2: Applying type-hint injections (W9015)...")
 
         w9015_rules = self._get_w9015_rules(rules)
         pass2_modified = self._apply_rule_fixes(w9015_rules, target_path)
 
         if self.telemetry and pass2_modified > 0:
-            self.telemetry.step(f"✅ Pass 2 complete: {pass2_modified} file(s) fixed with type hints")
+            self.telemetry.step(
+                f"✅ Pass 2 complete: {pass2_modified} file(s) fixed with type hints")
 
         return pass2_modified
 
@@ -214,7 +222,8 @@ class ApplyFixesUseCase:
 
         if audit_result.is_blocked():
             if self.telemetry:
-                self.telemetry.step(f"⚠️  Pass 3 skipped: Audit blocked by {audit_result.blocked_by}")
+                self.telemetry.step(
+                    f"⚠️  Pass 3 skipped: Audit blocked by {audit_result.blocked_by}")
             return 0
 
         # Apply architecture rules (code fixes only, not comments)
@@ -222,37 +231,48 @@ class ApplyFixesUseCase:
         rule_modified = self._apply_rule_fixes(architecture_rules, target_path)
 
         if self.telemetry and rule_modified > 0:
-            self.telemetry.step(f"✅ Pass 3 complete: {rule_modified} file(s) fixed with architectural code changes")
+            self.telemetry.step(
+                f"✅ Pass 3 complete: {rule_modified} file(s) fixed with architectural code changes")
 
         return rule_modified
 
     def _execute_pass4_governance_comments(self, rules: List[BaseRule], target_path: str) -> int:
-        """Pass 4: Apply governance comments for LoD (W9006) violations."""
+        """Pass 4: Apply governance comments for all comment-only violations."""
         if self.telemetry:
-            self.telemetry.step("Pass 4: Applying governance comments (Law of Demeter)...")
+            self.telemetry.step(
+                "Pass 4: Applying governance comments for architectural violations...")
 
         if not self.check_audit_use_case:
-            # Fallback: apply LoD rule directly
-            lod_rules = [r for r in rules if hasattr(r, 'code') and r.code == "W9006"]
-            return self._apply_rule_fixes(lod_rules, target_path)
+            # Fallback: skip governance comments if no audit use case available
+            return 0
 
         audit_result = self.check_audit_use_case.execute(target_path)
 
         if audit_result.is_blocked():
             if self.telemetry:
-                self.telemetry.step(f"⚠️  Pass 4 skipped: Audit blocked by {audit_result.blocked_by}")
+                self.telemetry.step(
+                    f"⚠️  Pass 4 skipped: Audit blocked by {audit_result.blocked_by}")
+            return 0
+
+        # Upstream gating: do not surface or apply governance comment fixes until W9015 is resolved.
+        # This prevents noisy/false architectural results when type hints are missing.
+        if any(r.code == "W9015" for r in (audit_result.excelsior_results or [])):
+            if self.telemetry:
+                self.telemetry.step(
+                    "⚠️  Pass 4 skipped: W9015 missing type hints must be resolved first")
             return 0
 
         if not audit_result.excelsior_results:
             return 0
 
-        # Apply governance comment fixes for LoD violations only
+        # Apply governance comment fixes for all comment-only violations
         governance_modified = self._apply_governance_comments(
             audit_result.excelsior_results, target_path
         )
 
         if self.telemetry and governance_modified > 0:
-            self.telemetry.step(f"✅ Pass 4 complete: {governance_modified} file(s) fixed with governance comments")
+            self.telemetry.step(
+                f"✅ Pass 4 complete: {governance_modified} file(s) fixed with governance comments")
 
         return governance_modified
 
@@ -310,14 +330,26 @@ class ApplyFixesUseCase:
     def _build_governance_transformers(
         self, violations: List["Violation"]
     ) -> List["cst.CSTTransformer"]:
-        """Build governance comment transformers for violations (W9006 only)."""
+        """Build governance comment transformers for all comment-only violations."""
         transformers = []
+        excelsior_adapter = None
+        if self.check_audit_use_case:
+            # Get adapter from container if available
+            try:
+                from clean_architecture_linter.infrastructure.di.container import (
+                    ExcelsiorContainer,
+                )
+                container = ExcelsiorContainer()
+                excelsior_adapter = container.get("ExcelsiorAdapter")
+            except Exception:
+                pass
+
         for violation in violations:
-            # Only process W9006 (Law of Demeter) for governance comments
-            if violation.code != "W9006" and violation.code != "clean-arch-demeter":
+            # Only process comment-only violations
+            if not violation.is_comment_only:
                 continue
 
-            rule = self._get_governance_rule_for_violation(violation)
+            rule = create_governance_rule(violation.code, excelsior_adapter)
             if rule:
                 transformer = rule.fix(violation)
                 if transformer:
@@ -349,42 +381,10 @@ class ApplyFixesUseCase:
             self._cleanup_backup_if_requested(backup_path_str)
             return 0
 
-    def _get_governance_rule_for_violation(
-        self, violation: "Violation"
-    ) -> Optional[BaseRule]:
-        """Get the appropriate governance comment rule for a violation."""
-        # Map violation codes to rule classes
-        rule_map = {
-            "W9006": LawOfDemeterRule,
-            "clean-arch-demeter": LawOfDemeterRule,
-        }
-
-        rule_class = rule_map.get(violation.code)
-        if rule_class:
-            return rule_class()
-
-        return None
-
-    def _get_rule_for_violation(self, violation: "Violation") -> Optional[BaseRule]:
-        """Get the appropriate rule for a violation (code or comment fixes)."""
-
-        # Map violation codes to rule classes
-        rule_map = {
-            "W9006": LawOfDemeterRule,
-            "clean-arch-demeter": LawOfDemeterRule,
-            "W9601": DomainImmutabilityRule,
-            "domain-immutability-violation": DomainImmutabilityRule,
-        }
-
-        rule_class = rule_map.get(violation.code)
-        if rule_class:
-            return rule_class()
-
-        return None
-
     def _get_w9015_rules(self, rules: List[BaseRule]) -> List[BaseRule]:
         """Get W9015 rules from list, creating if missing."""
-        w9015_rules = [r for r in rules if hasattr(r, 'code') and r.code == "W9015"]
+        w9015_rules = [r for r in rules if hasattr(
+            r, 'code') and r.code == "W9015"]
         if not w9015_rules and self.astroid_gateway:
             w9015_rules = [MissingTypeHintRule(self.astroid_gateway)]
         return w9015_rules
@@ -413,7 +413,8 @@ class ApplyFixesUseCase:
         failed_fixes_all: List[str] = []
 
         for file_path_str in files:
-            transformers, failed_fixes = self._collect_transformers_from_rules(rules, file_path_str)
+            transformers, failed_fixes = self._collect_transformers_from_rules(
+                rules, file_path_str)
             failed_fixes_all.extend(failed_fixes)
 
             if not transformers:
@@ -422,8 +423,10 @@ class ApplyFixesUseCase:
             if self._skip_confirmation(file_path_str, transformers):
                 continue
 
-            backup_path_str = self._create_backup(file_path_str) if self.create_backups else None
-            success = self.fixer_gateway.apply_fixes(file_path_str, transformers)
+            backup_path_str = self._create_backup(
+                file_path_str) if self.create_backups else None
+            success = self.fixer_gateway.apply_fixes(
+                file_path_str, transformers)
 
             if success:
                 mod_delta, did_rollback = self._handle_successful_fix(
@@ -438,7 +441,8 @@ class ApplyFixesUseCase:
                 self._cleanup_backup_if_requested(backup_path_str)
 
         if failed_fixes_all and self.telemetry:
-            self.telemetry.step(f"⚠️  {len(failed_fixes_all)} fix(es) could not be applied:")
+            self.telemetry.step(
+                f"⚠️  {len(failed_fixes_all)} fix(es) could not be applied:")
             for failure in failed_fixes_all:
                 self.telemetry.error(f"  {failure}")
 
@@ -542,8 +546,8 @@ class ApplyFixesUseCase:
                     # For each fixable violation, get transformer
                     for violation in violations:
                         if violation.fixable:
-                            transformer = rule.fix(violation)
-                            if transformer is None:
+                            transformer_or_transformers = rule.fix(violation)
+                            if transformer_or_transformers is None:
                                 # Expected to be fixable but fix() returned None
                                 reason = violation.fix_failure_reason or "Unknown reason"
                                 failed_fixes.append(
@@ -553,8 +557,14 @@ class ApplyFixesUseCase:
                                     self.telemetry.error(
                                         f"Failed to fix {violation.code} in {file_path_str}: {reason}"
                                     )
+                            # Allow rules to return either a single transformer or a list
+                            elif isinstance(transformer_or_transformers, list):
+                                transformers.extend(
+                                    [t for t in transformer_or_transformers if t is not None]
+                                )
                             else:
-                                transformers.append(transformer)
+                                transformers.append(
+                                    transformer_or_transformers)
                 except Exception as e:
                     # Log error but continue with other rules
                     if self.telemetry:

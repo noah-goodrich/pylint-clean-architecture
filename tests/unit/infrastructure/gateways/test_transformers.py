@@ -1,10 +1,7 @@
 """Unit tests for LibCST transformers."""
 
-from pathlib import Path
-from unittest.mock import MagicMock
 
 import libcst as cst
-import pytest
 
 from clean_architecture_linter.infrastructure.gateways.transformers import (
     AddImportTransformer,
@@ -59,8 +56,10 @@ x = 1
         # Typing import should come after os import (or at beginning if insert_idx logic differs)
         # The transformer inserts at insert_idx which is after last import
         lines = code.splitlines()
-        os_line = next((i for i, line in enumerate(lines) if "from os import" in line), None)
-        typing_line = next((i for i, line in enumerate(lines) if "from typing import" in line), None)
+        os_line = next((i for i, line in enumerate(lines)
+                       if "from os import" in line), None)
+        typing_line = next((i for i, line in enumerate(
+            lines) if "from typing import" in line), None)
         # Both should exist
         assert os_line is not None
         assert typing_line is not None
@@ -82,6 +81,20 @@ x = 1
         # Should only have one import
         assert modified1.code.count("from typing import List") == 1
         assert modified2.code.count("from typing import List") == 1
+
+    def test_supports_dotted_module_import(self) -> None:
+        """Test that transformer supports dotted module paths (from a.b import C)."""
+        source = "x = 1\n"
+        module = cst.parse_module(source)
+
+        transformer = AddImportTransformer({
+            "module": "a.b.c",
+            "imports": ["Thing"]
+        })
+
+        modified = module.visit(transformer)
+        code = modified.code
+        assert "from a.b.c import Thing" in code
 
 
 class TestFreezeDataclassTransformer:

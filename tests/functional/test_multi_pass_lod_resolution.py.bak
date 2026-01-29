@@ -46,7 +46,7 @@ class FakeAuditResult:
 
 
 class FakeCheckAuditUseCase:
-    def execute(self, _target_path: str) -> FakeAuditResult:
+    def execute(self, _target_path: str):
         return FakeAuditResult()
 
 

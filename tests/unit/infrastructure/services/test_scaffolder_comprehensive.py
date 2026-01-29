@@ -9,10 +9,7 @@ These tests focus on methods identified as high-priority in TEST_PRIORITIES.md:
 """
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
-
-import pytest
 
 from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
 
@@ -245,7 +242,7 @@ class TestTemplateApplication:
         layer_map = data["tool"]["clean-arch"]["layer_map"]
         assert layer_map["models"] == "Infrastructure"
         assert layer_map["repositories"] == "Infrastructure"
-        
+
         base_class_map = data["tool"]["clean-arch"]["base_class_map"]
         assert base_class_map["Base"] == "Infrastructure"
         assert base_class_map["DeclarativeBase"] == "Infrastructure"
@@ -268,7 +265,7 @@ class TestTemplateApplication:
 
         data = {"tool": {"clean-arch": {}}}
         original_data = json.dumps(data, sort_keys=True)
-        
+
         scaffolder._apply_template_updates(data, "unknown_template")
 
         # Should not modify data
@@ -358,7 +355,7 @@ class TestRuffWizard:
 
         mock_tomli_w = MagicMock()
         mock_tomli_w.dump = MagicMock()
-        
+
         # Inject mock into sys.modules before the import happens
         import sys
         original_tomli_w = sys.modules.get('tomli_w')

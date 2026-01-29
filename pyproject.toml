@@ -57,7 +57,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 # Run only fast tests by default; use -m slow or make test-slow for slow tests.
-addopts = "--cov=src --cov-report=term-missing --cov-report=json --cov-fail-under=85 -m 'not slow'"
+addopts = "--cov=src --cov-report=term-missing --cov-report=json --cov-fail-under=85 --coverage-impact -m 'not slow'"
 pythonpath = ["src"]
 markers = [
     "unit: mark a test as a unit test.",
@@ -130,6 +130,7 @@ project_name = "EXCELSIOR"
 color = "red"
 welcome_msg = "Command Cruiser Online"
 shared_kernel_modules = ["stellar_ui_kit"]
+audit_exclude_paths = ["tests/bait"]
 
 [tool.clean-arch.layer_map]
 "clean_architecture_linter.domain" = "Domain"

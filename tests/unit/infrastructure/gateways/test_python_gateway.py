@@ -63,7 +63,7 @@ class TestPythonGateway(unittest.TestCase):
         mock_node.file = f"{self.gateway._stdlib_path}/some_module.py"
         mock_ast_from_module.return_value = mock_node
 
-        result = self.gateway.is_stdlib_module("some_module")
+        self.gateway.is_stdlib_module("some_module")
         # Should try path-based detection
         mock_ast_from_module.assert_called_once_with("some_module")
 
@@ -221,7 +221,7 @@ class MyProtocol:
         node.bases = [mock_base]
 
         # This should trigger the quick check path
-        result = self.gateway.is_protocol_node(node)
+        self.gateway.is_protocol_node(node)
         # May return True if quick check works, False if deep check fails
         # The important thing is it doesn't crash
 
@@ -295,6 +295,6 @@ class MyProtocol:
         config.get_layer_for_module.return_value = "Domain"
 
         # Should handle missing file gracefully
-        layer = self.gateway.get_node_layer(node, config)
+        self.gateway.get_node_layer(node, config)
         # Should still call get_layer_for_module with empty file path
         config.get_layer_for_module.assert_called_once()

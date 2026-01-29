@@ -21,5 +21,10 @@ class RuleFixabilityService:
             return False
         fixable = getattr(adapter, "get_fixable_rules", lambda: [])()
         if adapter.__class__.__name__ == "RuffAdapter":
+            unfixable = getattr(
+                adapter, "get_unfixable_or_unsafe_ruff_codes", lambda: set()
+            )()
+            if code in unfixable:
+                return False
             return any(code.startswith(r) for r in fixable)
         return code in fixable

@@ -121,6 +121,18 @@ class ConfigurationLoader:
         return self.__class__._config
 
     @property
+    def audit_exclude_paths(self) -> list[str]:
+        """
+        Path fragments to exclude from the main audit.
+
+        Intended for deliberate-violation fixtures like tests/bait/.
+        """
+        raw = self.__class__._config.get("audit_exclude_paths", [])
+        if isinstance(raw, list):
+            return [str(x) for x in raw if isinstance(x, str)]
+        return []
+
+    @property
     def registry(self) -> LayerRegistry:
         """Return the layer registry."""
         if self.__class__._registry is None:

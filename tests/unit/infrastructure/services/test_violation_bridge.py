@@ -3,10 +3,8 @@
 from unittest.mock import MagicMock
 
 import astroid
-import pytest
 
 from clean_architecture_linter.domain.entities import LinterResult
-from clean_architecture_linter.domain.rules import Violation
 from clean_architecture_linter.infrastructure.services.violation_bridge import (
     ViolationBridgeService,
 )
@@ -128,12 +126,6 @@ class TestViolationBridgeService:
 
         astroid_gateway = MagicMock()
         module_node = astroid.parse(test_file.read_text())
-        # Find the function node which is at line 1
-        func_node = None
-        for node in module_node.nodes_of_class(astroid.nodes.FunctionDef):
-            if node.lineno == 1:
-                func_node = node
-                break
 
         bridge = ViolationBridgeService(astroid_gateway)
 
@@ -254,7 +246,7 @@ class TestViolationBridgeService:
         assert node is not None
         assert isinstance(node, astroid.nodes.NodeNG)
         assert hasattr(node, "lineno") and node.lineno == 1
-        
+
         # Test finding closest when line doesn't exist
         # Search for a line that doesn't exist (line 10)
         # The function should find the closest node (Return at line 4)

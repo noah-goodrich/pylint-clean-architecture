@@ -3,7 +3,7 @@
 import json
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 from clean_architecture_linter.domain.entities import LinterResult
 
@@ -175,7 +175,8 @@ class RuffAdapter:
             violations = json.loads(stdout)
 
             # Group by code: {code: {"message": str, "locations": set}}
-            collected: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"message": "", "locations": set()})
+            collected: Dict[str, Dict[str, Any]] = defaultdict(
+                lambda: {"message": "", "locations": set()})
 
             for violation in violations:
                 # Ruff JSON format:
@@ -209,8 +210,10 @@ class RuffAdapter:
             results = []
             for code, data in collected.items():
                 locations_set = data["locations"]
-                sorted_locations = sorted(list(locations_set)) if isinstance(locations_set, set) else []
-                results.append(LinterResult(code, str(data["message"]), sorted_locations))
+                sorted_locations = sorted(list(locations_set)) if isinstance(
+                    locations_set, set) else []
+                results.append(LinterResult(
+                    code, str(data["message"]), sorted_locations))
 
             return results
 
@@ -236,7 +239,7 @@ class RuffAdapter:
 
     def get_fixable_rules(self) -> List[str]:
         """Return list of rule codes that can be auto-fixed."""
-        # Most Ruff rules are auto-fixable
+        # Most Ruff rules are auto-fixable with `ruff check --fix` (safe fixes only)
         return [
             "F", "E", "W",  # Pyflakes, pycodestyle
             "I",  # isort
@@ -246,6 +249,21 @@ class RuffAdapter:
             "PTH",  # pathlib
             "RUF",  # Ruff-specific
         ]
+
+    def get_unfixable_or_unsafe_ruff_codes(self) -> Set[str]:
+        """Rule codes not fixable or only fixable with --unsafe-fixes.
+
+        These are shown as Manual in the check output because
+        `ruff check --fix` (without --unsafe-fixes) does not fix them.
+        """
+        return {
+            # Line too long - not fixable by ruff check (use formatter)
+            "E501",
+            "F821",   # Undefined name - not fixable (needs human)
+            # Unused variable - fix is unsafe (removal can change behavior)
+            "F841",
+            "B018",   # Useless expression - not fixable
+        }
 
     def get_manual_fix_instructions(self, rule_code: str) -> str:
         """Get manual fix instructions for a specific rule."""
@@ -281,7 +299,8 @@ class RuffAdapter:
         """
         try:
             if self.telemetry:
-                self.telemetry.step(f"🔧 Applying Ruff fixes to {target_path}...")
+                self.telemetry.step(
+                    f"🔧 Applying Ruff fixes to {target_path}...")
 
             # Ruff --fix applies automatic fixes
             cmd = [
@@ -313,13 +332,15 @@ class RuffAdapter:
                 if result.returncode == 0:
                     self.telemetry.step("✅ All Ruff issues fixed")
                 else:
-                    self.telemetry.step("⚠️  Some Ruff issues remain (may require manual fixes)")
+                    self.telemetry.step(
+                        "⚠️  Some Ruff issues remain (may require manual fixes)")
 
             return True
 
         except FileNotFoundError:
             if self.telemetry:
-                self.telemetry.step("❌ Ruff not found. Install with: pip install ruff")
+                self.telemetry.step(
+                    "❌ Ruff not found. Install with: pip install ruff")
             return False
         except Exception as e:
             if self.telemetry:

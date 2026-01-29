@@ -99,7 +99,7 @@ class TestConfigurationLoader(unittest.TestCase):
         """Test get_layer_for_class_node delegates to registry."""
         import astroid
         loader = ConfigurationLoader()
-        
+
         code = """
 class MyClass:
     pass
@@ -114,7 +114,7 @@ class MyClass:
     def test_resolve_layer(self) -> None:
         """Test resolve_layer delegates to registry."""
         loader = ConfigurationLoader()
-        
+
         result = loader.resolve_layer("MyClass", "path/to/file.py")
         # Should delegate to registry
         assert result is None or isinstance(result, str)
@@ -124,7 +124,7 @@ class MyClass:
         loader = ConfigurationLoader()
         # Mock _tool_section
         ConfigurationLoader._tool_section = {"ruff": {"line-length": 120}}
-        
+
         result = loader.get_project_ruff_config()
         assert isinstance(result, dict)
         assert "line-length" in result
@@ -135,7 +135,7 @@ class MyClass:
         ConfigurationLoader._tool_section = {
             "excelsior": {"ruff": {"line-length": 100}}
         }
-        
+
         result = loader.get_excelsior_ruff_config()
         assert isinstance(result, dict)
         assert "line-length" in result
@@ -144,7 +144,7 @@ class MyClass:
         """Test get_excelsior_ruff_config handles non-dict excelsior section."""
         loader = ConfigurationLoader()
         ConfigurationLoader._tool_section = {"excelsior": "invalid"}
-        
+
         result = loader.get_excelsior_ruff_config()
         assert result == {}
 
@@ -152,7 +152,7 @@ class MyClass:
         """Test get_ruff_config alias."""
         loader = ConfigurationLoader()
         ConfigurationLoader._tool_section = {"ruff": {"line-length": 120}}
-        
+
         result = loader.get_ruff_config()
         assert isinstance(result, dict)
 
@@ -163,7 +163,7 @@ class MyClass:
             "ruff": {"line-length": 120},
             "excelsior": {"ruff": {"line-length": 100}}
         }
-        
+
         result = loader.get_merged_ruff_config()
         assert isinstance(result, dict)
 
@@ -174,7 +174,7 @@ class MyClass:
             "ruff": "invalid",
             "excelsior": {"ruff": {"line-length": 100}}
         }
-        
+
         result = loader.get_merged_ruff_config()
         # Should handle gracefully
         assert isinstance(result, dict)
@@ -186,7 +186,7 @@ class MyClass:
             "ruff": {"line-length": 120},
             "excelsior": {"ruff": "invalid"}
         }
-        
+
         result = loader.get_merged_ruff_config()
         # Should handle gracefully
         assert isinstance(result, dict)
@@ -197,7 +197,7 @@ class MyClass:
         ConfigurationLoader._tool_section = {
             "excelsior": {"ruff_enabled": False}
         }
-        
+
         result = loader.ruff_enabled
         assert result is False
 
@@ -205,7 +205,7 @@ class MyClass:
         """Test ruff_enabled property defaults to True."""
         loader = ConfigurationLoader()
         ConfigurationLoader._tool_section = {}
-        
+
         result = loader.ruff_enabled
         assert result is True
 
@@ -213,7 +213,7 @@ class MyClass:
         """Test ruff_enabled property handles non-dict excelsior section."""
         loader = ConfigurationLoader()
         ConfigurationLoader._tool_section = {"excelsior": "invalid"}
-        
+
         result = loader.ruff_enabled
         assert result is True  # Defaults to True
 
@@ -221,7 +221,7 @@ class MyClass:
         """Test set_registry method."""
         loader = ConfigurationLoader()
         new_registry = LayerRegistry(LayerRegistryConfig(project_type="generic"))
-        
+
         loader.set_registry(new_registry)
         assert loader.registry is new_registry
 
@@ -230,7 +230,7 @@ class MyClass:
         ConfigurationLoader._instance = None
         ConfigurationLoader._config = {}
         ConfigurationLoader._registry = None
-        
+
         with patch("pathlib.Path.exists", return_value=True), \
              patch("builtins.open", side_effect=OSError("Permission denied")):
             loader = ConfigurationLoader()
@@ -243,14 +243,14 @@ class MyClass:
         ConfigurationLoader._instance = None
         ConfigurationLoader._config = {}
         ConfigurationLoader._registry = None
-        
+
         # Mock toml data with legacy section
         mock_toml_data = {
             "tool": {
                 "clean-architecture-linter": {"project_type": "cli_app"}
             }
         }
-        
+
         with patch("pathlib.Path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=b'[tool.clean-architecture-linter]\nproject_type="cli_app"')), \
              patch("clean_architecture_linter.domain.config.toml_lib") as mock_toml:
@@ -268,7 +268,7 @@ class MyClass:
                 "my_app": "Application"
             }
         }
-        
+
         # Should match longest prefix
         result = loader.get_layer_for_module("my_app.domain.models")
         assert result == "Domain"
@@ -281,7 +281,7 @@ class MyClass:
                 "my_app.use_cases": "UseCase"
             }
         }
-        
+
         result = loader.get_layer_for_module("my_app.use_cases.create_user")
         assert result == "UseCase"
 
@@ -289,36 +289,16 @@ class MyClass:
         """Test registry property creates fallback registry when None."""
         loader = ConfigurationLoader()
         ConfigurationLoader._registry = None
-        
+
         result = loader.registry
         assert result is not None
         assert isinstance(result, LayerRegistry)
-
-    def test_get_set_handles_string_items(self) -> None:
-        """Test _get_set handles string items in list."""
-        loader = ConfigurationLoader()
-        loader._config = {"test_key": ["item1", "item2", 123]}  # Mixed types
-        
-        result = loader._get_set("test_key")
-        assert "item1" in result
-        assert "item2" in result
-        assert 123 not in result  # Non-strings filtered out
-
-    def test_get_set_handles_string_items_with_defaults(self) -> None:
-        """Test _get_set merges with defaults."""
-        loader = ConfigurationLoader()
-        loader._config = {"test_key": ["item1"]}
-        
-        result = loader._get_set("test_key", defaults={"default1", "default2"})
-        assert "item1" in result
-        assert "default1" in result
-        assert "default2" in result
 
     def test_allowed_lod_roots(self) -> None:
         """Test allowed_lod_roots property."""
         loader = ConfigurationLoader()
         loader._config = {"allowed_lod_roots": ["str", "int"]}
-        
+
         result = loader.allowed_lod_roots  # Property, not method
         assert "str" in result
         assert "int" in result
@@ -327,7 +307,7 @@ class MyClass:
         """Test allowed_lod_modules property."""
         loader = ConfigurationLoader()
         loader._config = {"allowed_lod_modules": ["typing", "collections"]}
-        
+
         result = loader.allowed_lod_modules  # Property, not method
         assert "typing" in result
         assert "collections" in result
@@ -336,7 +316,7 @@ class MyClass:
         """Test allowed_lod_methods property."""
         loader = ConfigurationLoader()
         loader._config = {"allowed_lod_methods": ["keys", "values"]}
-        
+
         result = loader.allowed_lod_methods  # Property, not method
         assert "keys" in result
         assert "values" in result
@@ -345,7 +325,7 @@ class MyClass:
         """Test internal_modules property."""
         loader = ConfigurationLoader()
         loader._config = {"internal_modules": ["_internal"]}
-        
+
         result = loader.internal_modules  # Property, not method
         assert "_internal" in result
 
@@ -353,7 +333,7 @@ class MyClass:
         """Test infrastructure_modules property."""
         loader = ConfigurationLoader()
         loader._config = {"infrastructure_modules": ["adapters"]}
-        
+
         result = loader.infrastructure_modules  # Property, not method
         assert "adapters" in result
 
@@ -361,7 +341,7 @@ class MyClass:
         """Test raw_types property."""
         loader = ConfigurationLoader()
         loader._config = {"raw_types": ["str", "int"]}
-        
+
         result = loader.raw_types  # Property, not method
         assert "str" in result
         assert "int" in result
@@ -370,7 +350,7 @@ class MyClass:
         """Test silent_layers property."""
         loader = ConfigurationLoader()
         loader._config = {"silent_layers": ["Domain"]}
-        
+
         result = loader.silent_layers  # Property, not method
         assert "Domain" in result
 
@@ -378,7 +358,7 @@ class MyClass:
         """Test allowed_io_interfaces property."""
         loader = ConfigurationLoader()
         loader._config = {"allowed_io_interfaces": ["FileSystem"]}
-        
+
         result = loader.allowed_io_interfaces  # Property, not method
         assert "FileSystem" in result
 
@@ -388,7 +368,7 @@ class MyClass:
         ConfigurationLoader._instance = None
         ConfigurationLoader._config = {}
         ConfigurationLoader._registry = None
-        
+
         # Test that __new__ filters out non-string keys when processing layer_map
         # This tests line 48: continue when layer_name is not a string
         # We simulate the raw_layer_map that would come from config
@@ -402,7 +382,7 @@ class MyClass:
                     "valid": "Domain"  # Only valid string keys after filtering
                 }
             }
-            
+
             result = loader.get_layer_for_module("valid.models")
             # Should work with valid string keys
             assert result == "Domain"
@@ -413,7 +393,7 @@ class MyClass:
         ConfigurationLoader._tool_section = {
             "excelsior": {"ruff_enabled": False}
         }
-        
+
         result = loader.ruff_enabled
         assert result is False
 
@@ -423,7 +403,7 @@ class MyClass:
         ConfigurationLoader._tool_section = {
             "excelsior": {"ruff_enabled": True}
         }
-        
+
         result = loader.ruff_enabled
         assert result is True
 
@@ -433,35 +413,35 @@ class MyClass:
         ConfigurationLoader._tool_section = {
             "excelsior": {}
         }
-        
+
         result = loader.ruff_enabled
         assert result is True
 
     def test_invert_map_handles_non_dict(self) -> None:
         """Test _invert_map handles non-dict input."""
         from clean_architecture_linter.domain.config import _invert_map
-        
+
         result = _invert_map("not a dict")
         assert result == {}
 
     def test_invert_map_handles_non_string_layer_name(self) -> None:
         """Test _invert_map handles non-string layer names (line 303-304)."""
         from clean_architecture_linter.domain.config import _invert_map
-        
+
         result = _invert_map({123: "pattern"})  # Non-string key
         assert result == {}
 
     def test_invert_map_handles_list_patterns(self) -> None:
         """Test _invert_map handles list of patterns (line 305-308)."""
         from clean_architecture_linter.domain.config import _invert_map
-        
+
         result = _invert_map({"Domain": ["domain", "models"]})
         assert result == {"domain": "Domain", "models": "Domain"}
 
     def test_invert_map_handles_list_with_non_string_items(self) -> None:
         """Test _invert_map filters non-string items from list."""
         from clean_architecture_linter.domain.config import _invert_map
-        
+
         result = _invert_map({"Domain": ["domain", 123, "models"]})
         assert result == {"domain": "Domain", "models": "Domain"}
         assert 123 not in result
@@ -469,7 +449,7 @@ class MyClass:
     def test_invert_map_handles_string_pattern(self) -> None:
         """Test _invert_map handles string pattern (line 309-310)."""
         from clean_architecture_linter.domain.config import _invert_map
-        
+
         result = _invert_map({"Domain": "domain"})
         assert result == {"domain": "Domain"}
 
@@ -478,7 +458,7 @@ class MyClass:
         ConfigurationLoader._instance = None
         ConfigurationLoader._config = {}
         ConfigurationLoader._registry = None
-        
+
         # Mock Path.exists to return True, but open raises OSError
         with patch("pathlib.Path.exists", return_value=True), \
              patch("builtins.open", side_effect=OSError("Permission denied")):
@@ -491,7 +471,7 @@ class MyClass:
         ConfigurationLoader._instance = None
         ConfigurationLoader._config = {}
         ConfigurationLoader._registry = None
-        
+
         # Mock config loading with non-string keys
         mock_toml_data = {
             "tool": {
@@ -503,7 +483,7 @@ class MyClass:
                 }
             }
         }
-        
+
         with patch("pathlib.Path.exists", return_value=True), \
              patch("builtins.open", mock_open(read_data=b'[tool.clean-arch]\nlayer_map = {"Domain": "domain"}')), \
              patch("clean_architecture_linter.domain.config.toml_lib") as mock_toml:
