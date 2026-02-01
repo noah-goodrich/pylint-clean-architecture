@@ -2,6 +2,7 @@
 
 import astroid
 
+from clean_architecture_linter.domain.entities import TransformationType
 from clean_architecture_linter.domain.rules import Violation
 from clean_architecture_linter.domain.rules.governance_comments import (
     GenericGovernanceCommentRule,
@@ -39,9 +40,10 @@ class TestLawOfDemeterRule:
             is_comment_only=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        assert hasattr(transformer, "target_line")
+        plan = rule.fix(violation)
+        assert plan is not None
+        assert plan.transformation_type == TransformationType.ADD_GOVERNANCE_COMMENT
+        assert plan.params.get("target_line") is not None
 
     def test_fix_returns_none_for_wrong_code(self) -> None:
         """Test that fix returns None for non-W9006 violations."""
@@ -73,11 +75,10 @@ class TestLawOfDemeterRule:
             is_comment_only=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        # Check that transformer has context with chain info
-        assert transformer.rule_code == "W9006"
-        assert transformer.target_line == 5
+        plan = rule.fix(violation)
+        assert plan is not None
+        assert plan.params.get("rule_code") == "W9006"
+        assert plan.params.get("target_line") == 5
 
     def test_fix_builds_problem_description(self) -> None:
         """Test that fix builds appropriate problem description."""
@@ -93,9 +94,10 @@ class TestLawOfDemeterRule:
             is_comment_only=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        assert "repo" in transformer.problem or "session" in transformer.problem
+        plan = rule.fix(violation)
+        assert plan is not None
+        problem = plan.params.get("problem", "")
+        assert "repo" in problem or "session" in problem
 
     def test_fix_builds_recommendation(self) -> None:
         """Test that fix builds actionable recommendation."""
@@ -111,10 +113,10 @@ class TestLawOfDemeterRule:
             is_comment_only=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        assert "delegate" in transformer.recommendation.lower(
-        ) or "method" in transformer.recommendation.lower()
+        plan = rule.fix(violation)
+        assert plan is not None
+        rec = plan.params.get("recommendation", "").lower()
+        assert "delegate" in rec or "method" in rec
 
     def test_get_fix_instructions(self) -> None:
         """Test that get_fix_instructions returns helpful guidance."""
@@ -165,9 +167,9 @@ class TestLawOfDemeterRule:
             is_comment_only=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        assert transformer.target_line == 42
+        plan = rule.fix(violation)
+        assert plan is not None
+        assert plan.params.get("target_line") == 42
 
     def test_fix_handles_location_without_line(self) -> None:
         """Test that fix handles location without line number."""
@@ -205,11 +207,11 @@ class TestGenericGovernanceCommentRule:
             is_comment_only=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        assert transformer.rule_code == "W9201"
-        assert transformer.rule_name == "Contract Integrity"
-        assert transformer.target_line == 10
+        plan = rule.fix(violation)
+        assert plan is not None
+        assert plan.params.get("rule_code") == "W9201"
+        assert plan.params.get("rule_name") == "Contract Integrity"
+        assert plan.params.get("target_line") == 10
 
     def test_fix_returns_none_for_wrong_code(self) -> None:
         """GenericGovernanceCommentRule.fix returns None for non-matching violation."""
@@ -242,6 +244,6 @@ class TestGenericGovernanceCommentRule:
             is_comment_only=True,
         )
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
-        assert len(transformer.problem) <= 120
+        plan = rule.fix(violation)
+        assert plan is not None
+        assert len(plan.params.get("problem", "")) <= 120

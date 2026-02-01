@@ -16,6 +16,10 @@ if TYPE_CHECKING:
 else:
     from clean_architecture_linter.domain.entities import LinterResult
 
+from clean_architecture_linter.domain.constants import (
+    RUFF_CODE_QUALITY_SELECT,
+    RUFF_IMPORT_TYPING_SELECT,
+)
 from clean_architecture_linter.domain.protocols import (
     AstroidProtocol,
     FileSystemProtocol,
@@ -28,13 +32,12 @@ from clean_architecture_linter.domain.rules.governance_comments import (
     create_governance_rule,
 )
 from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
-from clean_architecture_linter.infrastructure.services.violation_bridge import (
-    ViolationBridgeService,
-)
 
 if TYPE_CHECKING:
     from clean_architecture_linter.domain.config import ConfigurationLoader
-    from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
+    from clean_architecture_linter.infrastructure.services.violation_bridge import (
+        ViolationBridgeService,
+    )
     from clean_architecture_linter.use_cases.check_audit import CheckAuditUseCase
 
 
@@ -52,9 +55,11 @@ class ApplyFixesUseCase:
         cleanup_backups: bool = False,
         validate_with_tests: bool = True,
         astroid_gateway: Optional[AstroidProtocol] = None,
-        ruff_adapter: Optional["RuffAdapter"] = None,
+        ruff_adapter: Optional[LinterAdapterProtocol] = None,
         check_audit_use_case: Optional["CheckAuditUseCase"] = None,
         config_loader: Optional["ConfigurationLoader"] = None,
+        excelsior_adapter: Optional[LinterAdapterProtocol] = None,
+        violation_bridge: Optional["ViolationBridgeService"] = None,
     ) -> None:
         self.fixer_gateway = fixer_gateway
         self.filesystem = filesystem
@@ -68,6 +73,8 @@ class ApplyFixesUseCase:
         self.ruff_adapter = ruff_adapter
         self.check_audit_use_case = check_audit_use_case
         self.config_loader = config_loader
+        self.excelsior_adapter = excelsior_adapter
+        self.violation_bridge = violation_bridge
         self._test_baseline: Optional[int] = None
 
     def execute(self, rules: list[BaseRule], target_path: str) -> int:
@@ -208,9 +215,6 @@ class ApplyFixesUseCase:
             return 0
         from pathlib import Path
 
-        from clean_architecture_linter.infrastructure.adapters.ruff_adapter import (
-            RUFF_IMPORT_TYPING_SELECT,
-        )
         if self.telemetry:
             self.telemetry.step(
                 "Pass 1: Applying Ruff import & typing fixes (I, UP, B)...")
@@ -227,9 +231,6 @@ class ApplyFixesUseCase:
             return 0
         from pathlib import Path
 
-        from clean_architecture_linter.infrastructure.adapters.ruff_adapter import (
-            RUFF_CODE_QUALITY_SELECT,
-        )
         if self.telemetry:
             self.telemetry.step(
                 "Pass 5: Applying Ruff code quality fixes (E, F, W, C90, ...)...")
@@ -344,7 +345,14 @@ class ApplyFixesUseCase:
         if not self.astroid_gateway:
             return 0
 
-        bridge_service = ViolationBridgeService(self.astroid_gateway)
+        # Use injected bridge or create lazily
+        if self.violation_bridge:
+            bridge_service = self.violation_bridge
+        else:
+            from clean_architecture_linter.infrastructure.services.violation_bridge import (
+                ViolationBridgeService,
+            )
+            bridge_service = ViolationBridgeService(self.astroid_gateway)
         files = self.filesystem.glob_python_files(target_path)
         violations_by_file = self._group_violations_by_file(excelsior_results)
         modified_count = 0
@@ -397,17 +405,8 @@ class ApplyFixesUseCase:
     ) -> list["cst.CSTTransformer"]:
         """Build governance comment transformers for all comment-only violations."""
         transformers = []
-        excelsior_adapter = None
-        if self.check_audit_use_case:
-            # Get adapter from container if available
-            try:
-                from clean_architecture_linter.infrastructure.di.container import (
-                    ExcelsiorContainer,
-                )
-                container = ExcelsiorContainer()
-                excelsior_adapter = container.get("ExcelsiorAdapter")
-            except Exception:
-                pass
+        # Use injected excelsior_adapter instead of container access
+        excelsior_adapter = self.excelsior_adapter
 
         for violation in violations:
             # Only process comment-only violations

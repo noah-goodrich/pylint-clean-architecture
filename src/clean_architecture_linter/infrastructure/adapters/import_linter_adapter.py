@@ -1,6 +1,8 @@
 import re
 import subprocess
 import sys
+from pathlib import Path
+from typing import Optional
 
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
@@ -75,6 +77,14 @@ class ImportLinterAdapter(LinterAdapterProtocol):
     def get_fixable_rules(self) -> list[str]:
         """Return list of rule codes that can be auto-fixed."""
         return []  # Import-Linter does not support auto-fixing
+
+    def apply_fixes(
+        self,
+        target_path: Path,
+        select_only: Optional[list[str]] = None,
+    ) -> bool:
+        """Import-Linter does not support automatic fixes."""
+        return False
 
     def get_manual_fix_instructions(self, rule_code: str) -> str:
         """Readable, step-by-step guidance for juniors and AI."""

@@ -3,14 +3,22 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 
+if TYPE_CHECKING:
+    from clean_architecture_linter.domain.protocols import RawLogPort
+
 
 class ExcelsiorAdapter(LinterAdapterProtocol):
     """Adapter for Pylint Clean Architecture output."""
+
+    def __init__(self, raw_log_port: Optional["RawLogPort"] = None) -> None:
+        self._raw_log_port = raw_log_port
 
     def gather_results(self, target_path: str) -> list[LinterResult]:
         """Run pylint with Clean Architecture and gather results."""
@@ -40,6 +48,12 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
                 text=True,
                 check=False,
             )
+            if self._raw_log_port:
+                self._raw_log_port.log_raw(
+                    "pylint",
+                    result.stdout or "",
+                    result.stderr or "",
+                )
             return self._parse_output(result.stdout)
         except Exception as e:
             # JUSTIFICATION: Error message wrapping requires explicit list creation.
@@ -97,7 +111,7 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
             "W9015",
             "domain-immutability-violation",
             "W9601",
-            # Comment-only fixes (governance comments)
+            # Comment-only (governance comments) applied via ApplyFixesUseCase
             "W9006",  # Law of Demeter
             "clean-arch-demeter",
             "W9001",  # Illegal Dependency
@@ -127,6 +141,14 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
             "W9019",  # Unstable Dependency (create stub)
             "clean-arch-unstable-dep",
         ]
+
+    def apply_fixes(
+        self,
+        target_path: Path,
+        select_only: Optional[list[str]] = None,
+    ) -> bool:
+        """Excelsior fixes are applied via ApplyFixesUseCase, not this adapter."""
+        return False
 
     def is_comment_only_rule(self, rule_code: str) -> bool:
         """

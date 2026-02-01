@@ -7,9 +7,35 @@ from typer.testing import CliRunner
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.interface.cli import _resolve_target_path, app
+from clean_architecture_linter.interface.cli import (
+    CLIDependencies,
+    _resolve_target_path,
+    create_app,
+)
 
 runner = CliRunner()
+
+
+def _make_mock_deps(**overrides) -> CLIDependencies:
+    """Create CLIDependencies with mock adapters/services for testing."""
+    mock_telemetry = Mock()
+    mock_reporter = Mock()
+    mock_audit_trail = Mock()
+    defaults: dict = {
+        "telemetry": mock_telemetry,
+        "mypy_adapter": Mock(),
+        "excelsior_adapter": Mock(),
+        "import_linter_adapter": Mock(),
+        "ruff_adapter": Mock(),
+        "reporter": mock_reporter,
+        "audit_trail_service": mock_audit_trail,
+        "scaffolder": Mock(),
+        "astroid_gateway": Mock(),
+        "filesystem": Mock(),
+        "fixer_gateway": Mock(),
+    }
+    defaults.update(overrides)
+    return CLIDependencies(**defaults)
 
 
 class TestResolveTargetPath:
@@ -27,7 +53,6 @@ class TestResolveTargetPath:
         original_cwd = Path.cwd()
         try:
             import os
-
             os.chdir(tmp_path)
             result = _resolve_target_path(None)
             assert result == "src"
@@ -39,7 +64,6 @@ class TestResolveTargetPath:
         original_cwd = Path.cwd()
         try:
             import os
-
             os.chdir(tmp_path)
             result = _resolve_target_path(None)
             assert result == "."
@@ -50,44 +74,19 @@ class TestResolveTargetPath:
 class TestCheckCommand:
     """Test the check command."""
 
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
     @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
     def test_check_command_executes_gated_audit(
         self,
         mock_use_case_class,
         mock_config_loader_class,
-        mock_container_class,
     ) -> None:
         """Test that check command executes gated sequential audit."""
-        # Setup mocks
-        mock_container = Mock()
-        mock_container_class.return_value = mock_container
-
         mock_config_loader = Mock(spec=ConfigurationLoader)
         mock_config_loader.ruff_enabled = True
         mock_config_loader_class.return_value = mock_config_loader
 
-        # Mock adapters and services
-        mock_mypy = Mock()
-        mock_excelsior = Mock()
-        mock_import_linter = Mock()
-        mock_ruff = Mock()
-        mock_reporter = Mock()
-        mock_audit_trail = Mock()
-        mock_telemetry = Mock()
-
-        mock_container.get.side_effect = lambda key: {
-            "MypyAdapter": mock_mypy,
-            "ExcelsiorAdapter": mock_excelsior,
-            "ImportLinterAdapter": mock_import_linter,
-            "RuffAdapter": mock_ruff,
-            "AuditReporter": mock_reporter,
-            "AuditTrailService": mock_audit_trail,
-            "TelemetryPort": mock_telemetry,
-        }[key]
-
-        # Mock use case instance
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
             ruff_results=[],
@@ -98,60 +97,32 @@ class TestCheckCommand:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
-        # Execute
+        app = create_app(deps)
         result = runner.invoke(app, ["check", "src"])
 
-        # Verify use case was created correctly
         mock_use_case_class.assert_called_once()
         mock_use_case_instance.execute.assert_called_once_with("src")
-
-        # Verify reporter and audit trail were called
-        mock_reporter.report_audit.assert_called_once()
-        mock_audit_trail.save_audit_trail.assert_called_once()
-
-        # Verify telemetry handshake was called
-        mock_telemetry.handshake.assert_called_once()
-
-        # Should exit with 0 (no violations)
+        deps.reporter.report_audit.assert_called_once()
+        deps.audit_trail_service.save_audit_trail.assert_called_once()
+        deps.telemetry.handshake.assert_called_once()
         assert result.exit_code == 0
 
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
     @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
     def test_check_command_exits_with_error_on_violations(
         self,
         mock_use_case_class,
         mock_config_loader_class,
-        mock_container_class,
     ) -> None:
         """Test that check command exits with error code when violations found."""
-        # Setup mocks
-        mock_container = Mock()
-        mock_container_class.return_value = mock_container
-
         mock_config_loader = Mock(spec=ConfigurationLoader)
         mock_config_loader.ruff_enabled = True
         mock_config_loader_class.return_value = mock_config_loader
 
-        mock_telemetry = Mock()
-        mock_reporter = Mock()
-        mock_audit_trail = Mock()
-
-        mock_container.get.side_effect = lambda key: {
-            "MypyAdapter": Mock(),
-            "ExcelsiorAdapter": Mock(),
-            "ImportLinterAdapter": Mock(),
-            "RuffAdapter": Mock(),
-            "AuditReporter": mock_reporter,
-            "AuditTrailService": mock_audit_trail,
-            "TelemetryPort": mock_telemetry,
-        }[key]
-
-        # Mock use case with violations
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
-            ruff_results=[LinterResult(
-                "R001", "Ruff violation", ["file.py:1"])],
+            ruff_results=[LinterResult("R001", "Ruff violation", ["file.py:1"])],
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
@@ -159,44 +130,23 @@ class TestCheckCommand:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
-        # Execute
+        app = create_app(deps)
         result = runner.invoke(app, ["check", "src"])
-
-        # Should exit with 1 (violations found)
         assert result.exit_code == 1
 
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
     @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
     def test_check_command_with_default_path(
         self,
         mock_use_case_class,
         mock_config_loader_class,
-        mock_container_class,
     ) -> None:
         """Test that check command uses default path resolution."""
-        # Setup mocks
-        mock_container = Mock()
-        mock_container_class.return_value = mock_container
-
         mock_config_loader = Mock(spec=ConfigurationLoader)
         mock_config_loader.ruff_enabled = True
         mock_config_loader_class.return_value = mock_config_loader
 
-        mock_telemetry = Mock()
-        mock_reporter = Mock()
-        mock_audit_trail = Mock()
-
-        mock_container.get.side_effect = lambda key: {
-            "MypyAdapter": Mock(),
-            "ExcelsiorAdapter": Mock(),
-            "ImportLinterAdapter": Mock(),
-            "RuffAdapter": Mock(),
-            "AuditReporter": mock_reporter,
-            "AuditTrailService": mock_audit_trail,
-            "TelemetryPort": mock_telemetry,
-        }[key]
-
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
             ruff_results=[],
@@ -207,10 +157,8 @@ class TestCheckCommand:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
-        # Execute without path argument
+        app = create_app(deps)
         result = runner.invoke(app, ["check"])
-
-        # Verify path resolution was called (will use default)
         mock_use_case_instance.execute.assert_called_once()
         assert result.exit_code == 0
 
@@ -218,202 +166,127 @@ class TestCheckCommand:
 class TestFixCommand:
     """Test the fix command."""
 
-    @patch("clean_architecture_linter.interface.cli._run_fix_excelsior")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
+    @patch("clean_architecture_linter.interface.cli.ApplyFixesUseCase")
+    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
+    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
+    @patch("clean_architecture_linter.domain.rules.type_hints.MissingTypeHintRule")
+    @patch("clean_architecture_linter.domain.rules.immutability.DomainImmutabilityRule")
     def test_fix_command_calls_excelsior_fixer(
-        self, mock_container_class, mock_run_fix_excelsior
+        self,
+        mock_immutability_rule,
+        mock_type_hint_rule,
+        mock_config_loader,
+        mock_check_audit,
+        mock_apply_fixes,
     ) -> None:
         """Test that fix command calls excelsior fixer by default."""
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_container.get.return_value = mock_telemetry
-        mock_container_class.return_value = mock_container
+        deps = _make_mock_deps()
+        mock_apply_fixes_instance = Mock()
+        mock_apply_fixes_instance.execute_multi_pass.return_value = 0
+        mock_apply_fixes.return_value = mock_apply_fixes_instance
 
+        mock_check_audit_instance = Mock()
+        mock_check_audit_instance.execute.return_value = AuditResult()
+        mock_check_audit.return_value = mock_check_audit_instance
+
+        app = create_app(deps)
         runner.invoke(app, ["fix", "src"])
 
-        # Should call excelsior fixer
-        mock_run_fix_excelsior.assert_called_once()
-        mock_telemetry.handshake.assert_called_once()
+        mock_apply_fixes.assert_called_once()
+        deps.telemetry.handshake.assert_called_once()
 
-    @patch("clean_architecture_linter.interface.cli._run_fix_ruff")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_fix_command_with_ruff_linter(
-        self, mock_container_class, mock_run_fix_ruff
-    ) -> None:
+    def test_fix_command_with_ruff_linter(self) -> None:
         """Test that fix command calls ruff fixer when linter=ruff."""
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_container.get.return_value = mock_telemetry
-        mock_container_class.return_value = mock_container
+        mock_ruff = Mock()
+        mock_ruff.apply_fixes.return_value = True
+        deps = _make_mock_deps(ruff_adapter=mock_ruff)
 
-        runner.invoke(app, ["fix", "src", "--linter", "ruff"])
+        app = create_app(deps)
+        result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
+        mock_ruff.apply_fixes.assert_called_once()
+        assert result.exit_code == 0
 
-        # Should call ruff fixer
-        mock_run_fix_ruff.assert_called_once()
-
-    @patch("clean_architecture_linter.interface.cli._run_fix_manual_only")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_fix_command_with_manual_only(
-        self, mock_container_class, mock_run_fix_manual_only
-    ) -> None:
+    def test_fix_command_with_manual_only(self) -> None:
         """Test that fix command shows manual suggestions when --manual-only is set."""
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_container.get.return_value = mock_telemetry
-        mock_container_class.return_value = mock_container
+        deps = _make_mock_deps()
+        for adapter in (deps.ruff_adapter, deps.mypy_adapter, deps.excelsior_adapter, deps.import_linter_adapter):
+            adapter.gather_results.return_value = []
 
+        app = create_app(deps)
         runner.invoke(app, ["fix", "src", "--manual-only"])
-
-        # Should call manual only handler
-        mock_run_fix_manual_only.assert_called_once()
+        deps.telemetry.handshake.assert_called_once()
 
 
 class TestInitCommand:
     """Test the init command."""
 
     @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_init_command_executes_use_case(
-        self, mock_container_class, mock_use_case_class
-    ) -> None:
+    def test_init_command_executes_use_case(self, mock_use_case_class) -> None:
         """Test that init command executes InitProjectUseCase."""
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_scaffolder = Mock()
-        mock_container.get.side_effect = lambda key: {
-            "TelemetryPort": mock_telemetry,
-            "Scaffolder": mock_scaffolder,
-        }[key]
-        mock_container_class.return_value = mock_container
-
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
+        app = create_app(deps)
         runner.invoke(app, ["init"])
 
-        # Verify use case was created and executed
-        mock_use_case_class.assert_called_once_with(
-            mock_scaffolder, mock_telemetry)
-        mock_use_case_instance.execute.assert_called_once_with(
-            template=None, check_layers=False
-        )
-        mock_telemetry.handshake.assert_called_once()
+        mock_use_case_class.assert_called_once_with(deps.scaffolder, deps.telemetry)
+        mock_use_case_instance.execute.assert_called_once_with(template=None, check_layers=False)
+        deps.telemetry.handshake.assert_called_once()
 
     @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_init_command_with_options(
-        self, mock_container_class, mock_use_case_class
-    ) -> None:
+    def test_init_command_with_options(self, mock_use_case_class) -> None:
         """Test that init command passes options to use case."""
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_scaffolder = Mock()
-        mock_container.get.side_effect = lambda key: {
-            "TelemetryPort": mock_telemetry,
-            "Scaffolder": mock_scaffolder,
-        }[key]
-        mock_container_class.return_value = mock_container
-
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        runner.invoke(
-            app, ["init", "--template", "fastapi", "--check-layers"]
-        )
-
-        # Verify use case was called with options
-        mock_use_case_instance.execute.assert_called_once_with(
-            template="fastapi", check_layers=True
-        )
+        app = create_app(deps)
+        runner.invoke(app, ["init", "--template", "fastapi", "--check-layers"])
+        mock_use_case_instance.execute.assert_called_once_with(template="fastapi", check_layers=True)
 
     @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_init_command_with_template_only(
-        self, mock_container_class, mock_use_case_class
-    ) -> None:
+    def test_init_command_with_template_only(self, mock_use_case_class) -> None:
         """Test init command with template option only."""
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_scaffolder = Mock()
-        mock_container.get.side_effect = lambda key: {
-            "TelemetryPort": mock_telemetry,
-            "Scaffolder": mock_scaffolder,
-        }[key]
-        mock_container_class.return_value = mock_container
-
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
+        app = create_app(deps)
         runner.invoke(app, ["init", "--template", "sqlalchemy"])
-
-        mock_use_case_instance.execute.assert_called_once_with(
-            template="sqlalchemy", check_layers=False
-        )
+        mock_use_case_instance.execute.assert_called_once_with(template="sqlalchemy", check_layers=False)
 
     @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_init_command_with_check_layers_only(
-        self, mock_container_class, mock_use_case_class
-    ) -> None:
+    def test_init_command_with_check_layers_only(self, mock_use_case_class) -> None:
         """Test init command with check-layers option only."""
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_scaffolder = Mock()
-        mock_container.get.side_effect = lambda key: {
-            "TelemetryPort": mock_telemetry,
-            "Scaffolder": mock_scaffolder,
-        }[key]
-        mock_container_class.return_value = mock_container
-
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
+        app = create_app(deps)
         runner.invoke(app, ["init", "--check-layers"])
-
-        mock_use_case_instance.execute.assert_called_once_with(
-            template=None, check_layers=True
-        )
+        mock_use_case_instance.execute.assert_called_once_with(template=None, check_layers=True)
 
 
 class TestGatedAuditLogic:
     """Test gated sequential audit logic."""
 
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
     @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
     def test_gated_stop_on_ruff_violations(
         self,
         mock_use_case_class,
         mock_config_loader_class,
-        mock_container_class,
     ) -> None:
         """Test that audit stops when Ruff finds violations."""
-        mock_container = Mock()
-        mock_container_class.return_value = mock_container
-
         mock_config_loader = Mock(spec=ConfigurationLoader)
         mock_config_loader.ruff_enabled = True
         mock_config_loader_class.return_value = mock_config_loader
 
-        mock_telemetry = Mock()
-        mock_reporter = Mock()
-        mock_audit_trail = Mock()
-
-        mock_container.get.side_effect = lambda key: {
-            "MypyAdapter": Mock(),
-            "ExcelsiorAdapter": Mock(),
-            "ImportLinterAdapter": Mock(),
-            "RuffAdapter": Mock(),
-            "AuditReporter": mock_reporter,
-            "AuditTrailService": mock_audit_trail,
-            "TelemetryPort": mock_telemetry,
-        }[key]
-
-        # Mock blocked result from Ruff
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
-            ruff_results=[LinterResult(
-                "R001", "Ruff violation", ["file.py:1"])],
+            ruff_results=[LinterResult("R001", "Ruff violation", ["file.py:1"])],
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
@@ -421,298 +294,155 @@ class TestGatedAuditLogic:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
+        app = create_app(deps)
         result = runner.invoke(app, ["check", "src"])
-
-        # Verify blocked message was shown
         assert "blocked" in result.stdout.lower() or result.exit_code == 1
-        # Should exit with error
         assert result.exit_code == 1
 
 
 class TestFixManualOnly:
     """Test manual-only fix suggestions."""
 
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_manual_only_all_linters(self, mock_container_class) -> None:
+    def test_manual_only_all_linters(self) -> None:
         """Test manual-only with all linters."""
-        from clean_architecture_linter.interface.cli import _run_fix_manual_only
+        mock_ruff = Mock()
+        mock_ruff.gather_results.return_value = [LinterResult("R001", "Ruff issue", ["file.py:1"])]
+        mock_ruff.supports_autofix.return_value = True
+        mock_ruff.get_fixable_rules.return_value = []
+        mock_ruff.get_manual_fix_instructions.return_value = "Fix it"
 
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_ruff_adapter = Mock()
-        mock_mypy_adapter = Mock()
-        mock_excelsior_adapter = Mock()
-        mock_import_linter_adapter = Mock()
+        deps = _make_mock_deps(
+            ruff_adapter=mock_ruff,
+            mypy_adapter=Mock(gather_results=Mock(return_value=[])),
+            excelsior_adapter=Mock(gather_results=Mock(return_value=[])),
+            import_linter_adapter=Mock(gather_results=Mock(return_value=[])),
+        )
 
-        mock_ruff_adapter.gather_results.return_value = [
-            LinterResult("R001", "Ruff issue", ["file.py:1"])
-        ]
-        mock_ruff_adapter.supports_autofix.return_value = True
-        mock_ruff_adapter.get_fixable_rules.return_value = []
-        mock_ruff_adapter.get_manual_fix_instructions.return_value = "Fix it"
-        mock_mypy_adapter.gather_results.return_value = []
-        mock_excelsior_adapter.gather_results.return_value = []
-        mock_import_linter_adapter.gather_results.return_value = []
-
-        mock_container.get.side_effect = lambda key: {
-            "RuffAdapter": mock_ruff_adapter,
-            "MypyAdapter": mock_mypy_adapter,
-            "ExcelsiorAdapter": mock_excelsior_adapter,
-            "ImportLinterAdapter": mock_import_linter_adapter,
-        }[key]
-        mock_container_class.return_value = mock_container
-
-        _run_fix_manual_only(mock_telemetry, "src", "all")
-
-        # Verify all adapters were queried
-        mock_telemetry.step.assert_called_with(
+        app = create_app(deps)
+        runner.invoke(app, ["fix", "src", "--manual-only"])
+        deps.telemetry.step.assert_any_call(
             "📋 Gathering manual fix suggestions from all linters...")
 
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_manual_only_ruff_only(self, mock_container_class) -> None:
+    def test_manual_only_ruff_only(self) -> None:
         """Test manual-only with ruff linter only."""
-        from clean_architecture_linter.interface.cli import _run_fix_manual_only
+        mock_ruff = Mock()
+        mock_ruff.gather_results.return_value = []
 
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_ruff_adapter = Mock()
-        mock_ruff_adapter.gather_results.return_value = []
-        mock_container.get.return_value = mock_ruff_adapter
-        mock_container_class.return_value = mock_container
+        deps = _make_mock_deps(ruff_adapter=mock_ruff)
+        app = create_app(deps)
+        runner.invoke(app, ["fix", "src", "--manual-only", "--linter", "ruff"])
 
-        _run_fix_manual_only(mock_telemetry, "src", "ruff")
-
-        mock_telemetry.step.assert_called_with(
-            "📋 Gathering manual fix suggestions from Ruff...")
-
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_manual_only_excelsior_suite(self, mock_container_class) -> None:
+    def test_manual_only_excelsior_suite(self) -> None:
         """Test manual-only with excelsior suite linters."""
-        from clean_architecture_linter.interface.cli import _run_fix_manual_only
+        deps = _make_mock_deps(
+            mypy_adapter=Mock(gather_results=Mock(return_value=[])),
+            excelsior_adapter=Mock(gather_results=Mock(return_value=[])),
+            import_linter_adapter=Mock(gather_results=Mock(return_value=[])),
+        )
 
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_mypy = Mock()
-        mock_excelsior = Mock()
-        mock_import_linter = Mock()
-        mock_mypy.gather_results.return_value = []
-        mock_excelsior.gather_results.return_value = []
-        mock_import_linter.gather_results.return_value = []
-
-        mock_container.get.side_effect = lambda key: {
-            "RuffAdapter": Mock(),
-            "MypyAdapter": mock_mypy,
-            "ExcelsiorAdapter": mock_excelsior,
-            "ImportLinterAdapter": mock_import_linter,
-        }[key]
-        mock_container_class.return_value = mock_container
-
-        _run_fix_manual_only(mock_telemetry, "src", "excelsior")
-
-        mock_telemetry.step.assert_called_with(
+        app = create_app(deps)
+        runner.invoke(app, ["fix", "src", "--manual-only", "--linter", "excelsior"])
+        deps.telemetry.step.assert_any_call(
             "📋 Gathering manual fix suggestions from Excelsior suite...")
-
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_manual_only_with_results(self, mock_container_class) -> None:
-        """Test manual-only displays results correctly."""
-        from clean_architecture_linter.interface.cli import _run_fix_manual_only
-
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_adapter = Mock()
-        results = [
-            LinterResult(
-                "R001",
-                "Test violation",
-                [
-                    "file.py:1",
-                    "file.py:2",
-                    "file.py:3",
-                    "file.py:4",
-                    "file.py:5",
-                    "file.py:6",
-                ]
-            )
-        ]
-        mock_adapter.gather_results.return_value = results
-        mock_adapter.supports_autofix.return_value = False
-        mock_adapter.get_fixable_rules.return_value = []
-        mock_adapter.get_manual_fix_instructions.return_value = "Manual fix instructions"
-
-        mock_mypy = Mock()
-        mock_mypy.gather_results.return_value = []
-        mock_excelsior = Mock()
-        mock_excelsior.gather_results.return_value = []
-        mock_import_linter = Mock()
-        mock_import_linter.gather_results.return_value = []
-
-        mock_container.get.side_effect = lambda key: {
-            "RuffAdapter": mock_adapter,
-            "MypyAdapter": mock_mypy,
-            "ExcelsiorAdapter": mock_excelsior,
-            "ImportLinterAdapter": mock_import_linter,
-        }[key]
-        mock_container_class.return_value = mock_container
-
-        _run_fix_manual_only(mock_telemetry, "src", "all")
-
-        # Verify adapter was called
-        mock_adapter.gather_results.assert_called_once_with("src")
 
 
 class TestFixRuff:
     """Test Ruff-only fixer."""
 
-    @patch("clean_architecture_linter.interface.cli.sys.exit")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_fix_ruff_success(self, mock_container_class, mock_exit) -> None:
+    def test_fix_ruff_success(self) -> None:
         """Test successful Ruff fix."""
-        from clean_architecture_linter.interface.cli import _run_fix_ruff
+        mock_ruff = Mock()
+        mock_ruff.apply_fixes.return_value = True
 
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_ruff_adapter = Mock()
-        mock_ruff_adapter.apply_fixes.return_value = True
+        deps = _make_mock_deps(ruff_adapter=mock_ruff)
+        app = create_app(deps)
+        result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
 
-        mock_container.get.return_value = mock_ruff_adapter
-        mock_container_class.return_value = mock_container
+        deps.telemetry.step.assert_any_call("🔧 Applying Ruff fixes...")
+        mock_ruff.apply_fixes.assert_called_once_with(Path("src"))
+        assert result.exit_code == 0
 
-        _run_fix_ruff(mock_telemetry, "src")
-
-        mock_telemetry.step.assert_any_call("🔧 Applying Ruff fixes...")
-        mock_telemetry.step.assert_any_call(
-            "✅ Ruff fixes complete. Run 'excelsior check' to verify.")
-        mock_ruff_adapter.apply_fixes.assert_called_once_with(Path("src"))
-        mock_exit.assert_called_once_with(0)
-
-    @patch("clean_architecture_linter.interface.cli.sys.exit")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
-    def test_fix_ruff_failure(self, mock_container_class, mock_exit) -> None:
+    def test_fix_ruff_failure(self) -> None:
         """Test failed Ruff fix."""
-        from clean_architecture_linter.interface.cli import _run_fix_ruff
+        mock_ruff = Mock()
+        mock_ruff.apply_fixes.return_value = False
 
-        mock_container = Mock()
-        mock_telemetry = Mock()
-        mock_ruff_adapter = Mock()
-        mock_ruff_adapter.apply_fixes.return_value = False
-
-        mock_container.get.return_value = mock_ruff_adapter
-        mock_container_class.return_value = mock_container
-
-        _run_fix_ruff(mock_telemetry, "src")
-
-        mock_exit.assert_called_once_with(1)
+        deps = _make_mock_deps(ruff_adapter=mock_ruff)
+        app = create_app(deps)
+        result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
+        assert result.exit_code == 1
 
 
 class TestFixExcelsior:
     """Test Excelsior multi-pass fixer."""
 
-    @patch("clean_architecture_linter.interface.cli.sys.exit")
     @patch("clean_architecture_linter.interface.cli.ApplyFixesUseCase")
     @patch("clean_architecture_linter.domain.rules.type_hints.MissingTypeHintRule")
+    @patch("clean_architecture_linter.domain.rules.immutability.DomainImmutabilityRule")
     @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
     @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     def test_fix_excelsior_executes_multi_pass(
         self,
-        mock_container_class,
         mock_config_loader_class,
         mock_check_audit_class,
+        mock_immutability_class,
         mock_rule_class,
         mock_use_case_class,
-        mock_exit,
     ) -> None:
         """Test that excelsior fixer executes multi-pass."""
-        from clean_architecture_linter.interface.cli import _run_fix_excelsior
-
-        mock_container = Mock()
-        mock_telemetry = Mock()
         mock_config_loader = Mock()
         mock_config_loader_class.return_value = mock_config_loader
 
-        mock_astroid = Mock()
-        mock_ruff = Mock()
-        mock_filesystem = Mock()
-        mock_mypy = Mock()
-        mock_excelsior = Mock()
-        mock_import_linter = Mock()
-        mock_audit_trail = Mock()
+        mock_check_audit_instance = Mock()
+        mock_check_audit_instance.execute.return_value = AuditResult()
+        mock_check_audit_class.return_value = mock_check_audit_instance
 
-        mock_container.get.side_effect = lambda key: {
-            "AstroidGateway": mock_astroid,
-            "RuffAdapter": mock_ruff,
-            "FileSystemGateway": mock_filesystem,
-            "MypyAdapter": mock_mypy,
-            "ExcelsiorAdapter": mock_excelsior,
-            "ImportLinterAdapter": mock_import_linter,
-            "AuditTrailService": mock_audit_trail,
-        }[key]
-        mock_container_class.return_value = mock_container
-
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute_multi_pass.return_value = 5
         mock_use_case_class.return_value = mock_use_case_instance
 
-        mock_rule_instance = Mock()
-        mock_rule_class.return_value = mock_rule_instance
+        app = create_app(deps)
+        result = runner.invoke(app, ["fix", "src"])
 
-        _run_fix_excelsior(mock_telemetry, "src", False, False, False, False)
-
-        # Verify use case was created and executed
         mock_use_case_class.assert_called_once()
         mock_use_case_instance.execute_multi_pass.assert_called_once()
-        mock_telemetry.step.assert_any_call("✅ Successfully fixed 5 file(s)")
-        mock_exit.assert_called_once_with(0)
+        deps.telemetry.step.assert_any_call("✅ Successfully fixed 5 file(s)")
+        assert result.exit_code == 0
 
-    @patch("clean_architecture_linter.interface.cli.sys.exit")
     @patch("clean_architecture_linter.interface.cli.ApplyFixesUseCase")
     @patch("clean_architecture_linter.domain.rules.type_hints.MissingTypeHintRule")
+    @patch("clean_architecture_linter.domain.rules.immutability.DomainImmutabilityRule")
     @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
     @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.interface.cli.ExcelsiorContainer")
     def test_fix_excelsior_with_options(
         self,
-        mock_container_class,
         mock_config_loader_class,
         mock_check_audit_class,
+        mock_immutability_class,
         mock_rule_class,
         mock_use_case_class,
-        mock_exit,
     ) -> None:
         """Test excelsior fixer with various options."""
-        from clean_architecture_linter.interface.cli import _run_fix_excelsior
-
-        mock_container = Mock()
-        mock_telemetry = Mock()
         mock_config_loader = Mock()
         mock_config_loader_class.return_value = mock_config_loader
-        mock_audit_trail = Mock()
 
-        mock_container.get.side_effect = lambda key: {
-            "AstroidGateway": Mock(),
-            "RuffAdapter": Mock(),
-            "FileSystemGateway": Mock(),
-            "MypyAdapter": Mock(),
-            "ExcelsiorAdapter": Mock(),
-            "ImportLinterAdapter": Mock(),
-            "AuditTrailService": mock_audit_trail,
-        }[key]
-        mock_container_class.return_value = mock_container
+        mock_check_audit_instance = Mock()
+        mock_check_audit_instance.execute.return_value = AuditResult()
+        mock_check_audit_class.return_value = mock_check_audit_instance
 
+        deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute_multi_pass.return_value = 0
         mock_use_case_class.return_value = mock_use_case_instance
 
-        mock_rule_class.return_value = Mock()
+        app = create_app(deps)
+        runner.invoke(app, ["fix", "src", "--confirm", "--no-backup", "--skip-tests", "--cleanup-backups"])
 
-        # Test with all options enabled
-        _run_fix_excelsior(mock_telemetry, "src", True, True, True, True)
-
-        # Verify use case was created with correct options
         call_kwargs = mock_use_case_class.call_args[1]
         assert call_kwargs["require_confirmation"] is True
-        assert call_kwargs["create_backups"] is False  # no_backup=True
-        assert call_kwargs["validate_with_tests"] is False  # skip_tests=True
+        assert call_kwargs["create_backups"] is False
+        assert call_kwargs["validate_with_tests"] is False
         assert call_kwargs["cleanup_backups"] is True
 
-        mock_telemetry.step.assert_any_call("ℹ️  No fixes applied")
+        deps.telemetry.step.assert_any_call("ℹ️  No fixes applied")

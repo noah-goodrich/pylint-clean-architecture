@@ -270,24 +270,6 @@ class ConfigurationLoader:
         """Alias for get_project_ruff_config for backward compatibility."""
         return self.get_project_ruff_config()
 
-    def get_merged_ruff_config(self) -> dict[str, object]:
-        """Get merged Ruff config (Excelsior defaults + project overrides).
-
-        Uses Option C strategy:
-        - Excelsior provides comprehensive defaults
-        - Project-specific settings override defaults
-        """
-        from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
-
-        adapter = RuffAdapter()
-        project_config = self.get_project_ruff_config()
-        excelsior_config = self.get_excelsior_ruff_config()
-
-        return adapter._merge_configs(
-            project_config if isinstance(project_config, dict) else {},
-            excelsior_config if isinstance(excelsior_config, dict) else {}
-        )
-
     @property
     def ruff_enabled(self) -> bool:
         """Check if Ruff is enabled (default: True)."""

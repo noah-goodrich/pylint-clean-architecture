@@ -151,10 +151,16 @@ def main():
         violation.location = f"{test_file}:2:1"
         violation.node = node
 
-        transformer = rule.fix(violation)
-        assert transformer is not None
+        plan = rule.fix(violation)
+        assert plan is not None
 
-        # Apply transformer
+        # Apply plan via gateway (rule returns TransformationPlan, not CST transformer)
+        from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
+            LibCSTFixerGateway,
+        )
+        gateway = LibCSTFixerGateway()
+        transformer = gateway._plan_to_transformer(plan)
+        transformer.source_lines = original_code.splitlines()
         module = cst.parse_module(original_code)
         modified = module.visit(transformer)
         modified_code = modified.code

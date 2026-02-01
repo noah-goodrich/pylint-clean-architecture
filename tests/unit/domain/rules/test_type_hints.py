@@ -8,6 +8,9 @@ import libcst as cst
 from clean_architecture_linter.domain.rules import Violation
 from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
 from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
+from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
+    LibCSTFixerGateway,
+)
 
 
 class TestMissingTypeHintRuleCheck:
@@ -339,13 +342,14 @@ def get_value():
             fixable=True,
         )
 
-        transformers = rule.fix(violation)
-        assert transformers is not None
-        assert isinstance(transformers, list)
+        plans = rule.fix(violation)
+        assert plans is not None
+        assert isinstance(plans, list)
 
+        gateway = LibCSTFixerGateway()
         cst_module = cst.parse_module(code)
-        for t in transformers:
-            cst_module = cst_module.visit(t)
+        for plan in plans:
+            cst_module = cst_module.visit(gateway._plan_to_transformer(plan))
 
         assert "def get_value() -> str:" in cst_module.code
 
@@ -375,13 +379,14 @@ def get_value():
             fixable=True,
         )
 
-        transformers = rule.fix(violation)
-        assert transformers is not None
-        assert isinstance(transformers, list)
+        plans = rule.fix(violation)
+        assert plans is not None
+        assert isinstance(plans, list)
 
+        gateway = LibCSTFixerGateway()
         cst_module = cst.parse_module(code)
-        for t in transformers:
-            cst_module = cst_module.visit(t)
+        for plan in plans:
+            cst_module = cst_module.visit(gateway._plan_to_transformer(plan))
 
         assert (
             "from clean_architecture_linter.infrastructure.services.stub_authority "

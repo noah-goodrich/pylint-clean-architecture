@@ -1,11 +1,11 @@
 """
-Pylint plugin entry point.
+Pylint plugin entry point - composition root for the checker plugin.
+Lives in infrastructure as it creates the container and wires dependencies.
 """
 
 from pylint.lint import PyLinter
 
 from clean_architecture_linter.domain.constants import EXCELSIOR_BANNER
-from clean_architecture_linter.domain.protocols import AstroidProtocol, PythonProtocol
 from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
 from clean_architecture_linter.interface.reporter import CleanArchitectureSummaryReporter
 from clean_architecture_linter.use_cases.checks.boundaries import (
@@ -29,8 +29,8 @@ def register(linter: PyLinter) -> None:
 
     # Get gateways once for injection
     container = ExcelsiorContainer.get_instance()
-    python_gateway: PythonProtocol = container.get("PythonGateway")
-    ast_gateway: AstroidProtocol = container.get("AstroidGateway")
+    python_gateway = container.get_python_gateway()
+    ast_gateway = container.get_astroid_gateway()
 
     linter.register_checker(VisibilityChecker(linter))
     linter.register_checker(ResourceChecker(linter, python_gateway=python_gateway))

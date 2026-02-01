@@ -2,12 +2,12 @@
 
 from typing import TYPE_CHECKING
 
-from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.domain.protocols import LinterAdapterProtocol, TelemetryPort
-from clean_architecture_linter.infrastructure.adapters.ruff_adapter import (
+from clean_architecture_linter.domain.constants import (
     RUFF_CODE_QUALITY_SELECT,
     RUFF_IMPORT_TYPING_SELECT,
 )
+from clean_architecture_linter.domain.entities import AuditResult, LinterResult
+from clean_architecture_linter.domain.protocols import LinterAdapterProtocol, TelemetryPort
 
 if TYPE_CHECKING:
     from clean_architecture_linter.domain.config import ConfigurationLoader
@@ -36,8 +36,13 @@ class CheckAuditUseCase:
         """
         Execute gated sequential audit: Layers first, then style/typing, then code quality.
 
-        Order: 1) Import-linter (layer contracts), 2) Ruff import/typing, 3) Mypy,
-        4) Excelsior (architectural), 5) Ruff code quality. Stops at first blocking violation.
+        Order:
+            1) Import-linter (layer contracts),
+            2) Ruff import/typing,
+            3) Mypy,
+            4) Excelsior (architectural),
+            5) Ruff code quality.
+        Stops at first blocking violation.
 
         Args:
             target_path: Path to audit

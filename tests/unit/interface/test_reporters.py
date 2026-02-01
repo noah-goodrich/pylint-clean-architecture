@@ -14,10 +14,10 @@ class TestTerminalAuditReporter:
         """When blocked by Ruff, prints block message and shows Ruff table."""
         rule_svc = RuleFixabilityService()
         with patch(
-            "clean_architecture_linter.interface.reporters.TerminalAuditReporter.__init__",
+            "clean_architecture_linter.infrastructure.reporters.TerminalAuditReporter.__init__",
             lambda self, _: None,
         ):
-            from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
             rep = TerminalAuditReporter(rule_svc)
             rep.reporter = MagicMock()
@@ -38,7 +38,7 @@ class TestTerminalAuditReporter:
 
     def test_report_audit_blocked_by_mypy_prints_message_and_reports_mypy(self) -> None:
         """When blocked by Mypy, prints block message and shows Mypy table."""
-        from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+        from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
         rule_svc = RuleFixabilityService()
         rep = TerminalAuditReporter(rule_svc)
@@ -72,7 +72,7 @@ class TestTerminalAuditReporter:
             ), patch(
                 "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
             ):
-                from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(rule_svc)
 
@@ -102,7 +102,7 @@ class TestTerminalAuditReporter:
             ), patch(
                 "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
             ):
-                from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(rule_svc)
 
@@ -133,7 +133,7 @@ class TestTerminalAuditReporter:
             ), patch(
                 "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
             ):
-                from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(rule_svc)
 
@@ -165,7 +165,7 @@ class TestTerminalAuditReporter:
                 "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
                 return_value=MagicMock(),
             ):
-                from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(rule_svc)
 
@@ -183,7 +183,7 @@ class TestTerminalAuditReporter:
             "stellar_ui_kit.TerminalReporter",
             MagicMock(),
         ):
-            from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
             rep = TerminalAuditReporter(rule_svc)
 
@@ -202,7 +202,7 @@ class TestTerminalAuditReporter:
             "stellar_ui_kit.TerminalReporter",
             MagicMock(),
         ):
-            from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
             rep = TerminalAuditReporter(rule_svc)
 
@@ -221,7 +221,7 @@ class TestTerminalAuditReporter:
             "stellar_ui_kit.TerminalReporter",
             MagicMock(),
         ):
-            from clean_architecture_linter.interface.reporters import TerminalAuditReporter
+            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
             rep = TerminalAuditReporter(rule_svc)
 

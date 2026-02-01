@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 if TYPE_CHECKING:
     import astroid  # type: ignore[import-untyped]  # pylint: disable=clean-arch-resources
 
     from clean_architecture_linter.domain.config import ConfigurationLoader  # pylint: disable=clean-arch-resources
-    from clean_architecture_linter.domain.entities import LinterResult
+    from clean_architecture_linter.domain.entities import AuditResult, LinterResult
 
 
 
@@ -65,7 +65,15 @@ class PythonProtocol(Protocol):
 
 class LinterAdapterProtocol(Protocol):
     """Protocol for linter adapters."""
-    def gather_results(self, target_path: str) -> list["LinterResult"]: ...
+    def gather_results(self, target_path: str, select_only: Optional[list[str]] = None) -> list["LinterResult"]: ...
+    def apply_fixes(
+        self, target_path: "Any", select_only: Optional[list[str]] = None
+    ) -> bool:
+        """Apply automatic fixes. Returns True if any file was modified."""
+        ...
+    def supports_autofix(self) -> bool: ...
+    def get_fixable_rules(self) -> list[str]: ...
+    def get_manual_fix_instructions(self, rule_code: str) -> str: ...
 
 class FixerGatewayProtocol(Protocol):
     """Protocol for applying code fixes via LibCST."""
@@ -116,4 +124,48 @@ class FileSystemProtocol(Protocol):
 
     def get_mtime(self, path: str) -> float:
         """Get file modification time as timestamp."""
+        ...
+
+
+class AuditTrailServiceProtocol(Protocol):
+    """Protocol for persisting audit results and handover bundles."""
+
+    def save_audit_trail(
+        self, audit_result: "AuditResult", source: Optional[str] = None
+    ) -> None:
+        """Save audit results to .excelsior directory."""
+        ...
+
+    def save_ai_handover(
+        self, audit_result: "AuditResult", source: Optional[str] = None
+    ) -> str:
+        """Generate and save AI handover bundle. Returns path to JSON file."""
+        ...
+
+    def append_audit_history(
+        self,
+        audit_result: "AuditResult",
+        source: str,
+        json_path: str,
+        txt_path: str,
+    ) -> None:
+        """Append one record to the audit history file (NDJSON)."""
+        ...
+
+
+class ScaffolderProtocol(Protocol):
+    """Protocol for project scaffolding and configuration."""
+
+    def init_project(
+        self, template: Optional[str] = None, check_layers: bool = False
+    ) -> None:
+        """Initialize project configuration and artifacts."""
+        ...
+
+
+class RawLogPort(Protocol):
+    """Protocol for capturing raw subprocess stdout/stderr to log files."""
+
+    def log_raw(self, tool: str, stdout: str, stderr: str) -> None:
+        """Append raw tool output to .excelsior/logs/raw_{tool}.log."""
         ...

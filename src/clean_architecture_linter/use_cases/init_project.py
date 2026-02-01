@@ -2,14 +2,13 @@
 
 from typing import Optional
 
-from clean_architecture_linter.domain.protocols import TelemetryPort
-from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
+from clean_architecture_linter.domain.protocols import ScaffolderProtocol, TelemetryPort
 
 
 class InitProjectUseCase:
     """Orchestrate project initialization and configuration."""
 
-    def __init__(self, scaffolder: Scaffolder, telemetry: TelemetryPort) -> None:
+    def __init__(self, scaffolder: ScaffolderProtocol, telemetry: TelemetryPort) -> None:
         self.scaffolder = scaffolder
         self.telemetry = telemetry
 

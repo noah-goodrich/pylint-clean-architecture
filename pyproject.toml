@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.scripts]
-excelsior = "clean_architecture_linter.interface.cli:main"
+excelsior = "clean_architecture_linter.__main__:main"
 
 [project.optional-dependencies]
 dev = [

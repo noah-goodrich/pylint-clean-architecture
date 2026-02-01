@@ -1,19 +1,12 @@
 """Governance Comment Rules - Inject contextual guidance for manual-fix violations."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import astroid  # type: ignore[import-untyped]
 
-if TYPE_CHECKING:
-    import libcst as cst
-
+from clean_architecture_linter.domain.entities import TransformationPlan
+from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 from clean_architecture_linter.domain.rules import Violation
-from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import (
-    ExcelsiorAdapter,
-)
-from clean_architecture_linter.infrastructure.gateways.transformers import (
-    GovernanceCommentTransformer,
-)
 
 
 class LawOfDemeterRule:
@@ -46,9 +39,9 @@ class LawOfDemeterRule:
         """
         return []
 
-    def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
+    def fix(self, violation: Violation) -> Optional[TransformationPlan]:
         """
-        Return a transformer that injects governance comment above the violation.
+        Return a transformation plan for governance comment injection.
 
         The comment provides:
         - Rule code and name
@@ -106,14 +99,14 @@ class LawOfDemeterRule:
         # Build context
         context_info = f"Violation detected at line {target_line}."
 
-        return GovernanceCommentTransformer({
-            "rule_code": self.code,
-            "rule_name": "Law of Demeter",
-            "problem": problem,
-            "recommendation": recommendation,
-            "context_info": context_info,
-            "target_line": target_line,
-        })
+        return TransformationPlan.governance_comment(
+            rule_code=self.code,
+            rule_name="Law of Demeter",
+            problem=problem,
+            recommendation=recommendation,
+            context_info=context_info,
+            target_line=target_line,
+        )
 
     def get_fix_instructions(self, violation: Violation) -> str:
         """Provide human/AI instructions for manual fix."""
@@ -128,7 +121,7 @@ class GenericGovernanceCommentRule:
     """
     Generic governance comment rule for all comment-only violations.
 
-    Uses ExcelsiorAdapter's manual fix instructions to generate standardized
+    Uses adapter's manual fix instructions to generate standardized
     governance comments for any rule that requires manual architectural fixes.
     """
 
@@ -136,7 +129,7 @@ class GenericGovernanceCommentRule:
         self,
         rule_code: str,
         rule_name: str,
-        adapter: Optional[ExcelsiorAdapter] = None,
+        adapter: Optional[LinterAdapterProtocol] = None,
     ) -> None:
         """
         Initialize generic governance comment rule.
@@ -144,11 +137,11 @@ class GenericGovernanceCommentRule:
         Args:
             rule_code: The rule code (e.g., "W9201", "W9001", "W9016")
             rule_name: Human-readable rule name (e.g., "Contract Integrity")
-            adapter: Optional ExcelsiorAdapter instance for fetching instructions
+            adapter: Optional adapter instance for fetching instructions (via protocol)
         """
         self.code = rule_code
         self.rule_name = rule_name
-        self._adapter = adapter or ExcelsiorAdapter()
+        self._adapter = adapter
 
     def check(self, node: astroid.nodes.NodeNG) -> list[Violation]:
         """
@@ -159,11 +152,11 @@ class GenericGovernanceCommentRule:
         """
         return []
 
-    def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
+    def fix(self, violation: Violation) -> Optional[TransformationPlan]:
         """
-        Return a transformer that injects governance comment above the violation.
+        Return a transformation plan for governance comment injection.
 
-        Uses ExcelsiorAdapter's manual fix instructions to build the comment.
+        Uses adapter's manual fix instructions to build the comment.
         """
         if violation.code != self.code:
             return None
@@ -172,9 +165,10 @@ class GenericGovernanceCommentRule:
         location_parts = violation.location.split(":")
         target_line = int(location_parts[1]) if len(location_parts) > 1 else 0
 
-        # Get manual fix instructions from adapter
-        manual_instructions = self._adapter.get_manual_fix_instructions(
-            self.code)
+        # Get manual fix instructions from adapter if available
+        manual_instructions = "Review and fix the violation manually."
+        if self._adapter:
+            manual_instructions = self._adapter.get_manual_fix_instructions(self.code)
 
         # Build problem description from violation message
         problem = violation.message
@@ -191,14 +185,14 @@ class GenericGovernanceCommentRule:
         # Build context
         context_info = f"Violation detected at line {target_line}."
 
-        return GovernanceCommentTransformer({
-            "rule_code": self.code,
-            "rule_name": self.rule_name,
-            "problem": problem,
-            "recommendation": recommendation,
-            "context_info": context_info,
-            "target_line": target_line,
-        })
+        return TransformationPlan.governance_comment(
+            rule_code=self.code,
+            rule_name=self.rule_name,
+            problem=problem,
+            recommendation=recommendation,
+            context_info=context_info,
+            target_line=target_line,
+        )
 
 
 # Rule name mapping for common architectural violations
@@ -232,7 +226,7 @@ RULE_NAME_MAP = {
 
 def create_governance_rule(
     rule_code: str,
-    adapter: Optional[ExcelsiorAdapter] = None,
+    adapter: Optional[LinterAdapterProtocol] = None,
 ) -> Optional[GenericGovernanceCommentRule]:
     """
     Factory function to create appropriate governance comment rule.

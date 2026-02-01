@@ -1,5 +1,83 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Optional, Union
+
+
+class TransformationType(Enum):
+    """Types of code transformations the fixer can apply."""
+    FREEZE_DATACLASS = "freeze_dataclass"
+    ADD_IMPORT = "add_import"
+    ADD_RETURN_TYPE = "add_return_type"
+    ADD_PARAMETER_TYPE = "add_parameter_type"
+    ADD_GOVERNANCE_COMMENT = "add_governance_comment"
+
+
+@dataclass(frozen=True)
+class TransformationPlan:
+    """
+    Pure data structure describing a code transformation.
+    
+    This is a domain entity that rules return instead of LibCST transformers.
+    The infrastructure layer (fixer gateway) interprets this plan and applies
+    the actual LibCST transformation.
+    """
+    transformation_type: TransformationType
+    params: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def freeze_dataclass(cls, class_name: str) -> "TransformationPlan":
+        """Create plan to convert a class to frozen dataclass."""
+        return cls(
+            transformation_type=TransformationType.FREEZE_DATACLASS,
+            params={"class_name": class_name}
+        )
+
+    @classmethod
+    def add_import(cls, module: str, imports: list[str]) -> "TransformationPlan":
+        """Create plan to add an import statement."""
+        return cls(
+            transformation_type=TransformationType.ADD_IMPORT,
+            params={"module": module, "imports": imports}
+        )
+
+    @classmethod
+    def add_return_type(cls, function_name: str, return_type: str) -> "TransformationPlan":
+        """Create plan to add return type annotation."""
+        return cls(
+            transformation_type=TransformationType.ADD_RETURN_TYPE,
+            params={"function_name": function_name, "return_type": return_type}
+        )
+
+    @classmethod
+    def add_parameter_type(cls, function_name: str, param_name: str, param_type: str) -> "TransformationPlan":
+        """Create plan to add parameter type annotation."""
+        return cls(
+            transformation_type=TransformationType.ADD_PARAMETER_TYPE,
+            params={"function_name": function_name, "param_name": param_name, "param_type": param_type}
+        )
+
+    @classmethod
+    def governance_comment(
+        cls,
+        rule_code: str,
+        rule_name: str,
+        problem: str,
+        recommendation: str,
+        context_info: str,
+        target_line: int,
+    ) -> "TransformationPlan":
+        """Create plan to add governance comment above a line."""
+        return cls(
+            transformation_type=TransformationType.ADD_GOVERNANCE_COMMENT,
+            params={
+                "rule_code": rule_code,
+                "rule_name": rule_name,
+                "problem": problem,
+                "recommendation": recommendation,
+                "context_info": context_info,
+                "target_line": target_line,
+            }
+        )
 
 
 @dataclass(frozen=True)

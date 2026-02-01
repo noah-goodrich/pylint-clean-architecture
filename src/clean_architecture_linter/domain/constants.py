@@ -35,6 +35,12 @@ DEFAULT_INTERNAL_MODULES: frozenset[str] = frozenset(
     }
 )
 
+# Ruff rule selectors for gated audit (used by CheckAuditUseCase)
+RUFF_IMPORT_TYPING_SELECT: list[str] = ["I", "UP", "B"]  # isort, pyupgrade, bugbear
+RUFF_CODE_QUALITY_SELECT: list[str] = [
+    "E", "F", "W", "C90", "N", "PL", "PT", "A", "C4", "SIM", "ARG", "PTH", "RUF",
+]
+
 BUILTIN_TYPE_MAP: dict[str, str] = {
     "str": "builtins.str",
     "int": "builtins.int",

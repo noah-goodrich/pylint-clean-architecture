@@ -156,41 +156,6 @@ class MyClass:
         result = loader.get_ruff_config()
         assert isinstance(result, dict)
 
-    def test_get_merged_ruff_config(self) -> None:
-        """Test get_merged_ruff_config merges configs."""
-        loader = ConfigurationLoader()
-        ConfigurationLoader._tool_section = {
-            "ruff": {"line-length": 120},
-            "excelsior": {"ruff": {"line-length": 100}}
-        }
-
-        result = loader.get_merged_ruff_config()
-        assert isinstance(result, dict)
-
-    def test_get_merged_ruff_config_handles_non_dict_project_config(self) -> None:
-        """Test get_merged_ruff_config handles non-dict project config."""
-        loader = ConfigurationLoader()
-        ConfigurationLoader._tool_section = {
-            "ruff": "invalid",
-            "excelsior": {"ruff": {"line-length": 100}}
-        }
-
-        result = loader.get_merged_ruff_config()
-        # Should handle gracefully
-        assert isinstance(result, dict)
-
-    def test_get_merged_ruff_config_handles_non_dict_excelsior_config(self) -> None:
-        """Test get_merged_ruff_config handles non-dict excelsior config."""
-        loader = ConfigurationLoader()
-        ConfigurationLoader._tool_section = {
-            "ruff": {"line-length": 120},
-            "excelsior": {"ruff": "invalid"}
-        }
-
-        result = loader.get_merged_ruff_config()
-        # Should handle gracefully
-        assert isinstance(result, dict)
-
     def test_ruff_enabled_property(self) -> None:
         """Test ruff_enabled property."""
         loader = ConfigurationLoader()

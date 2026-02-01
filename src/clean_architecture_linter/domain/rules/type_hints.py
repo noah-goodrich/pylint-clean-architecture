@@ -1,19 +1,12 @@
 """Missing Type Hint Rule (W9015) - High-Integrity Auto-Fix."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import astroid  # type: ignore[import-untyped]
 
-if TYPE_CHECKING:
-    import libcst as cst
-
+from clean_architecture_linter.domain.entities import TransformationPlan
 from clean_architecture_linter.domain.protocols import AstroidProtocol
 from clean_architecture_linter.domain.rules import Violation
-from clean_architecture_linter.infrastructure.gateways.transformers import (
-    AddImportTransformer,
-    AddParameterTypeTransformer,
-    AddReturnTypeTransformer,
-)
 
 
 class MissingTypeHintRule:
@@ -137,9 +130,9 @@ class MissingTypeHintRule:
         # by injecting required imports when needed.
         return (True, None)
 
-    def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
+    def fix(self, violation: Violation) -> Optional[list[TransformationPlan]]:
         """
-        Return a transformer to fix the missing type hint.
+        Return transformation plans to fix the missing type hint.
 
         Only called if violation.fixable is True.
         """
@@ -155,18 +148,20 @@ class MissingTypeHintRule:
             if return_type_qname:
                 # Convert qname to simple type name (e.g., "builtins.str" -> "str")
                 type_name = self._qname_to_type_name(return_type_qname)
-                transformers = []
+                plans: list[TransformationPlan] = []
 
                 import_ctx = self._import_context_for_qname(return_type_qname, node)
                 if import_ctx:
-                    transformers.append(AddImportTransformer(import_ctx))
+                    plans.append(TransformationPlan.add_import(
+                        import_ctx["module"], import_ctx["imports"]
+                    ))
 
-                transformers.append(AddReturnTypeTransformer({
-                    "function_name": node.name,
-                    "return_type": type_name,
-                }))
+                plans.append(TransformationPlan.add_return_type(
+                    function_name=node.name,
+                    return_type=type_name,
+                ))
 
-                return transformers
+                return plans
 
         elif isinstance(node, astroid.nodes.Arguments):
             # Parameter type violation
@@ -179,19 +174,21 @@ class MissingTypeHintRule:
                         param_type_qname = self._infer_parameter_type(func_def, arg, i)
                         if param_type_qname:
                             type_name = self._qname_to_type_name(param_type_qname)
-                            transformers = []
+                            plans = []
 
                             import_ctx = self._import_context_for_qname(param_type_qname, arg)
                             if import_ctx:
-                                transformers.append(AddImportTransformer(import_ctx))
+                                plans.append(TransformationPlan.add_import(
+                                    import_ctx["module"], import_ctx["imports"]
+                                ))
 
-                            transformers.append(AddParameterTypeTransformer({
-                                "function_name": func_def.name,
-                                "param_name": arg.name,
-                                "param_type": type_name,
-                            }))
+                            plans.append(TransformationPlan.add_parameter_type(
+                                function_name=func_def.name,
+                                param_name=arg.name,
+                                param_type=type_name,
+                            ))
 
-                            return transformers
+                            return plans
 
         return None
 

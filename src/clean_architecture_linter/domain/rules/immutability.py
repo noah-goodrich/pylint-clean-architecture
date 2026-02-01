@@ -1,16 +1,11 @@
 """Domain Immutability Rule (W9601) - Auto-fix for frozen dataclasses."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import astroid  # type: ignore[import-untyped]
 
-if TYPE_CHECKING:
-    import libcst as cst
-
+from clean_architecture_linter.domain.entities import TransformationPlan
 from clean_architecture_linter.domain.rules import Violation
-from clean_architecture_linter.infrastructure.gateways.transformers import (
-    FreezeDataclassTransformer,
-)
 
 
 class DomainImmutabilityRule:
@@ -40,9 +35,9 @@ class DomainImmutabilityRule:
         """
         return []
 
-    def fix(self, violation: Violation) -> Optional["cst.CSTTransformer"]:
+    def fix(self, violation: Violation) -> Optional[TransformationPlan]:
         """
-        Return a transformer that converts class to frozen dataclass.
+        Return a transformation plan to convert class to frozen dataclass.
 
         Safety checks:
         - Aborts if custom __setattr__ is detected
@@ -74,10 +69,8 @@ class DomainImmutabilityRule:
         if not class_name:
             return None
 
-        # Use FreezeDataclassTransformer to add frozen=True
-        return FreezeDataclassTransformer({
-            "class_name": class_name
-        })
+        # Return plan - fixer gateway will interpret and apply
+        return TransformationPlan.freeze_dataclass(class_name)
 
     def get_fix_instructions(self, violation: Violation) -> str:
         """Provide human/AI instructions for manual fix."""

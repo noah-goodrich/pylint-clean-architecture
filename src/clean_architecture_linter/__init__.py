@@ -1,5 +1,5 @@
 """Clean Architecture Linter Plugin."""
 
-from clean_architecture_linter.interface.checker import register
+from clean_architecture_linter.infrastructure.checker import register
 
 __all__ = ["register"]

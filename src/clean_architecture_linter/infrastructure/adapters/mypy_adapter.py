@@ -3,13 +3,21 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 
+if TYPE_CHECKING:
+    from clean_architecture_linter.domain.protocols import RawLogPort
+
 
 class MypyAdapter(LinterAdapterProtocol):
     """Adapter for mypy output."""
+
+    def __init__(self, raw_log_port: Optional["RawLogPort"] = None) -> None:
+        self._raw_log_port = raw_log_port
 
     def gather_results(self, target_path: str) -> list[LinterResult]:
         """Run mypy and gather results."""
@@ -22,6 +30,12 @@ class MypyAdapter(LinterAdapterProtocol):
                 check=False,
                 env=env,
             )
+            if self._raw_log_port:
+                self._raw_log_port.log_raw(
+                    "mypy",
+                    result.stdout or "",
+                    result.stderr or "",
+                )
             return self._parse_output(result.stdout)
         except Exception as e:
             # JUSTIFICATION: Error message wrapping requires explicit list creation.
@@ -79,6 +93,14 @@ class MypyAdapter(LinterAdapterProtocol):
     def get_fixable_rules(self) -> list[str]:
         """Return list of rule codes that can be auto-fixed."""
         return []  # Mypy does not support auto-fixing
+
+    def apply_fixes(
+        self,
+        target_path: Path,
+        select_only: Optional[list[str]] = None,
+    ) -> bool:
+        """Mypy does not support automatic fixes."""
+        return False
 
     def get_manual_fix_instructions(self, rule_code: str) -> str:
         """Readable, step-by-step guidance for juniors and AI."""

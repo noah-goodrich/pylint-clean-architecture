@@ -10,19 +10,19 @@ from clean_architecture_linter.domain.entities import LinterResult
 if TYPE_CHECKING:
     from stellar_ui_kit import TelemetryPort
 
-
-# Phase 1: Import and typing (run first). Phase 2: Code quality (run last).
-RUFF_IMPORT_TYPING_SELECT = ["I", "UP", "B"]  # isort, pyupgrade, bugbear
-RUFF_CODE_QUALITY_SELECT = [
-    "E", "F", "W", "C90", "N", "PL", "PT", "A", "C4", "SIM", "ARG", "PTH", "RUF",
-]
+    from clean_architecture_linter.domain.protocols import RawLogPort
 
 
 class RuffAdapter:
     """Adapter for running Ruff and parsing results."""
 
-    def __init__(self, telemetry: Optional["TelemetryPort"] = None) -> None:
+    def __init__(
+        self,
+        telemetry: Optional["TelemetryPort"] = None,
+        raw_log_port: Optional["RawLogPort"] = None,
+    ) -> None:
         self.telemetry = telemetry
+        self._raw_log_port = raw_log_port
 
     @staticmethod
     def get_default_config() -> dict[str, Any]:
@@ -137,6 +137,12 @@ class RuffAdapter:
                 timeout=300  # 5 minute timeout
             )
 
+            if self._raw_log_port:
+                self._raw_log_port.log_raw(
+                    "ruff",
+                    result.stdout or "",
+                    result.stderr or "",
+                )
             return self._parse_ruff_output(result.stdout, result.returncode)
 
         except FileNotFoundError:
@@ -323,7 +329,13 @@ class RuffAdapter:
             else:
                 from clean_architecture_linter.domain.config import ConfigurationLoader
                 config_loader = ConfigurationLoader()
-                merged_config = config_loader.get_merged_ruff_config()
+                # Merge configs: excelsior defaults + project overrides
+                project_config = config_loader.get_project_ruff_config()
+                excelsior_config = config_loader.get_excelsior_ruff_config()
+                merged_config = self._merge_configs(
+                    project_config if isinstance(project_config, dict) else {},
+                    excelsior_config if isinstance(excelsior_config, dict) else {}
+                )
                 if merged_config and merged_config.get("lint", {}).get("select"):
                     select_rules = merged_config["lint"]["select"]
                     cmd.extend(["--select", ",".join(select_rules)])
@@ -334,6 +346,13 @@ class RuffAdapter:
                 text=True,
                 timeout=300
             )
+
+            if self._raw_log_port:
+                self._raw_log_port.log_raw(
+                    "ruff",
+                    result.stdout or "",
+                    result.stderr or "",
+                )
 
             # Ruff returns 0 if it fixed everything, 1 if there are still issues
             # Either way, if it ran successfully, fixes may have been applied

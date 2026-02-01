@@ -1,14 +1,17 @@
-"""Unit tests for enhanced ApplyFixesUseCase with confirmation, rollback, and testing."""
+"""Unit tests for enhanced ApplyFixesUseCase with confirmation, rollback, and testing.
+
+All tests patch subprocess at the use case module so no real pytest is invoked.
+"""
 
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
 from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
 
+# Patch target so apply_fixes._run_pytest() uses mock, not real pytest
+_SUBPROCESS_RUN = "clean_architecture_linter.use_cases.apply_fixes.subprocess.run"
 
-@pytest.mark.slow
+
 class TestApplyFixesEnhanced:
     """Test enhanced fix functionality."""
 
@@ -21,7 +24,6 @@ class TestApplyFixesEnhanced:
         fixer_gateway.apply_fixes.return_value = True
         filesystem = FileSystemGateway()
 
-        # Create a mock rule that will generate a transformer
         mock_rule = MagicMock()
         mock_violation = MagicMock()
         mock_violation.fixable = True
@@ -30,8 +32,11 @@ class TestApplyFixesEnhanced:
         mock_rule.check.return_value = [mock_violation]
         mock_rule.fix.return_value = mock_transformer
 
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, create_backups=True)
-        use_case.execute([mock_rule], str(test_file))
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, create_backups=True, validate_with_tests=False
+        )
+        with patch(_SUBPROCESS_RUN):
+            use_case.execute([mock_rule], str(test_file))
 
         backup_file = tmp_path / "example.py.bak"
         assert backup_file.exists()
@@ -64,7 +69,6 @@ class TestApplyFixesEnhanced:
         fixer_gateway.apply_fixes.return_value = True
         filesystem = FileSystemGateway()
 
-        # Create a mock rule that will generate a transformer
         mock_rule = MagicMock()
         mock_violation = MagicMock()
         mock_violation.fixable = True
@@ -73,10 +77,12 @@ class TestApplyFixesEnhanced:
         mock_rule.check.return_value = [mock_violation]
         mock_rule.fix.return_value = mock_transformer
 
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, require_confirmation=True)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, require_confirmation=True, validate_with_tests=False
+        )
 
-        with patch('sys.stdin.isatty', return_value=True), patch(
-            'builtins.input', return_value='y'
+        with patch(_SUBPROCESS_RUN), patch("sys.stdin.isatty", return_value=True), patch(
+            "builtins.input", return_value="y"
         ):
             result = use_case.execute([mock_rule], str(test_file))
 
@@ -84,7 +90,7 @@ class TestApplyFixesEnhanced:
         assert result == 1
 
     def test_pytest_validation_runs_before_fix(self, tmp_path) -> None:
-        """Test that pytest runs before applying fixes."""
+        """Test that pytest would run before applying fixes (subprocess mocked)."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
@@ -94,18 +100,18 @@ class TestApplyFixesEnhanced:
 
         use_case = ApplyFixesUseCase(fixer_gateway, filesystem, validate_with_tests=True)
 
-        with patch('subprocess.run') as mock_run:
+        with patch(_SUBPROCESS_RUN) as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=0, stdout=b'', stderr=b''
+                returncode=0, stdout=b"", stderr=b""
             )
             use_case.execute([], str(test_file))
 
-        # Check pytest was called
-        calls = [c for c in mock_run.call_args_list if 'pytest' in str(c)]
-        assert len(calls) >= 1
+        mock_run.assert_called()
+        (call_args,) = mock_run.call_args[0]
+        assert "pytest" in str(call_args)
 
     def test_pytest_validation_rollback_on_new_failures(self, tmp_path) -> None:
-        """Test rollback when pytest introduces new failures."""
+        """Test rollback when pytest reports new failures after fix (subprocess mocked)."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
@@ -117,27 +123,33 @@ class TestApplyFixesEnhanced:
             fixer_gateway,
             filesystem,
             validate_with_tests=True,
-            create_backups=True
+            create_backups=True,
         )
 
-        with patch('subprocess.run') as mock_run:
-            # First run: 0 failures, Second run: 1 failed (regression!)
+        mock_rule = MagicMock()
+        mock_violation = MagicMock()
+        mock_violation.fixable = True
+        mock_violation.location = str(test_file)
+        mock_transformer = MagicMock()
+        mock_rule.check.return_value = [mock_violation]
+        mock_rule.fix.return_value = mock_transformer
+
+        with patch(_SUBPROCESS_RUN) as mock_run:
             mock_run.side_effect = [
-                MagicMock(returncode=0, stdout=b'', stderr=b''),  # Before fix
+                MagicMock(returncode=0, stdout=b"", stderr=b""),  # Baseline
                 MagicMock(
                     returncode=1,
-                    stdout=b'1 failed, 0 passed',
-                    stderr=b'',
-                ),  # After fix - REGRESSION
+                    stdout=b"1 failed, 0 passed",
+                    stderr=b"",
+                ),  # After fix - regression
             ]
 
-            _ = use_case.execute([], str(test_file))
+            use_case.execute([mock_rule], str(test_file))
 
-        # Should detect regression and restore
-        assert test_file.read_text() == "x = 1\n"  # Original content restored
+        assert test_file.read_text() == "x = 1\n"
 
     def test_skip_tests_flag_bypasses_validation(self, tmp_path) -> None:
-        """Test --skip-tests flag skips pytest validation."""
+        """Test validate_with_tests=False skips pytest (subprocess not called)."""
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
@@ -145,7 +157,6 @@ class TestApplyFixesEnhanced:
         fixer_gateway.apply_fixes.return_value = True
         filesystem = FileSystemGateway()
 
-        # Create a mock rule that will generate a transformer
         mock_rule = MagicMock()
         mock_violation = MagicMock()
         mock_violation.fixable = True
@@ -157,16 +168,13 @@ class TestApplyFixesEnhanced:
         use_case = ApplyFixesUseCase(
             fixer_gateway,
             filesystem,
-            validate_with_tests=False  # skip-tests
+            validate_with_tests=False,
         )
 
-        with patch('subprocess.run') as mock_run:
+        with patch(_SUBPROCESS_RUN) as mock_run:
             use_case.execute([mock_rule], str(test_file))
 
-        # Pytest should NOT be called
-        pytest_calls = [
-            c for c in mock_run.call_args_list if 'pytest' in str(c)]
-        assert len(pytest_calls) == 0
+        mock_run.assert_not_called()
 
     def test_backup_cleanup_on_success(self, tmp_path) -> None:
         """Test .bak files can be cleaned up after successful fix."""
@@ -181,10 +189,12 @@ class TestApplyFixesEnhanced:
             fixer_gateway,
             filesystem,
             create_backups=True,
-            cleanup_backups=True
+            cleanup_backups=True,
+            validate_with_tests=False,
         )
 
-        use_case.execute([], str(test_file))
+        with patch(_SUBPROCESS_RUN):
+            use_case.execute([], str(test_file))
 
         backup_file = tmp_path / "example.py.bak"
         # Should be cleaned up automatically

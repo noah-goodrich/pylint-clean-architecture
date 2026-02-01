@@ -4,6 +4,18 @@ This document explains how **Excelsior check** and **Excelsior fix** work: the m
 
 ---
 
+## Raw subprocess logs
+
+When Ruff, Mypy, or Pylint run (during `excelsior check` or fix), their raw stdout/stderr are appended to:
+
+- `.excelsior/logs/raw_ruff.log`
+- `.excelsior/logs/raw_mypy.log`
+- `.excelsior/logs/raw_pylint.log`
+
+This gives you the **unfiltered tool output** when debugging a failed audit. Each run adds a timestamped section.
+
+---
+
 ## Overview
 
 Excelsior runs checks and fixes in a **fixed order**, with **gates** so that later phases only run when earlier ones pass. The idea is:

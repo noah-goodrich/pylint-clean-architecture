@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.infrastructure.adapters.ruff_adapter import (
+from clean_architecture_linter.domain.constants import (
     RUFF_CODE_QUALITY_SELECT,
     RUFF_IMPORT_TYPING_SELECT,
 )
@@ -259,3 +259,43 @@ class TestCheckAuditUseCase:
         )
         mypy_adapter.gather_results.assert_called_once_with("src")
         excelsior_adapter.gather_results.assert_called_once_with("src")
+
+    def test_execute_blocks_on_ruff_code_quality_pass5(self) -> None:
+        """Test that when Pass 5 (Ruff code quality) has violations, audit is blocked by ruff."""
+        telemetry = Mock()
+        config_loader = Mock(spec=ConfigurationLoader)
+        config_loader.ruff_enabled = True
+
+        mypy_adapter = Mock()
+        mypy_adapter.gather_results.return_value = []
+        excelsior_adapter = Mock()
+        excelsior_adapter.gather_results.return_value = []
+        il_adapter = Mock()
+        il_adapter.gather_results.return_value = []
+        ruff_adapter = Mock()
+        ruff_adapter.gather_results.side_effect = [
+            [],  # Pass 2: Ruff import/typing - no violations
+            [LinterResult("E501", "Line too long", ["f.py:1"])],  # Pass 5: code quality
+        ]
+
+        use_case = CheckAuditUseCase(
+            mypy_adapter=mypy_adapter,
+            excelsior_adapter=excelsior_adapter,
+            import_linter_adapter=il_adapter,
+            ruff_adapter=ruff_adapter,
+            telemetry=telemetry,
+            config_loader=config_loader,
+        )
+
+        result = use_case.execute("src")
+
+        assert result.blocked_by == "ruff"
+        assert len(result.ruff_results) == 1
+        assert result.ruff_results[0].code == "E501"
+        assert ruff_adapter.gather_results.call_count == 2
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_IMPORT_TYPING_SELECT
+        )
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_CODE_QUALITY_SELECT
+        )

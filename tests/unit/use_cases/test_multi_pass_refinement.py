@@ -219,11 +219,11 @@ class User:
             fixable=True
         )
 
-        transformer = rule.fix(violation)
+        plan = rule.fix(violation)
 
-        assert transformer is not None
-        assert hasattr(transformer, 'class_name')
-        assert transformer.class_name == "User"
+        assert plan is not None
+        assert plan.transformation_type.value == "freeze_dataclass"
+        assert plan.params.get("class_name") == "User"
 
 
 class TestLoDCommentOnly:
@@ -252,14 +252,20 @@ class TestLoDCommentOnly:
         violation.location = f"{test_file}:1:1"
         violation.node = node
 
-        transformer = rule.fix(violation)
+        plan = rule.fix(violation)
 
-        assert transformer is not None
-        assert transformer.target_line == 1
+        assert plan is not None
+        assert plan.params.get("target_line") == 1
 
-        # Apply transformer and verify code logic unchanged
+        # Apply plan via gateway and verify code logic unchanged
+        from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
+            LibCSTFixerGateway,
+        )
         import libcst as cst
+        gateway = LibCSTFixerGateway()
         module = cst.parse_module(original_code)
+        transformer = gateway._plan_to_transformer(plan)
+        transformer.source_lines = original_code.splitlines()
         modified = module.visit(transformer)
 
         # Code should still contain the original logic
