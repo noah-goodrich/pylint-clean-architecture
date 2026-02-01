@@ -6,7 +6,7 @@ These tests focus on methods identified as high-priority in TEST_PRIORITIES.md:
 - Pytest validation (_run_pytest, _run_baseline_if_enabled)
 - Fix handling (_handle_successful_fix)
 - Transformer collection (_collect_transformers_from_rules)
-- Multi-pass execution (execute_multi_pass, _execute_pass1_ruff, etc.)
+- Multi-pass execution (execute_multi_pass, _execute_pass1_ruff_import_typing, etc.)
 - File modification workflows
 
 These tests use mocks to avoid subprocess calls and are NOT marked as slow.
@@ -389,7 +389,7 @@ class TestCollectTransformersFromRules:
         mock_rule.check.return_value = [mock_violation]
         mock_rule.fix.return_value = mock_transformer
 
-        transformers, failed_fixes = use_case._collect_transformers_from_rules(
+        transformers, failed_fixes, _ = use_case._collect_transformers_from_rules(
             [mock_rule], str(test_file)
         )
 
@@ -413,7 +413,7 @@ class TestCollectTransformersFromRules:
         mock_rule.check.return_value = [mock_violation]
         mock_rule.fix.return_value = [t1, t2]
 
-        transformers, failed_fixes = use_case._collect_transformers_from_rules(
+        transformers, failed_fixes, _ = use_case._collect_transformers_from_rules(
             [mock_rule], str(test_file)
         )
 
@@ -434,7 +434,7 @@ class TestCollectTransformersFromRules:
         mock_violation.fixable = False
         mock_rule.check.return_value = [mock_violation]
 
-        transformers, failed_fixes = use_case._collect_transformers_from_rules(
+        transformers, failed_fixes, _ = use_case._collect_transformers_from_rules(
             [mock_rule], str(test_file)
         )
 
@@ -460,7 +460,7 @@ class TestCollectTransformersFromRules:
         mock_rule.check.return_value = [mock_violation]
         mock_rule.fix.return_value = None
 
-        transformers, failed_fixes = use_case._collect_transformers_from_rules(
+        transformers, failed_fixes, _ = use_case._collect_transformers_from_rules(
             [mock_rule], str(test_file)
         )
 
@@ -484,7 +484,7 @@ class TestCollectTransformersFromRules:
         mock_rule.code = "TEST001"
         mock_rule.check.side_effect = Exception("Rule error")
 
-        transformers, failed_fixes = use_case._collect_transformers_from_rules(
+        transformers, failed_fixes, _ = use_case._collect_transformers_from_rules(
             [mock_rule], str(test_file)
         )
 
@@ -505,7 +505,7 @@ class TestCollectTransformersFromRules:
 
         mock_rule = MagicMock()
 
-        transformers, failed_fixes = use_case._collect_transformers_from_rules(
+        transformers, failed_fixes, _ = use_case._collect_transformers_from_rules(
             [mock_rule], str(test_file)
         )
 
@@ -526,28 +526,29 @@ class TestMultiPassExecution:
             fixer_gateway, filesystem, telemetry=telemetry)
 
         with patch.object(use_case, '_run_baseline_if_enabled'), \
-                patch.object(use_case, '_execute_pass1_ruff', return_value=1), \
+                patch.object(use_case, '_execute_pass1_ruff_import_typing', return_value=1), \
                 patch.object(use_case, '_execute_pass2_type_hints', return_value=2), \
                 patch.object(use_case, '_clear_astroid_cache'), \
                 patch.object(use_case, '_execute_pass3_architecture_code', return_value=3), \
-                patch.object(use_case, '_execute_pass4_governance_comments', return_value=4):
+                patch.object(use_case, '_execute_pass4_governance_comments', return_value=4), \
+                patch.object(use_case, '_execute_pass5_ruff_code_quality', return_value=0):
             result = use_case.execute_multi_pass([], "test_path")
 
-        assert result == 10  # 1 + 2 + 3 + 4
+        assert result == 10  # 1 + 2 + 3 + 4 + 0
         telemetry.step.assert_called()
 
-    def test_execute_pass1_ruff_returns_zero_when_disabled(self) -> None:
-        """Test _execute_pass1_ruff returns 0 when ruff_adapter is None."""
+    def test_execute_pass1_ruff_import_typing_returns_zero_when_disabled(self) -> None:
+        """Test _execute_pass1_ruff_import_typing returns 0 when ruff_adapter is None."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         use_case = ApplyFixesUseCase(fixer_gateway, filesystem)
 
-        result = use_case._execute_pass1_ruff("test_path")
+        result = use_case._execute_pass1_ruff_import_typing("test_path")
 
         assert result == 0
 
-    def test_execute_pass1_ruff_returns_zero_when_config_disabled(self) -> None:
-        """Test _execute_pass1_ruff returns 0 when ruff_enabled is False."""
+    def test_execute_pass1_ruff_import_typing_returns_zero_when_config_disabled(self) -> None:
+        """Test _execute_pass1_ruff_import_typing returns 0 when ruff_enabled is False."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
         ruff_adapter = MagicMock()
@@ -556,7 +557,7 @@ class TestMultiPassExecution:
         use_case = ApplyFixesUseCase(
             fixer_gateway, filesystem, ruff_adapter=ruff_adapter, config_loader=config_loader)
 
-        result = use_case._execute_pass1_ruff("test_path")
+        result = use_case._execute_pass1_ruff_import_typing("test_path")
 
         assert result == 0
 

@@ -1,6 +1,6 @@
 import ast
 import logging
-from typing import Optional, Set
+from typing import Optional
 
 from typeshed_client import finder
 
@@ -12,7 +12,7 @@ class TypeshedService(TypeshedProtocol):
     """Service to interact with typeshed stubs via typeshed-client."""
 
     _instance: Optional["TypeshedService"] = None
-    _stdlib_modules: Set[str] = set()
+    _stdlib_modules: set[str] = set()
 
     def __new__(cls) -> "TypeshedService":
         if cls._instance is None:

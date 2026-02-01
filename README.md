@@ -46,6 +46,15 @@ Run Pylint as usual:
 pylint src/
 ```
 
+### Excelsior Check and Fix: Passes and Gates
+
+Excelsior runs a **gated sequential audit** (check) and a **multi-pass fix** pipeline (fix). Layers first, then style/typing, then code quality.
+
+- **Check:** Pass 1 (Import-Linter layer contracts) → Pass 2 (Ruff I/UP/B) → Pass 3 (Mypy) → Pass 4 (Excelsior architectural) → Pass 5 (Ruff code quality). All passes are blocking; the first with violations stops the pipeline.
+- **Fix:** Pass 1 (Ruff I/UP/B) → Pass 2 (W9015 type hints) → cache clear → Pass 3 (architectural code) → Pass 4 (governance comments) → Pass 5 (Ruff code quality). Pass 3 and Pass 4 are **gated**: they run only when the full audit passes (no import_linter/ruff/mypy/excelsior block). Pass 1, 2, and 5 always run when enabled.
+
+See **[docs/EXCELSIOR_PASSES_AND_GATES.md](docs/EXCELSIOR_PASSES_AND_GATES.md)** for full details: pass order, blocked-by values, Ruff rule groups, and recommended workflow.
+
 ### Excelsior Auto-Fix Suite
 
 Excelsior can automatically repair several common architectural and stylistic violations.

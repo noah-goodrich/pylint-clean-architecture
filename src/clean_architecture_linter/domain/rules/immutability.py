@@ -1,6 +1,6 @@
 """Domain Immutability Rule (W9601) - Auto-fix for frozen dataclasses."""
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 
@@ -30,7 +30,7 @@ class DomainImmutabilityRule:
     def __init__(self) -> None:
         pass
 
-    def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
+    def check(self, node: astroid.nodes.NodeNG) -> list[Violation]:
         """
         Check for Domain Immutability violations.
 

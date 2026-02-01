@@ -1,7 +1,7 @@
 """Pattern checks (W9005, W9006, W9019)."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
@@ -117,7 +117,7 @@ class CouplingChecker(BaseChecker):
             ),
         }
         super().__init__(linter)
-        self._locals_map: Dict[str, bool] = {}
+        self._locals_map: dict[str, bool] = {}
         self._ast_gateway = ast_gateway
         self._python_gateway = python_gateway
 
@@ -192,7 +192,7 @@ class CouplingChecker(BaseChecker):
         if not isinstance(node.func, astroid.nodes.Attribute):
             return False
 
-        chain: List[str] = []
+        chain: list[str] = []
         curr: astroid.nodes.NodeNG = node.func
         while isinstance(curr, (astroid.nodes.Attribute, astroid.nodes.Call)):
             if isinstance(curr, astroid.nodes.Attribute):
@@ -546,7 +546,7 @@ class CouplingChecker(BaseChecker):
         self,
         node: astroid.nodes.Call,
         curr: astroid.nodes.NodeNG,
-        chain: List[str],
+        chain: list[str],
         config_loader: "ConfigurationLoader",
     ) -> bool:
         """Primitive receiver, safe source, self/cls, local instantiation, hinted protocol."""
@@ -564,7 +564,7 @@ class CouplingChecker(BaseChecker):
     def _is_chain_excluded(
         self,
         node: astroid.nodes.Call,
-        chain: List[str],
+        chain: list[str],
         curr: astroid.nodes.NodeNG,
     ) -> bool:
         """Tiered logic for chain exclusion. Stub-First: no nominal/attribute-name matching."""
@@ -586,7 +586,7 @@ class CouplingChecker(BaseChecker):
         qname = self._ast_gateway.get_return_type_qname_from_expr(receiver)
         return bool(qname and self._ast_gateway.is_primitive(qname))
 
-    def _is_self_or_cls(self, curr: astroid.nodes.NodeNG, chain: List[str]) -> bool:
+    def _is_self_or_cls(self, curr: astroid.nodes.NodeNG, chain: list[str]) -> bool:
         """Check if call is on self/cls within limits."""
         return (
             isinstance(curr, astroid.nodes.Name)

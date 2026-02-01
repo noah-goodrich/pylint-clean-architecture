@@ -3,7 +3,6 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from typing import Dict, List
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import LinterResult
@@ -13,7 +12,7 @@ from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 class ExcelsiorAdapter(LinterAdapterProtocol):
     """Adapter for Pylint Clean Architecture output."""
 
-    def gather_results(self, target_path: str) -> List[LinterResult]:
+    def gather_results(self, target_path: str) -> list[LinterResult]:
         """Run pylint with Clean Architecture and gather results."""
         env = os.environ.copy()
         env["PYTHONPATH"] = "src"
@@ -46,9 +45,9 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
             # JUSTIFICATION: Error message wrapping requires explicit list creation.
             return [LinterResult("EXCELSIOR_ERROR", str(e), [])]
 
-    def _parse_output(self, output: str) -> List[LinterResult]:
+    def _parse_output(self, output: str) -> list[LinterResult]:
         # Structure: {msg_id: {"message": str, "locations": set}}
-        collected: Dict[str, Dict[str, object]] = defaultdict(
+        collected: dict[str, dict[str, object]] = defaultdict(
             lambda: {"message": "", "locations": set()})
         # Pattern: path:line: msg_id: msg (symbol)
         pattern = re.compile(r"^(.*?):(\d+): (.*?): (.*)$")
@@ -83,7 +82,7 @@ class ExcelsiorAdapter(LinterAdapterProtocol):
         """Check if this linter supports automatic fixing."""
         return True  # Via LibCST fixes
 
-    def get_fixable_rules(self) -> List[str]:
+    def get_fixable_rules(self) -> list[str]:
         """
         Return list of rule codes that can be auto-fixed (via LibCST transforms).
 

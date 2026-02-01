@@ -127,11 +127,12 @@ class TestMissingCoverageLines:
             fixer_gateway, filesystem, telemetry=telemetry)
 
         with patch.object(use_case, '_run_baseline_if_enabled'), \
-                patch.object(use_case, '_execute_pass1_ruff', return_value=0), \
+                patch.object(use_case, '_execute_pass1_ruff_import_typing', return_value=0), \
                 patch.object(use_case, '_execute_pass2_type_hints', return_value=0), \
                 patch.object(use_case, '_clear_astroid_cache'), \
                 patch.object(use_case, '_execute_pass3_architecture_code', return_value=0), \
-                patch.object(use_case, '_execute_pass4_governance_comments', return_value=0):
+                patch.object(use_case, '_execute_pass4_governance_comments', return_value=0), \
+                patch.object(use_case, '_execute_pass5_ruff_code_quality', return_value=0):
             use_case.execute_multi_pass([], "test_path")
 
         telemetry.step.assert_called()

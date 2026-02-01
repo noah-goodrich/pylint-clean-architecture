@@ -1,7 +1,6 @@
 """Filesystem Gateway - Infrastructure implementation of FileSystemProtocol."""
 
 from pathlib import Path
-from typing import List
 
 from clean_architecture_linter.domain.protocols import FileSystemProtocol
 
@@ -17,7 +16,7 @@ class FileSystemGateway(FileSystemProtocol):
         """Check if path is a directory."""
         return Path(path).is_dir()
 
-    def glob_python_files(self, path: str) -> List[str]:
+    def glob_python_files(self, path: str) -> list[str]:
         """Get all Python files in path (recursive if directory)."""
         path_obj = Path(path).resolve()
         if path_obj.is_dir():
@@ -35,6 +34,11 @@ class FileSystemGateway(FileSystemProtocol):
     def write_text(self, path: str, content: str, encoding: str = "utf-8") -> None:
         """Write text content to a file."""
         Path(path).write_text(content, encoding=encoding)
+
+    def append_text(self, path: str, content: str, encoding: str = "utf-8") -> None:
+        """Append text to a file (creates if missing)."""
+        with open(path, "a", encoding=encoding) as f:
+            f.write(content)
 
     def join_path(self, *paths: str) -> str:
         """Join path components into a single path string."""

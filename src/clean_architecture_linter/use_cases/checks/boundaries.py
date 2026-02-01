@@ -1,6 +1,6 @@
 """Layer boundary checks (W9003-W9009)."""
 
-from typing import TYPE_CHECKING, List, Optional, Set
+from typing import TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 
@@ -62,9 +62,9 @@ class ResourceChecker(BaseChecker):
         self._python_gateway = python_gateway
 
     @property
-    def allowed_prefixes(self) -> Set[str]:
+    def allowed_prefixes(self) -> set[str]:
         """Get configured allowed prefixes."""
-        defaults: Set[str] = {
+        defaults: set[str] = {
             "typing", "dataclasses", "abc", "enum", "pathlib", "logging",
             "datetime", "uuid", "re", "math", "random", "decimal",
             "functools", "itertools", "collections", "contextlib", "json",
@@ -83,7 +83,7 @@ class ResourceChecker(BaseChecker):
         if node.modname:
             self._check_import(node, [node.modname])
 
-    def _check_import(self, node: astroid.nodes.NodeNG, names: List[str]) -> None:
+    def _check_import(self, node: astroid.nodes.NodeNG, names: list[str]) -> None:
         """Core logic for resource access check."""
         if not self._python_gateway:
             return
@@ -107,7 +107,7 @@ class ResourceChecker(BaseChecker):
         module_name: str = root.name
 
         normalized_path = file_path.replace("\\", "/")
-        parts: List[str] = normalized_path.split("/")
+        parts: list[str] = normalized_path.split("/")
 
         return (
             "tests" in parts or

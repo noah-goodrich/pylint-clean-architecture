@@ -52,7 +52,7 @@ def _resolve_target_path(path: Optional[Path]) -> str:
 
 @app.command()
 def check(
-    path: Optional[Path] = typer.Argument(None, help="Path to audit (default: current directory, .)"),  # noqa: B008
+    path: Optional[Path] = typer.Argument(None, help="Path to audit (default: current directory, .)"),  # noqa: B008, RUF100
     linter: str = typer.Option("all", help="Specific linter to run"),
 ) -> None:
     """Run the gated sequential audit (Ruff → Mypy → Excelsior)."""
@@ -86,9 +86,16 @@ def check(
     reporter = container.get("AuditReporter")
     reporter.report_audit(audit_result)
 
-    # Save audit trail
+    # Save audit trail and AI handover (check-specific files) and append to history
     audit_trail_service = container.get("AuditTrailService")
-    audit_trail_service.save_audit_trail(audit_result)
+    audit_trail_service.save_audit_trail(audit_result, source="check")
+    audit_trail_service.save_ai_handover(audit_result, source="check")
+    audit_trail_service.append_audit_history(
+        audit_result,
+        source="check",
+        json_path=".excelsior/last_audit_check.json",
+        txt_path=".excelsior/last_audit_check.txt",
+    )
 
     # AI Handover message
     telemetry.step("AI Agent Handover initialized.")
@@ -96,7 +103,9 @@ def check(
     print("🤖 EXCELSIOR v2: AI HANDOVER")
     print("=" * 40)
     print("System Integrity Report completed.")
-    print("Audit Log: .excelsior/last_audit.json")
+    print("Audit (check): .excelsior/last_audit_check.json")
+    print("AI Handover (check): .excelsior/ai_handover_check.json")
+    print("History (append): .excelsior/audit_history.jsonl")
     print("Run 'excelsior fix' to resolve common issues.")
     print("=" * 40 + "\n")
 
@@ -108,7 +117,7 @@ def check(
 
 @app.command()
 def fix(
-    path: Optional[Path] = typer.Argument(None, help="Path to fix (default: current directory, .)"),  # noqa: B008
+    path: Optional[Path] = typer.Argument(None, help="Path to fix (default: current directory, .)"),  # noqa: B008, RUF100
     linter: str = typer.Option(
         "all", help="Which linter to fix violations for"),
     confirm: bool = typer.Option(
@@ -256,12 +265,25 @@ def _run_fix_excelsior(
     telemetry.step(
         f"✅ Successfully fixed {modified} file(s)" if modified > 0 else "ℹ️  No fixes applied"
     )
+
+    # Re-audit and persist fix-specific audit trail + AI handover; append to history
+    post_fix_audit = check_audit_use_case.execute(target_path)
+    audit_trail_service = container.get("AuditTrailService")
+    audit_trail_service.save_audit_trail(post_fix_audit, source="fix")
+    audit_trail_service.save_ai_handover(post_fix_audit, source="fix")
+    audit_trail_service.append_audit_history(
+        post_fix_audit,
+        source="fix",
+        json_path=".excelsior/last_audit_fix.json",
+        txt_path=".excelsior/last_audit_fix.txt",
+    )
+
     sys.exit(0)
 
 
 @app.command()
 def ai_workflow(
-    path: Optional[Path] = typer.Argument(None, help="Path to audit (default: current directory, .)"),  # noqa: B008
+    path: Optional[Path] = typer.Argument(None, help="Path to audit (default: current directory, .)"),  # noqa: B008, RUF100
     max_iterations: int = typer.Option(
         5, "--max-iterations", help="Maximum fix/check cycles before stopping"
     ),
@@ -379,13 +401,19 @@ def ai_workflow(
     telemetry.step("\n📊 Final audit...")
     final_audit_result = check_audit_use_case.execute(target_path)
 
-    # Save standard audit trail
+    # Save audit trail and handover (ai_workflow-specific files) and append to history
     audit_trail_service = container.get("AuditTrailService")
-    audit_trail_service.save_audit_trail(final_audit_result)
-
-    # Generate AI handover bundle
+    audit_trail_service.save_audit_trail(final_audit_result, source="ai_workflow")
     telemetry.step("\n🤖 Generating AI handover bundle...")
-    handover_path = audit_trail_service.save_ai_handover(final_audit_result)
+    handover_path = audit_trail_service.save_ai_handover(
+        final_audit_result, source="ai_workflow"
+    )
+    audit_trail_service.append_audit_history(
+        final_audit_result,
+        source="ai_workflow",
+        json_path=".excelsior/last_audit_ai_workflow.json",
+        txt_path=".excelsior/last_audit_ai_workflow.txt",
+    )
 
     # Print summary
     print("\n" + "=" * 60)
@@ -393,6 +421,7 @@ def ai_workflow(
     print("=" * 60)
     print(f"Iterations completed: {iteration}/{max_iterations}")
     print(f"\n📁 AI Handover Bundle: {handover_path}")
+    print("   History (append): .excelsior/audit_history.jsonl")
     print("\n📋 Summary:")
     if final_audit_result.has_violations():
         total = (
@@ -403,7 +432,7 @@ def ai_workflow(
         )
         print(f"   ⚠️  {total} violation(s) remaining")
         print("\n💡 Next Steps:")
-        print("   1. Review ai_handover.json for structured violation data")
+        print("   1. Review ai_handover_ai_workflow.json for structured violation data")
         print("   2. Search for 'EXCELSIOR' comments in source files")
         print("   3. Fix violations guided by governance comments")
         print("   4. Re-run 'excelsior check' to verify fixes")

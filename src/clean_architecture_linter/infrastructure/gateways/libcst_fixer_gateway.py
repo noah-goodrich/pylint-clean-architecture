@@ -1,6 +1,5 @@
 """LibCST based Fixer Gateway."""
 
-from typing import List
 
 import libcst as cst
 
@@ -10,7 +9,7 @@ from clean_architecture_linter.domain.protocols import FixerGatewayProtocol
 class LibCSTFixerGateway(FixerGatewayProtocol):
     """Gateway for applying safe code modifications using LibCST."""
 
-    def apply_fixes(self, file_path: str, transformers: List[cst.CSTTransformer]) -> bool:
+    def apply_fixes(self, file_path: str, transformers: list[cst.CSTTransformer]) -> bool:
         """
         Apply a list of CST transformers to a file.
 

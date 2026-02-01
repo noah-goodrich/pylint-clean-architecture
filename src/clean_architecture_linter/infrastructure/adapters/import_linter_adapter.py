@@ -1,6 +1,5 @@
 import subprocess
 import sys
-from typing import List
 
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
@@ -9,7 +8,7 @@ from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 class ImportLinterAdapter(LinterAdapterProtocol):
     """Adapter for Import Linter output."""
 
-    def gather_results(self, target_path: str) -> List[LinterResult]:
+    def gather_results(self, target_path: str) -> list[LinterResult]:
         """Run import-linter and gather results."""
         # Note: import-linter usually looks for a configuration file (.importlinter or setup.cfg)
         # It doesn't typically take a target path as a CLI arg in the same way,
@@ -35,7 +34,7 @@ class ImportLinterAdapter(LinterAdapterProtocol):
         except Exception as e:
             return [LinterResult("IMPORT_LINTER_ERROR", str(e), [])]
 
-    def _parse_output(self, output: str) -> List[LinterResult]:
+    def _parse_output(self, output: str) -> list[LinterResult]:
         results = []
         # Import Linter output is usually human-readable text describing contract failures.
         # This is a very basic parser for its "Broken contract" sections.
@@ -55,7 +54,7 @@ class ImportLinterAdapter(LinterAdapterProtocol):
         """Check if this linter supports automatic fixing."""
         return False
 
-    def get_fixable_rules(self) -> List[str]:
+    def get_fixable_rules(self) -> list[str]:
         """Return list of rule codes that can be auto-fixed."""
         return []  # Import-Linter does not support auto-fixing
 

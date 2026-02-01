@@ -51,7 +51,8 @@ class ContractChecker(BaseChecker):
             return
 
         if not node.bases:
-            self.add_message("contract-integrity-violation", node=node, args=(node.name,))
+            self.add_message("contract-integrity-violation",
+                             node=node, args=(node.name,))
             return
 
         has_domain_base: bool = False
@@ -72,7 +73,8 @@ class ContractChecker(BaseChecker):
                 domain_protos.append(base)
 
         if not has_domain_base:
-            self.add_message("contract-integrity-violation", node=node, args=(node.name,))
+            self.add_message("contract-integrity-violation",
+                             node=node, args=(node.name,))
         else:
             # Check for public methods NOT in protocol
             self._check_extra_methods(node, domain_protos)
@@ -93,10 +95,18 @@ class ContractChecker(BaseChecker):
             # Also skip if it's a property or other decorator-based method?
             # For now, just public methods.
             if method.name not in proto_methods:
-                self.add_message("contract-integrity-violation", node=method, args=(node.name,))
+                self.add_message("contract-integrity-violation",
+                                 node=method, args=(node.name,))
 
     def visit_functiondef(self, node: astroid.nodes.FunctionDef) -> None:
         """W9202: Detect concrete method stubs."""
+        # By design, stubs (.pyi) and files under stubs/ are empty; do not report W9202
+        try:
+            fp = getattr(node.root(), "file", "") or ""
+            if "/stubs/" in fp or fp.endswith(".pyi"):
+                return
+        except Exception:
+            pass
         # Manual check for abstract decorators to avoid being too smart with ellipsis
         is_officially_abstract: bool = False
         if node.decorators:
@@ -116,12 +126,14 @@ class ContractChecker(BaseChecker):
                 return
 
             # Check by layer
-            layer = self._python_gateway.get_node_layer(parent, self.config_loader)
+            layer = self._python_gateway.get_node_layer(
+                parent, self.config_loader)
             if layer == LayerRegistry.LAYER_DOMAIN:
                 return
 
         if self._is_stub(node):
-            self.add_message("concrete-method-stub", node=node, args=(node.name,))
+            self.add_message("concrete-method-stub",
+                             node=node, args=(node.name,))
 
     def _is_stub(self, node: astroid.nodes.FunctionDef) -> bool:
         """Check if a function body is a stub (pass, ..., return None)."""
@@ -139,7 +151,8 @@ class ContractChecker(BaseChecker):
             ):
                 continue
             if isinstance(stmt, astroid.nodes.Return) and (
-                not stmt.value or (isinstance(stmt.value, astroid.nodes.Const) and stmt.value.value is None)
+                not stmt.value or (isinstance(
+                    stmt.value, astroid.nodes.Const) and stmt.value.value is None)
             ):
                 continue
             if isinstance(stmt, astroid.nodes.If):

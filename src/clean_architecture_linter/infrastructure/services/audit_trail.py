@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Optional
 
 from clean_architecture_linter.domain.entities import (
     AuditResult,
@@ -36,21 +36,31 @@ class AuditTrailService:
         self.rule_fixability_service = rule_fixability_service
         self.filesystem = filesystem
 
-    def save_audit_trail(self, audit_result: AuditResult) -> None:
-        """Save audit results to .excelsior directory for human/AI review."""
+    def save_audit_trail(
+        self, audit_result: AuditResult, source: Optional[str] = None
+    ) -> None:
+        """
+        Save audit results to .excelsior directory for human/AI review.
+
+        Args:
+            audit_result: Result of the audit.
+            source: Command that produced the audit ('check', 'fix', 'ai_workflow').
+                     When set, files are named last_audit_{source}.json and last_audit_{source}.txt
+                     so check and fix produce separate sets for debugging gaps.
+        """
         excelsior_dir = ".excelsior"
         self.filesystem.make_dirs(excelsior_dir, exist_ok=True)
+
+        base = "last_audit" if not source else f"last_audit_{source}"
+        json_path = self.filesystem.join_path(excelsior_dir, f"{base}.json")
+        txt_path = self.filesystem.join_path(excelsior_dir, f"{base}.txt")
 
         # Build domain entity from audit result
         audit_trail = self._build_audit_trail(audit_result, excelsior_dir)
 
-        # Persist to filesystem (Infrastructure concern)
-        json_path = self.filesystem.join_path(excelsior_dir, "last_audit.json")
         json_content = json.dumps(audit_trail.to_dict(), indent=2)
         self.filesystem.write_text(json_path, json_content)
 
-        # Write human-readable text format
-        txt_path = self.filesystem.join_path(excelsior_dir, "last_audit.txt")
         txt_content = self._build_text_content(audit_result, audit_trail)
         self.filesystem.write_text(txt_path, txt_content)
 
@@ -100,8 +110,8 @@ class AuditTrailService:
         )
 
     def _build_violations_with_fix_info(
-        self, results: List[LinterResult], adapter: object
-    ) -> List[ViolationWithFixInfo]:
+        self, results: list[LinterResult], adapter: object
+    ) -> list[ViolationWithFixInfo]:
         """Build domain ViolationWithFixInfo entities from LinterResults."""
         violations = []
         for result in results:
@@ -162,9 +172,9 @@ class AuditTrailService:
 
     def _append_violations_section(
         self,
-        lines: List[str],
+        lines: list[str],
         title: str,
-        violations: List[ViolationWithFixInfo],
+        violations: list[ViolationWithFixInfo],
         include_locations: bool = True,
     ) -> None:
         """Append a violations section to lines list."""
@@ -185,15 +195,16 @@ class AuditTrailService:
                 lines.append(
                     f"  How to fix (juniors & AI): {violation.manual_instructions}")
 
-    def save_ai_handover(self, audit_result: AuditResult) -> str:
+    def save_ai_handover(
+        self, audit_result: AuditResult, source: Optional[str] = None
+    ) -> str:
         """
         Generate and save AI handover bundle for autonomous fixing.
 
-        Creates a structured JSON file (.excelsior/ai_handover.json) with:
-        - Remaining violations grouped by rule code
-        - File locations with line numbers (for finding EXCELSIOR comment anchors)
-        - Fixability status and instructions
-        - Next steps guidance
+        Args:
+            audit_result: Result of the audit.
+            source: Command that produced the audit ('check', 'fix', 'ai_workflow').
+                    When set, file is named ai_handover_{source}.json.
 
         Returns:
             Path to the generated JSON file
@@ -201,19 +212,60 @@ class AuditTrailService:
         excelsior_dir = ".excelsior"
         self.filesystem.make_dirs(excelsior_dir, exist_ok=True)
 
-        # Build AI handover structure
-        handover = self._build_ai_handover(audit_result)
+        base = "ai_handover" if not source else f"ai_handover_{source}"
+        json_path = self.filesystem.join_path(excelsior_dir, f"{base}.json")
 
-        # Persist to filesystem
-        json_path = self.filesystem.join_path(
-            excelsior_dir, "ai_handover.json")
+        handover = self._build_ai_handover(audit_result)
         json_content = json.dumps(handover, indent=2)
         self.filesystem.write_text(json_path, json_content)
 
         self.telemetry.step(f"🤖 AI Handover bundle saved to: {json_path}")
         return json_path
 
-    def _build_ai_handover(self, audit_result: AuditResult) -> Dict[str, Any]:
+    def append_audit_history(
+        self,
+        audit_result: AuditResult,
+        source: str,
+        json_path: str,
+        txt_path: str,
+    ) -> None:
+        """
+        Append one record to the audit history file (append-only, never overwrite).
+
+        Helps debug gaps between check and fix by viewing history of what each run found.
+        Each line is a single JSON object (NDJSON).
+        """
+        excelsior_dir = ".excelsior"
+        self.filesystem.make_dirs(excelsior_dir, exist_ok=True)
+        history_path = self.filesystem.join_path(
+            excelsior_dir, "audit_history.jsonl"
+        )
+
+        total = (
+            len(audit_result.ruff_results)
+            + len(audit_result.mypy_results)
+            + len(audit_result.excelsior_results)
+            + len(audit_result.import_linter_results)
+        )
+        record = {
+            "timestamp": datetime.now().isoformat(),
+            "source": source,
+            "blocked_by": audit_result.blocked_by,
+            "total_violations": total,
+            "ruff": len(audit_result.ruff_results),
+            "mypy": len(audit_result.mypy_results),
+            "excelsior": len(audit_result.excelsior_results),
+            "import_linter": len(audit_result.import_linter_results),
+            "snapshot_json": json_path,
+            "snapshot_txt": txt_path,
+        }
+        line = json.dumps(record) + "\n"
+        self.filesystem.append_text(history_path, line)
+        self.telemetry.step(
+            f"📜 Audit history appended to: {history_path}"
+        )
+
+    def _build_ai_handover(self, audit_result: AuditResult) -> dict[str, Any]:
         """Build AI handover JSON structure."""
         mypy_adapter = MypyAdapter()
         excelsior_adapter = ExcelsiorAdapter()
@@ -222,8 +274,8 @@ class AuditTrailService:
             telemetry=None) if audit_result.ruff_enabled else None
 
         # Group violations by rule code
-        violations_by_rule: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-        files_with_comments: Dict[str, List[int]] = defaultdict(list)
+        violations_by_rule: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        files_with_comments: dict[str, list[int]] = defaultdict(list)
 
         # Process all violations
         all_results = [
@@ -294,8 +346,8 @@ class AuditTrailService:
         }
 
     def _build_next_steps(
-        self, audit_result: AuditResult, violations_by_rule: Dict[str, List[Dict[str, Any]]]
-    ) -> List[str]:
+        self, audit_result: AuditResult, violations_by_rule: dict[str, list[dict[str, Any]]]
+    ) -> list[str]:
         """Build next steps guidance for AI."""
         steps = []
 
@@ -316,6 +368,12 @@ class AuditTrailService:
                 f"✅ {len(auto_fixable_rules)} rule(s) are auto-fixable. "
                 f"Run 'excelsior fix' to apply automatic fixes."
             )
+            # W9015: type hints are only auto-injected when type can be inferred
+            if "W9015" in auto_fixable_rules:
+                steps.append(
+                    "   W9015 (missing type hint): Run 'excelsior fix' first. "
+                    "Any locations that remain need manual type hints (inference failed for those parameters)."
+                )
 
         # Check for comment-only violations (governance comments already injected)
         comment_only_rules = [

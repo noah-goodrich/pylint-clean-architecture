@@ -1,6 +1,6 @@
 """Design checks (W9007, W9009, W9012, W9013, W9015, W9016)."""
 
-from typing import IO, TYPE_CHECKING, List, Optional, Set
+from typing import IO, TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 from pylint.checkers import BaseChecker
@@ -62,15 +62,15 @@ class DesignChecker(BaseChecker):
         self._ast_gateway = ast_gateway
 
     @property
-    def raw_types(self) -> Set[str]:
+    def raw_types(self) -> set[str]:
         """Get combined set of default and configured raw types."""
-        defaults: Set[str] = {"Cursor", "Session", "Response", "Engine", "Connection", "Result"}
+        defaults: set[str] = {"Cursor", "Session", "Response", "Engine", "Connection", "Result"}
         return defaults.union(self.config_loader.raw_types)
 
     @property
-    def infrastructure_modules(self) -> Set[str]:
+    def infrastructure_modules(self) -> set[str]:
         """Get combined set of default and configured infrastructure modules."""
-        defaults: Set[str] = {
+        defaults: set[str] = {
             "sqlalchemy",
             "requests",
             "psycopg2",
@@ -201,7 +201,7 @@ class DesignChecker(BaseChecker):
             if hasattr(root, "stream"):
                 stream: IO[bytes] = root.stream()
                 if stream:
-                    lines: List[bytes] = stream.readlines()
+                    lines: list[bytes] = stream.readlines()
                     line_bytes: bytes = lines[node.lineno - 1]
                     line_str: str = line_bytes.decode("utf-8")
                     return "noqa: W9016" in line_str and "JUSTIFICATION:" in line_str.upper()

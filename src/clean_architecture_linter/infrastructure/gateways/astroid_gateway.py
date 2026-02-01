@@ -1,5 +1,5 @@
 import builtins
-from typing import List, Optional, Set, Union
+from typing import Optional, Union
 
 import astroid  # type: ignore[import-untyped]
 
@@ -74,7 +74,7 @@ class AstroidGateway(AstroidProtocol):
         """Trace node to its origin and check if it comes from the standard library via Typeshed."""
         return self._trace_safety(node, set())
 
-    def _trace_safety(self, node: astroid.nodes.NodeNG, visited: Set[int]) -> Optional[str]:
+    def _trace_safety(self, node: astroid.nodes.NodeNG, visited: set[int]) -> Optional[str]:
         """Recursive safety tracing."""
         if id(node) in visited:
             return None
@@ -96,7 +96,7 @@ class AstroidGateway(AstroidProtocol):
         return None
 
     def _trace_safety_name(
-        self, node: astroid.nodes.Name, visited: Set[int]
+        self, node: astroid.nodes.Name, visited: set[int]
     ) -> Optional[str]:
         """Resolve Name via lookup and recurse."""
         stmts = node.lookup(node.name)[1]
@@ -105,7 +105,7 @@ class AstroidGateway(AstroidProtocol):
         return self._trace_safety(stmts[0], visited)
 
     def _trace_safety_assignname(
-        self, node: astroid.nodes.AssignName, visited: Set[int]
+        self, node: astroid.nodes.AssignName, visited: set[int]
     ) -> Optional[str]:
         """Handle AssignName: loop variable, tuple unpacking, or standard assignment."""
         parent = node.parent
@@ -120,7 +120,7 @@ class AstroidGateway(AstroidProtocol):
         return None
 
     def _trace_safety_call(
-        self, node: astroid.nodes.Call, visited: Set[int]
+        self, node: astroid.nodes.Call, visited: set[int]
     ) -> Optional[str]:
         """Check module.func() calls against typeshed; return safe qname if stdlib."""
         func = node.func
@@ -147,7 +147,7 @@ class AstroidGateway(AstroidProtocol):
             return "builtins.object"
         return None
 
-    def _check_iterator_safety(self, iter_node: astroid.nodes.NodeNG, visited: Set[int]) -> Optional[str]:
+    def _check_iterator_safety(self, iter_node: astroid.nodes.NodeNG, visited: set[int]) -> Optional[str]:
         """Check if an iterator source is safe."""
         # 1. Direct Call (os.walk())
         if isinstance(iter_node, astroid.nodes.Call):
@@ -166,7 +166,7 @@ class AstroidGateway(AstroidProtocol):
     def get_return_type_qname_from_expr(
         self,
         expr: astroid.nodes.NodeNG,
-        visited: Optional[Set[int]] = None,
+        visited: Optional[set[int]] = None,
     ) -> Optional[str]:
         """Recursive resolution for complex expressions."""
         if expr is None:
@@ -443,7 +443,11 @@ class AstroidGateway(AstroidProtocol):
         return None
 
     def _get_stub_attribute_type(
-        self, module_name: str, class_name: str, attr_name: str, context
+        self,
+        module_name: str,
+        class_name: str,
+        attr_name: str,
+        context: astroid.nodes.NodeNG,
     ) -> Optional[str]:
         stub = self._get_stub_authority()
         if not stub:
@@ -497,7 +501,7 @@ class AstroidGateway(AstroidProtocol):
                     return self._resolve_method_in_node(lookup_res[1][0], method_name)
 
             # 2. Absolute Lookup
-            module_parts: List[str] = class_qname.split(".")
+            module_parts: list[str] = class_qname.split(".")
             module_name: str = "builtins" if len(
                 module_parts) < 2 else ".".join(module_parts[:-1])
             class_name: str = module_parts[-1]
@@ -657,7 +661,7 @@ class AstroidGateway(AstroidProtocol):
         if hasattr(slice_node, "value") and not isinstance(slice_node, (astroid.nodes.Tuple, astroid.nodes.Const)):
             real_slice = slice_node.value
 
-        nodes: List[astroid.nodes.NodeNG] = []
+        nodes: list[astroid.nodes.NodeNG] = []
         if isinstance(real_slice, (astroid.nodes.Tuple, astroid.nodes.List)):
             nodes = real_slice.elts
         elif isinstance(real_slice, astroid.nodes.BinOp) and real_slice.op == "|":
@@ -672,9 +676,9 @@ class AstroidGateway(AstroidProtocol):
                 return res
         return None
 
-    def _resolve_bool_op(self, expr: astroid.nodes.BoolOp, visited: Set[int]) -> Optional[str]:
+    def _resolve_bool_op(self, expr: astroid.nodes.BoolOp, visited: set[int]) -> Optional[str]:
         """Resolve types in boolean operations."""
-        results: Set[str] = set()
+        results: set[str] = set()
         for v in expr.values:
             res = self.get_return_type_qname_from_expr(v, visited)
             if res:
@@ -685,7 +689,7 @@ class AstroidGateway(AstroidProtocol):
 
         return list(results)[0] if len(results) == 1 else None
 
-    def _resolve_bin_op(self, expr: astroid.nodes.BinOp, visited: Set[int]) -> Optional[str]:
+    def _resolve_bin_op(self, expr: astroid.nodes.BinOp, visited: set[int]) -> Optional[str]:
         """Resolve types in binary operations."""
         left = self.get_return_type_qname_from_expr(expr.left, visited)
         right = self.get_return_type_qname_from_expr(expr.right, visited)
@@ -821,7 +825,7 @@ class AstroidGateway(AstroidProtocol):
                     return lookup_res[1][0]
 
             # 2. Absolute Lookup
-            module_parts: List[str] = qname.split(".")
+            module_parts: list[str] = qname.split(".")
             module_name: str = "builtins" if len(
                 module_parts) < 2 else ".".join(module_parts[:-1])
             class_name: str = module_parts[-1]
@@ -860,9 +864,9 @@ class AstroidGateway(AstroidProtocol):
 
                 # Check base names if qnames are messy (e.g. '.DataFrame' vs 'pyspark.sql.DataFrame')
                 # JUSTIFICATION: Internal name extraction for normalization.
-                rec_parts: List[str] = receiver_qname.split(".")
+                rec_parts: list[str] = receiver_qname.split(".")
                 rec_base: str = rec_parts[-1]
-                ret_parts: List[str] = return_qname.split(".")
+                ret_parts: list[str] = return_qname.split(".")
                 ret_base: str = ret_parts[-1]
                 if rec_base == ret_base and rec_base != "NoneType":
                     return True
@@ -938,7 +942,7 @@ class AstroidGateway(AstroidProtocol):
         return False
 
     def _check_trusted_authority_call_recursive(
-        self, node: astroid.nodes.Call, visited: Set[int]
+        self, node: astroid.nodes.Call, visited: set[int]
     ) -> bool:
         """Internal helper to prevent recursion loops."""
         node_id = id(node)

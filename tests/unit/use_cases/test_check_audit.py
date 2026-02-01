@@ -4,6 +4,10 @@ from unittest.mock import Mock
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import AuditResult, LinterResult
+from clean_architecture_linter.infrastructure.adapters.ruff_adapter import (
+    RUFF_CODE_QUALITY_SELECT,
+    RUFF_IMPORT_TYPING_SELECT,
+)
 from clean_architecture_linter.use_cases.check_audit import CheckAuditUseCase
 
 
@@ -21,8 +25,7 @@ class TestCheckAuditUseCase:
         mypy_adapter.gather_results.return_value = []
 
         excelsior_adapter = Mock()
-        excelsior_adapter.gather_results.return_value = [
-            LinterResult("W9015", "Missing type hint", [])]
+        excelsior_adapter.gather_results.return_value = []
 
         il_adapter = Mock()
         il_adapter.gather_results.return_value = []
@@ -44,9 +47,15 @@ class TestCheckAuditUseCase:
 
         # Assert - All linters should run since no blocking violations
         assert isinstance(result, AuditResult)
-        assert len(result.excelsior_results) == 1
         assert result.blocked_by is None
-        ruff_adapter.gather_results.assert_called_once_with("src")
+        il_adapter.gather_results.assert_called_once_with("src")
+        assert ruff_adapter.gather_results.call_count == 2
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_IMPORT_TYPING_SELECT
+        )
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_CODE_QUALITY_SELECT
+        )
         mypy_adapter.gather_results.assert_called_once_with("src")
         excelsior_adapter.gather_results.assert_called_once_with("src")
 
@@ -62,6 +71,7 @@ class TestCheckAuditUseCase:
 
         excelsior_adapter = Mock()
         il_adapter = Mock()
+        il_adapter.gather_results.return_value = []  # Pass 1 passes
         ruff_adapter = Mock()
         ruff_adapter.gather_results.return_value = []
 
@@ -79,8 +89,43 @@ class TestCheckAuditUseCase:
         # Assert - Should be blocked by Mypy, Excelsior should not run
         assert len(result.mypy_results) == 1
         assert result.blocked_by == "mypy"
-        ruff_adapter.gather_results.assert_called_once_with("src")
+        il_adapter.gather_results.assert_called_once_with("src")
+        ruff_adapter.gather_results.assert_called_once_with(
+            "src", select_only=RUFF_IMPORT_TYPING_SELECT
+        )
         mypy_adapter.gather_results.assert_called_once_with("src")
+        excelsior_adapter.gather_results.assert_not_called()
+
+    def test_execute_blocks_on_import_linter_violations(self) -> None:
+        """Test that import-linter blocks: when it has violations, later passes do not run."""
+        telemetry = Mock()
+        config_loader = Mock(spec=ConfigurationLoader)
+        config_loader.ruff_enabled = True
+
+        il_adapter = Mock()
+        il_adapter.gather_results.return_value = [
+            LinterResult("CONTRACT", "Layer contract broken", [])]
+
+        ruff_adapter = Mock()
+        mypy_adapter = Mock()
+        excelsior_adapter = Mock()
+
+        use_case = CheckAuditUseCase(
+            mypy_adapter=mypy_adapter,
+            excelsior_adapter=excelsior_adapter,
+            import_linter_adapter=il_adapter,
+            ruff_adapter=ruff_adapter,
+            telemetry=telemetry,
+            config_loader=config_loader,
+        )
+
+        result = use_case.execute("src")
+
+        assert len(result.import_linter_results) == 1
+        assert result.blocked_by == "import_linter"
+        il_adapter.gather_results.assert_called_once_with("src")
+        ruff_adapter.gather_results.assert_not_called()
+        mypy_adapter.gather_results.assert_not_called()
         excelsior_adapter.gather_results.assert_not_called()
 
     def test_execute_skips_ruff_when_disabled(self) -> None:
@@ -112,6 +157,7 @@ class TestCheckAuditUseCase:
         result = use_case.execute("src")
 
         assert result.ruff_enabled is False
+        il_adapter.gather_results.assert_called_once_with("src")
         ruff_adapter.gather_results.assert_not_called()
 
     def test_execute_returns_no_violations_when_all_empty(self) -> None:
@@ -174,11 +220,11 @@ class TestCheckAuditUseCase:
 
         use_case.execute("src")
 
-        # Check that telemetry.step was called multiple times
-        assert telemetry.step.call_count >= 4  # At least one per linter
+        # Check that telemetry.step was called multiple times (5 passes)
+        assert telemetry.step.call_count >= 5
 
-    def test_execute_handles_excelsior_only(self) -> None:
-        """Test that only excelsior is called when linter='excelsior'."""
+    def test_execute_excelsior_blocks_when_violations(self) -> None:
+        """Test that Excelsior blocks: when it has violations, Pass 5 (Ruff code quality) does not run."""
         telemetry = Mock()
         config_loader = Mock(spec=ConfigurationLoader)
         config_loader.ruff_enabled = True
@@ -189,6 +235,7 @@ class TestCheckAuditUseCase:
         excelsior_adapter.gather_results.return_value = [
             LinterResult("W9015", "Missing type hint", [])]
         il_adapter = Mock()
+        il_adapter.gather_results.return_value = []
         ruff_adapter = Mock()
         ruff_adapter.gather_results.return_value = []
 
@@ -203,9 +250,12 @@ class TestCheckAuditUseCase:
 
         result = use_case.execute("src")
 
-        # Assert - All linters should run, Excelsior finds violations but doesn't block
+        # Assert - Blocked by Excelsior; Pass 5 (Ruff code quality) never runs
         assert len(result.excelsior_results) == 1
-        assert result.blocked_by is None
-        ruff_adapter.gather_results.assert_called_once_with("src")
+        assert result.blocked_by == "excelsior"
+        il_adapter.gather_results.assert_called_once_with("src")
+        ruff_adapter.gather_results.assert_called_once_with(
+            "src", select_only=RUFF_IMPORT_TYPING_SELECT
+        )
         mypy_adapter.gather_results.assert_called_once_with("src")
         excelsior_adapter.gather_results.assert_called_once_with("src")

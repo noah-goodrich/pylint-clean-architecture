@@ -23,10 +23,11 @@ class TestMultiPassRefinement:
         )
 
         with patch.object(use_case, '_run_baseline_if_enabled'), \
-                patch.object(use_case, '_execute_pass1_ruff', return_value=0), \
+                patch.object(use_case, '_execute_pass1_ruff_import_typing', return_value=0), \
                 patch.object(use_case, '_execute_pass2_type_hints', return_value=1), \
                 patch.object(use_case, '_execute_pass3_architecture_code', return_value=0), \
-                patch.object(use_case, '_execute_pass4_governance_comments', return_value=0):
+                patch.object(use_case, '_execute_pass4_governance_comments', return_value=0), \
+                patch.object(use_case, '_execute_pass5_ruff_code_quality', return_value=0):
             use_case.execute_multi_pass([], "test_path")
 
         # Verify cache was cleared after Pass 2
@@ -64,17 +65,22 @@ class TestMultiPassRefinement:
             call_order.append("pass4")
             return 4
 
+        def track_pass5(*args, **kwargs) -> int:
+            call_order.append("pass5")
+            return 0
+
         with patch.object(use_case, '_run_baseline_if_enabled'), \
-                patch.object(use_case, '_execute_pass1_ruff', side_effect=track_pass1), \
+                patch.object(use_case, '_execute_pass1_ruff_import_typing', side_effect=track_pass1), \
                 patch.object(use_case, '_execute_pass2_type_hints', side_effect=track_pass2), \
                 patch.object(use_case, '_clear_astroid_cache', side_effect=track_cache_clear), \
                 patch.object(use_case, '_execute_pass3_architecture_code', side_effect=track_pass3), \
-                patch.object(use_case, '_execute_pass4_governance_comments', side_effect=track_pass4):
+                patch.object(use_case, '_execute_pass4_governance_comments', side_effect=track_pass4), \
+                patch.object(use_case, '_execute_pass5_ruff_code_quality', side_effect=track_pass5):
             result = use_case.execute_multi_pass([], "test_path")
 
-        assert result == 10  # 1 + 2 + 3 + 4
+        assert result == 10  # 1 + 2 + 3 + 4 + 0
         assert call_order == ["pass1", "pass2",
-                              "clear_cache", "pass3", "pass4"]
+                              "clear_cache", "pass3", "pass4", "pass5"]
 
     def test_pass3_excludes_w9015_and_w9006(self) -> None:
         """Test that Pass 3 excludes W9015 (type hints) and W9006 (LoD comments)."""

@@ -460,3 +460,90 @@ class TestAuditTrailService:
                 assert "Comment" in txt_content or "💬" in txt_content
             finally:
                 os.chdir(original_cwd)
+
+    def test_save_audit_trail_with_source_writes_source_specific_files(
+        self,
+    ) -> None:
+        """With source='check', writes last_audit_check.json and last_audit_check.txt."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                audit_result = AuditResult(ruff_enabled=True)
+                service.save_audit_trail(audit_result, source="check")
+
+                assert Path(".excelsior/last_audit_check.json").exists()
+                assert Path(".excelsior/last_audit_check.txt").exists()
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_with_source_writes_source_specific_file(
+        self,
+    ) -> None:
+        """With source='fix', returns path to ai_handover_fix.json."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                audit_result = AuditResult(ruff_enabled=True)
+                path = service.save_ai_handover(audit_result, source="fix")
+
+                assert path == ".excelsior/ai_handover_fix.json"
+                assert Path(".excelsior/ai_handover_fix.json").exists()
+            finally:
+                os.chdir(original_cwd)
+
+    def test_append_audit_history_appends_line(self) -> None:
+        """append_audit_history appends one NDJSON line; multiple calls grow the file."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, filesystem)
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+                audit_result = AuditResult(ruff_enabled=True)
+
+                service.append_audit_history(
+                    audit_result,
+                    source="check",
+                    json_path=".excelsior/last_audit_check.json",
+                    txt_path=".excelsior/last_audit_check.txt",
+                )
+                content1 = Path(".excelsior/audit_history.jsonl").read_text()
+                lines1 = [l for l in content1.strip().split("\n") if l.strip()]
+
+                service.append_audit_history(
+                    audit_result,
+                    source="fix",
+                    json_path=".excelsior/last_audit_fix.json",
+                    txt_path=".excelsior/last_audit_fix.txt",
+                )
+                content2 = Path(".excelsior/audit_history.jsonl").read_text()
+                lines2 = [l for l in content2.strip().split("\n") if l.strip()]
+
+                assert len(lines1) == 1
+                assert len(lines2) == 2
+                import json as _json
+                rec1 = _json.loads(lines1[0])
+                assert rec1["source"] == "check"
+                rec2 = _json.loads(lines2[1])
+                assert rec2["source"] == "fix"
+            finally:
+                os.chdir(original_cwd)

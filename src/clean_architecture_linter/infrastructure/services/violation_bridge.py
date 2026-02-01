@@ -1,6 +1,6 @@
 """Bridge service to convert Pylint violations to Rule Violation objects."""
 
-from typing import List, Optional
+from typing import Optional
 
 import astroid  # type: ignore[import-untyped]
 
@@ -21,8 +21,8 @@ class ViolationBridgeService:
         self.astroid_gateway = astroid_gateway
 
     def convert_linter_results_to_violations(
-        self, linter_results: List[LinterResult], file_path: str
-    ) -> List[Violation]:
+        self, linter_results: list[LinterResult], file_path: str
+    ) -> list[Violation]:
         """
         Convert LinterResult objects to Violation objects with astroid nodes.
 
@@ -33,7 +33,7 @@ class ViolationBridgeService:
         Returns:
             List of Violation objects with astroid nodes attached
         """
-        violations: List[Violation] = []
+        violations: list[Violation] = []
 
         try:
             # Parse file with astroid to get nodes

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 
 @dataclass(frozen=True)
@@ -7,7 +7,7 @@ class LinterResult:
     """Standardized linter result."""
     code: str
     message: str
-    locations: List[str] = field(default_factory=list)
+    locations: list[str] = field(default_factory=list)
 
     def add_location(self, location: str) -> 'LinterResult':
         """
@@ -20,7 +20,7 @@ class LinterResult:
         import dataclasses
         return dataclasses.replace(self, locations=new_locations)
 
-    def to_dict(self) -> Dict[str, Union[str, List[str]]]:
+    def to_dict(self) -> dict[str, Union[str, list[str]]]:
         """Convert to dictionary for reporter."""
         return {
             "code": self.code,
@@ -33,12 +33,12 @@ class LinterResult:
 @dataclass(frozen=True)
 class AuditResult:
     """Result of a complete audit run across all linters."""
-    mypy_results: List[LinterResult] = field(default_factory=list)
-    excelsior_results: List[LinterResult] = field(default_factory=list)
-    import_linter_results: List[LinterResult] = field(default_factory=list)
-    ruff_results: List[LinterResult] = field(default_factory=list)
+    mypy_results: list[LinterResult] = field(default_factory=list)
+    excelsior_results: list[LinterResult] = field(default_factory=list)
+    import_linter_results: list[LinterResult] = field(default_factory=list)
+    ruff_results: list[LinterResult] = field(default_factory=list)
     ruff_enabled: bool = True
-    blocked_by: Optional[str] = None  # "ruff", "mypy", or None if not blocked
+    blocked_by: Optional[str] = None  # "import_linter", "ruff", "mypy", "excelsior", or None
 
     def has_violations(self) -> bool:
         """Check if any violations were found."""
@@ -60,12 +60,12 @@ class ViolationWithFixInfo:
     code: str
     message: str
     location: str
-    locations: List[str]
+    locations: list[str]
     fixable: bool
     manual_instructions: Optional[str] = None
     comment_only: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "code": self.code,
@@ -86,7 +86,7 @@ class AuditTrailSummary:
     contracts: int
     code_quality: int
 
-    def to_dict(self) -> Dict[str, int]:
+    def to_dict(self) -> dict[str, int]:
         """Convert to dictionary for serialization."""
         return {
             "type_integrity": self.type_integrity,
@@ -99,12 +99,12 @@ class AuditTrailSummary:
 @dataclass(frozen=True)
 class AuditTrailViolations:
     """Domain representation of audit trail violations grouped by category."""
-    type_integrity: List[ViolationWithFixInfo]
-    architectural: List[ViolationWithFixInfo]
-    contracts: List[ViolationWithFixInfo]
-    code_quality: List[ViolationWithFixInfo]
+    type_integrity: list[ViolationWithFixInfo]
+    architectural: list[ViolationWithFixInfo]
+    contracts: list[ViolationWithFixInfo]
+    code_quality: list[ViolationWithFixInfo]
 
-    def to_dict(self) -> Dict[str, List[Dict[str, Any]]]:
+    def to_dict(self) -> dict[str, list[dict[str, Any]]]:
         """Convert to dictionary for serialization."""
         return {
             "type_integrity": [v.to_dict() for v in self.type_integrity],
@@ -122,7 +122,7 @@ class AuditTrail:
     summary: AuditTrailSummary
     violations: AuditTrailViolations
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "version": self.version,

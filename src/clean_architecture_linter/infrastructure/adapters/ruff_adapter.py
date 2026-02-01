@@ -3,12 +3,19 @@
 import json
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Optional
 
 from clean_architecture_linter.domain.entities import LinterResult
 
 if TYPE_CHECKING:
     from stellar_ui_kit import TelemetryPort
+
+
+# Phase 1: Import and typing (run first). Phase 2: Code quality (run last).
+RUFF_IMPORT_TYPING_SELECT = ["I", "UP", "B"]  # isort, pyupgrade, bugbear
+RUFF_CODE_QUALITY_SELECT = [
+    "E", "F", "W", "C90", "N", "PL", "PT", "A", "C4", "SIM", "ARG", "PTH", "RUF",
+]
 
 
 class RuffAdapter:
@@ -18,7 +25,7 @@ class RuffAdapter:
         self.telemetry = telemetry
 
     @staticmethod
-    def get_default_config() -> Dict[str, Any]:
+    def get_default_config() -> dict[str, Any]:
         """Return Excelsior's opinionated Ruff defaults.
 
         Based on snowarch's strictest configuration.
@@ -57,9 +64,9 @@ class RuffAdapter:
 
     def _merge_configs(
         self,
-        project_config: Dict[str, Any],
-        excelsior_config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        project_config: dict[str, Any],
+        excelsior_config: dict[str, Any]
+    ) -> dict[str, Any]:
         """Merge Ruff configs with project settings taking precedence.
 
         Strategy (Option C from user request):
@@ -102,13 +109,15 @@ class RuffAdapter:
     def run(
         self,
         target_path: Path,
-        config: Optional[Dict[str, Any]] = None
-    ) -> List[LinterResult]:
+        config: Optional[dict[str, Any]] = None,
+        select_only: Optional[list[str]] = None,
+    ) -> list[LinterResult]:
         """Run Ruff on target path and return violations.
 
         Args:
             target_path: Path to check
-            config: Optional Ruff configuration dict
+            config: Optional Ruff configuration dict (unused; kept for API compatibility)
+            select_only: If set, only run these rule codes (e.g. RUFF_IMPORT_TYPING_SELECT).
 
         Returns:
             List of LinterResult objects
@@ -117,10 +126,10 @@ class RuffAdapter:
             self.telemetry.step(f"Running Ruff on {target_path}...")
 
         try:
-            # Build ruff command
             cmd = ["ruff", "check", str(target_path), "--output-format=json"]
+            if select_only:
+                cmd.extend(["--select", ",".join(select_only)])
 
-            # Run ruff
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -152,7 +161,7 @@ class RuffAdapter:
             )
             return [error_result]
 
-    def _parse_ruff_output(self, stdout: str, returncode: int) -> List[LinterResult]:
+    def _parse_ruff_output(self, stdout: str, returncode: int) -> list[LinterResult]:
         """Parse Ruff JSON output into LinterResult objects.
 
         Groups violations by code and aggregates locations, matching the pattern
@@ -175,7 +184,7 @@ class RuffAdapter:
             violations = json.loads(stdout)
 
             # Group by code: {code: {"message": str, "locations": set}}
-            collected: Dict[str, Dict[str, Any]] = defaultdict(
+            collected: dict[str, dict[str, Any]] = defaultdict(
                 lambda: {"message": "", "locations": set()})
 
             for violation in violations:
@@ -226,18 +235,19 @@ class RuffAdapter:
             )
             return [parse_error]
 
-    def gather_results(self, target_path: str) -> List[LinterResult]:
-        """Compatibility method for existing adapter interface.
-
-        This method matches the interface used by MypyAdapter and ExcelsiorAdapter.
-        """
-        return self.run(Path(target_path))
+    def gather_results(
+        self,
+        target_path: str,
+        select_only: Optional[list[str]] = None,
+    ) -> list[LinterResult]:
+        """Gather Ruff results. Optional select_only for phase (import/typing vs code quality)."""
+        return self.run(Path(target_path), select_only=select_only)
 
     def supports_autofix(self) -> bool:
         """Check if this linter supports automatic fixing."""
         return True
 
-    def get_fixable_rules(self) -> List[str]:
+    def get_fixable_rules(self) -> list[str]:
         """Return list of rule codes that can be auto-fixed."""
         # Most Ruff rules are auto-fixable with `ruff check --fix` (safe fixes only)
         return [
@@ -250,7 +260,7 @@ class RuffAdapter:
             "RUF",  # Ruff-specific
         ]
 
-    def get_unfixable_or_unsafe_ruff_codes(self) -> Set[str]:
+    def get_unfixable_or_unsafe_ruff_codes(self) -> set[str]:
         """Rule codes not fixable or only fixable with --unsafe-fixes.
 
         These are shown as Manual in the check output because
@@ -288,11 +298,16 @@ class RuffAdapter:
         default: str = "See Ruff documentation: https://docs.astral.sh/ruff/rules/"
         return manual_instructions.get(rule_code, default)
 
-    def apply_fixes(self, target_path: Path) -> bool:
+    def apply_fixes(
+        self,
+        target_path: Path,
+        select_only: Optional[list[str]] = None,
+    ) -> bool:
         """Apply Ruff automatic fixes to the target path.
 
         Args:
             target_path: Path to fix
+            select_only: If set, only fix these rule codes (e.g. RUFF_IMPORT_TYPING_SELECT).
 
         Returns:
             True if fixes were applied, False otherwise
@@ -302,22 +317,16 @@ class RuffAdapter:
                 self.telemetry.step(
                     f"🔧 Applying Ruff fixes to {target_path}...")
 
-            # Ruff --fix applies automatic fixes
-            cmd = [
-                "ruff",
-                "check",
-                str(target_path),
-                "--fix"
-            ]
-
-            # Use config from ConfigurationLoader if available
-            from clean_architecture_linter.domain.config import ConfigurationLoader
-            config_loader = ConfigurationLoader()
-            merged_config = config_loader.get_merged_ruff_config()
-
-            if merged_config and merged_config.get("lint", {}).get("select"):
-                select_rules = merged_config["lint"]["select"]
-                cmd.extend(["--select", ",".join(select_rules)])
+            cmd = ["ruff", "check", str(target_path), "--fix"]
+            if select_only:
+                cmd.extend(["--select", ",".join(select_only)])
+            else:
+                from clean_architecture_linter.domain.config import ConfigurationLoader
+                config_loader = ConfigurationLoader()
+                merged_config = config_loader.get_merged_ruff_config()
+                if merged_config and merged_config.get("lint", {}).get("select"):
+                    select_rules = merged_config["lint"]["select"]
+                    cmd.extend(["--select", ",".join(select_rules)])
 
             result = subprocess.run(
                 cmd,

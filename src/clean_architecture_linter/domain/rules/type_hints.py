@@ -1,6 +1,6 @@
 """Missing Type Hint Rule (W9015) - High-Integrity Auto-Fix."""
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 
@@ -30,13 +30,13 @@ class MissingTypeHintRule:
     def __init__(self, ast_gateway: AstroidProtocol) -> None:
         self.ast_gateway = ast_gateway
 
-    def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
+    def check(self, node: astroid.nodes.NodeNG) -> list[Violation]:
         """
         Check for missing type hints in function definitions.
 
         Returns violations with fixable=True only when type can be deterministically inferred.
         """
-        violations: List[Violation] = []
+        violations: list[Violation] = []
 
         if not isinstance(node, astroid.nodes.Module):
             return violations

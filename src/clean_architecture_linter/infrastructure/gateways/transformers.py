@@ -1,7 +1,7 @@
 """LibCST Transformers for code fixes."""
 
 from collections.abc import Iterator, Sequence
-from typing import List, Optional, Set
+from typing import Optional
 
 import libcst as cst
 
@@ -293,8 +293,8 @@ class TypeIntegrityTransformer(cst.CSTTransformer):
     """Auto-import common typing missing imports."""
 
     def __init__(self, context: dict) -> None:
-        self.used_types: Set[str] = set()
-        self.existing_typing_imports: Set[str] = set()
+        self.used_types: set[str] = set()
+        self.existing_typing_imports: set[str] = set()
         self.typing_aliases = {"List", "Dict", "Optional", "Any", "Union", "Iterable", "Callable"}
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
@@ -366,7 +366,7 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
         self.source_lines = context.get("source_lines", [])
         self.applied = False
 
-    def _build_comment_lines(self) -> List[str]:
+    def _build_comment_lines(self) -> list[str]:
         """Build the standardized governance comment block."""
         lines = [
             f"# EXCELSIOR: {self.rule_code} - {self.rule_name}",
@@ -432,9 +432,9 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
                 return True
         return False
 
-    def _make_comment_empty_lines(self, comment_lines: List[str]) -> List[cst.EmptyLine]:
+    def _make_comment_empty_lines(self, comment_lines: list[str]) -> list[cst.EmptyLine]:
         """Build LibCST EmptyLine nodes with comment text. Each line gets '#' if missing."""
-        out: List[cst.EmptyLine] = []
+        out: list[cst.EmptyLine] = []
         for line in comment_lines:
             if not line.startswith("#"):
                 line = "# " + line
@@ -451,14 +451,14 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
     def _assemble_body(
         self,
         body: Sequence[cst.BaseStatement],
-        comment_empty_lines: List[cst.EmptyLine],
+        comment_empty_lines: list[cst.EmptyLine],
         insert_index: int,
-    ) -> List[cst.BaseStatement]:
+    ) -> list[cst.BaseStatement]:
         """Insert comment block before body[insert_index]. Handles empty body and append-at-end."""
         if not body:
             self.applied = True
             return list(comment_empty_lines)
-        new_body: List[cst.BaseStatement] = []
+        new_body: list[cst.BaseStatement] = []
         for i, stmt in enumerate(body):
             if i == insert_index:
                 new_body.extend(comment_empty_lines)

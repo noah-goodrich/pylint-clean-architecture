@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 from clean_architecture_linter.infrastructure.adapters.linter_adapters import (
     ExcelsiorAdapter,
@@ -24,7 +24,7 @@ class ExcelsiorContainer:
     _instance: Optional["ExcelsiorContainer"] = None
 
     def __init__(self) -> None:
-        self._singletons: Dict[str, Any] = {}
+        self._singletons: dict[str, Any] = {}
         self._register_defaults()
 
     def _register_defaults(self) -> None:

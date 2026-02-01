@@ -1,6 +1,6 @@
 """Governance Comment Rules - Inject contextual guidance for manual-fix violations."""
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 
@@ -36,7 +36,7 @@ class LawOfDemeterRule:
     def __init__(self) -> None:
         pass
 
-    def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
+    def check(self, node: astroid.nodes.NodeNG) -> list[Violation]:
         """
         Check for Law of Demeter violations.
 
@@ -150,7 +150,7 @@ class GenericGovernanceCommentRule:
         self.rule_name = rule_name
         self._adapter = adapter or ExcelsiorAdapter()
 
-    def check(self, node: astroid.nodes.NodeNG) -> List[Violation]:
+    def check(self, node: astroid.nodes.NodeNG) -> list[Violation]:
         """
         Check for violations.
 

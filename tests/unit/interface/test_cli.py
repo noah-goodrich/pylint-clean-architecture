@@ -636,6 +636,7 @@ class TestFixExcelsior:
         mock_mypy = Mock()
         mock_excelsior = Mock()
         mock_import_linter = Mock()
+        mock_audit_trail = Mock()
 
         mock_container.get.side_effect = lambda key: {
             "AstroidGateway": mock_astroid,
@@ -644,6 +645,7 @@ class TestFixExcelsior:
             "MypyAdapter": mock_mypy,
             "ExcelsiorAdapter": mock_excelsior,
             "ImportLinterAdapter": mock_import_linter,
+            "AuditTrailService": mock_audit_trail,
         }[key]
         mock_container_class.return_value = mock_container
 
@@ -684,6 +686,7 @@ class TestFixExcelsior:
         mock_telemetry = Mock()
         mock_config_loader = Mock()
         mock_config_loader_class.return_value = mock_config_loader
+        mock_audit_trail = Mock()
 
         mock_container.get.side_effect = lambda key: {
             "AstroidGateway": Mock(),
@@ -692,6 +695,7 @@ class TestFixExcelsior:
             "MypyAdapter": Mock(),
             "ExcelsiorAdapter": Mock(),
             "ImportLinterAdapter": Mock(),
+            "AuditTrailService": mock_audit_trail,
         }[key]
         mock_container_class.return_value = mock_container
 

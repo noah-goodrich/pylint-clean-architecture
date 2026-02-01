@@ -3,7 +3,6 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from typing import Dict, List
 
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
@@ -12,7 +11,7 @@ from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 class MypyAdapter(LinterAdapterProtocol):
     """Adapter for mypy output."""
 
-    def gather_results(self, target_path: str) -> List[LinterResult]:
+    def gather_results(self, target_path: str) -> list[LinterResult]:
         """Run mypy and gather results."""
         env = os.environ.copy()
         try:
@@ -28,9 +27,9 @@ class MypyAdapter(LinterAdapterProtocol):
             # JUSTIFICATION: Error message wrapping requires explicit list creation.
             return [LinterResult("MYPY_ERROR", str(e), [])]
 
-    def _parse_output(self, output: str) -> List[LinterResult]:
+    def _parse_output(self, output: str) -> list[LinterResult]:
         # Structure: {error_code: {"message": str, "locations": set}}
-        collected: Dict[str, Dict[str, object]] = defaultdict(
+        collected: dict[str, dict[str, object]] = defaultdict(
             lambda: {"message": "", "locations": set()})
 
         # Pattern: file:line: error: message [code]
@@ -77,7 +76,7 @@ class MypyAdapter(LinterAdapterProtocol):
         """Check if this linter supports automatic fixing."""
         return False
 
-    def get_fixable_rules(self) -> List[str]:
+    def get_fixable_rules(self) -> list[str]:
         """Return list of rule codes that can be auto-fixed."""
         return []  # Mypy does not support auto-fixing
 

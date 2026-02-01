@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Protocol
+from typing import TYPE_CHECKING, Optional, Protocol
 
 if TYPE_CHECKING:
     import astroid  # type: ignore[import-untyped]  # pylint: disable=clean-arch-resources
@@ -90,7 +90,7 @@ class FileSystemProtocol(Protocol):
         """Check if path is a directory."""
         ...
 
-    def glob_python_files(self, path: str) -> List[str]:
+    def glob_python_files(self, path: str) -> list[str]:
         """Get all Python files in path (recursive if directory)."""
         ...
 
@@ -104,6 +104,10 @@ class FileSystemProtocol(Protocol):
 
     def write_text(self, path: str, content: str, encoding: str = "utf-8") -> None:
         """Write text content to a file."""
+        ...
+
+    def append_text(self, path: str, content: str, encoding: str = "utf-8") -> None:
+        """Append text to a file (creates if missing)."""
         ...
 
     def join_path(self, *paths: str) -> str:
