@@ -1,3 +1,4 @@
+import re
 import subprocess
 import sys
 
@@ -10,11 +11,9 @@ class ImportLinterAdapter(LinterAdapterProtocol):
 
     def gather_results(self, target_path: str) -> list[LinterResult]:
         """Run import-linter and gather results."""
-        # Note: import-linter usually looks for a configuration file (.importlinter or setup.cfg)
-        # It doesn't typically take a target path as a CLI arg in the same way,
-        # but we can try to run it.
+        # Note: import-linter looks for pyproject.toml [tool.importlinter] in cwd.
+        # It doesn't take a target path; we run from project root.
         try:
-            # Try lint-imports first, then fallback to python -m
             cmd = ["lint-imports"]
             try:
                 result = subprocess.run(
@@ -35,18 +34,37 @@ class ImportLinterAdapter(LinterAdapterProtocol):
             return [LinterResult("IMPORT_LINTER_ERROR", str(e), [])]
 
     def _parse_output(self, output: str) -> list[LinterResult]:
-        results = []
-        # Import Linter output is usually human-readable text describing contract failures.
-        # This is a very basic parser for its "Broken contract" sections.
-        if "Broken contract" in output:
-            lines = output.splitlines()
+        results: list[LinterResult] = []
+        text = output or ""
+
+        # Format 1: "No matches for ignored import X -> Y" (import-linter layers contract)
+        # The import can span lines: "X -> \nY" or be on one line.
+        no_matches_re = re.compile(
+            r"No matches for ignored import\s+([\w.]+)\s*->\s*([\w.]+)",
+            re.DOTALL,
+        )
+        for m in no_matches_re.finditer(text):
+            importer = m.group(1).strip().rstrip(".")
+            importee = m.group(2).strip().rstrip(".")
+            results.append(
+                LinterResult(
+                    "IL001",
+                    f"Layer violation: {importer} imports {importee} (not allowed)",
+                    [],
+                )
+            )
+
+        # Format 2: "Broken contract" + "X is not allowed to import Y" (older format)
+        if not results and "Broken contract" in text:
+            lines = text.splitlines()
             current_contract: str = ""
             for line in lines:
                 if "Broken contract" in line:
                     current_contract = line.strip()
                 elif "is not allowed to import" in line:
-                    results.append(LinterResult(
-                        "IL001", f"{current_contract}: {line.strip()}", []))
+                    results.append(
+                        LinterResult("IL001", f"{current_contract}: {line.strip()}", [])
+                    )
 
         return results
 

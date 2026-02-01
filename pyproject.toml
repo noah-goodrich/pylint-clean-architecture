@@ -163,10 +163,5 @@ layers = [
     "clean_architecture_linter.infrastructure",  # Outermost - can import everything
     "clean_architecture_linter.interface",       # Can import UseCase/Domain
     "clean_architecture_linter.use_cases",       # Can import Domain
-    "clean_architecture_linter.domain",         # Innermost - imports NOTHING
-]
-containers = ["clean_architecture_linter"]
-ignore_imports = [
-    "clean_architecture_linter.interface.cli -> clean_architecture_linter.infrastructure.adapters.linter_adapters",
-    "clean_architecture_linter.interface.cli -> clean_architecture_linter.infrastructure.di.container",
+    "clean_architecture_linter.domain",          # Innermost - imports NOTHING
 ]

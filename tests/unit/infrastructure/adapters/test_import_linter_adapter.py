@@ -3,7 +3,8 @@ from unittest.mock import MagicMock, patch
 from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
 
 
-def test_gather_results_success() -> None:
+def test_gather_results_success_broken_contract() -> None:
+    """Parse 'Broken contract' + 'is not allowed to import' format."""
     adapter = ImportLinterAdapter()
 
     mock_output: str = """
@@ -23,7 +24,7 @@ domain.entities is not allowed to import infrastructure.db
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(
             stdout=mock_output,
-            returncode = 1 # failure in linting, but success in execution
+            returncode=1,
         )
 
         results = adapter.gather_results("src")
@@ -32,6 +33,22 @@ domain.entities is not allowed to import infrastructure.db
         assert results[0].code == "IL001"
         assert "domain_isolation" in results[0].message
         assert "is not allowed to import" in results[0].message
+
+
+def test_parse_output_no_matches_for_ignored_import() -> None:
+    """Parse 'No matches for ignored import X -> Y' format (actual import-linter output)."""
+    adapter = ImportLinterAdapter()
+
+    mock_output = """
+No matches for ignored import clean_architecture_linter.interface.cli ->
+clean_architecture_linter.infrastructure.adapters.linter_adapters.
+"""
+    results = adapter._parse_output(mock_output)
+
+    assert len(results) == 1
+    assert results[0].code == "IL001"
+    assert "interface.cli" in results[0].message
+    assert "linter_adapters" in results[0].message
 
 def test_gather_results_fallback() -> None:
     adapter = ImportLinterAdapter()
