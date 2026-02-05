@@ -19,7 +19,16 @@ class TestMultiPassRefinement:
         astroid_gateway = MagicMock()
         telemetry = MagicMock()
         use_case = ApplyFixesUseCase(
-            fixer_gateway, filesystem, astroid_gateway=astroid_gateway, telemetry=telemetry
+            fixer_gateway,
+            filesystem,
+            linter_adapter=MagicMock(),
+            telemetry=telemetry,
+            astroid_gateway=astroid_gateway,
+            ruff_adapter=MagicMock(),
+            check_audit_use_case=MagicMock(),
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
         )
 
         with patch.object(use_case, '_run_baseline_if_enabled'), \
@@ -42,7 +51,17 @@ class TestMultiPassRefinement:
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
         use_case = ApplyFixesUseCase(
-            fixer_gateway, filesystem, telemetry=telemetry)
+            fixer_gateway,
+            filesystem,
+            linter_adapter=MagicMock(),
+            telemetry=telemetry,
+            astroid_gateway=MagicMock(),
+            ruff_adapter=MagicMock(),
+            check_audit_use_case=MagicMock(),
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
+        )
 
         call_order = []
 
@@ -76,7 +95,9 @@ class TestMultiPassRefinement:
                 patch.object(use_case, '_execute_pass3_architecture_code', side_effect=track_pass3), \
                 patch.object(use_case, '_execute_pass4_governance_comments', side_effect=track_pass4), \
                 patch.object(use_case, '_execute_pass5_ruff_code_quality', side_effect=track_pass5):
-            result = use_case.execute_multi_pass([], "test_path")
+            result = use_case.execute_multi_pass(
+                [], "test_path", inject_governance_comments=True
+            )
 
         assert result == 10  # 1 + 2 + 3 + 4 + 0
         assert call_order == ["pass1", "pass2",
@@ -88,7 +109,17 @@ class TestMultiPassRefinement:
         filesystem = FileSystemGateway()
         telemetry = MagicMock()
         use_case = ApplyFixesUseCase(
-            fixer_gateway, filesystem, telemetry=telemetry)
+            fixer_gateway,
+            filesystem,
+            linter_adapter=MagicMock(),
+            telemetry=telemetry,
+            astroid_gateway=MagicMock(),
+            ruff_adapter=MagicMock(),
+            check_audit_use_case=MagicMock(),
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
+        )
 
         w9015_rule = MissingTypeHintRule(MagicMock())
         w9015_rule.code = "W9015"
@@ -138,16 +169,33 @@ class TestMultiPassRefinement:
         mock_audit_result.excelsior_results = [lod_result]
         check_audit.execute.return_value = mock_audit_result
 
+        # Pass 4 needs violation_bridge to convert results to Violations and build transformers
+        mock_bridge = MagicMock()
+        from clean_architecture_linter.domain.rules import Violation
+        mock_bridge.convert_linter_results_to_violations.return_value = [
+            Violation(
+                code="W9006",
+                message=lod_result.message,
+                location=f"{test_file}:1:1",
+                node=MagicMock(),
+                is_comment_only=True,
+            )
+        ]
         use_case = ApplyFixesUseCase(
             fixer_gateway,
             filesystem,
-            astroid_gateway=astroid_gateway,
+            linter_adapter=MagicMock(),
             telemetry=telemetry,
+            astroid_gateway=astroid_gateway,
+            ruff_adapter=MagicMock(),
             check_audit_use_case=check_audit,
-            validate_with_tests=False
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=mock_bridge,
+            validate_with_tests=False,
         )
 
-        with patch.object(use_case, '_apply_transformers_to_file', return_value=1):
+        with patch.object(use_case, '_apply_plans_to_file', return_value=1):
             result = use_case._execute_pass4_governance_comments(
                 [], str(tmp_path))
 

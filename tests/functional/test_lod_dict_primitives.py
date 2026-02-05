@@ -3,6 +3,7 @@
 import shutil
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import ExcelsiorAdapter
 
@@ -12,7 +13,11 @@ class TestLoDDictPrimitives:
 
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.adapter = ExcelsiorAdapter()
+        self.adapter = ExcelsiorAdapter(
+            config_loader=MagicMock(),
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
 
     def teardown_method(self):
         shutil.rmtree(self.tmp_dir)

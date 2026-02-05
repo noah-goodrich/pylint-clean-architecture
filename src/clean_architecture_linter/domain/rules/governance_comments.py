@@ -1,15 +1,15 @@
 """Governance Comment Rules - Inject contextual guidance for manual-fix violations."""
 
-from typing import Optional
+from typing import Optional, Union
 
 import astroid  # type: ignore[import-untyped]
 
 from clean_architecture_linter.domain.entities import TransformationPlan
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
-from clean_architecture_linter.domain.rules import Violation
+from clean_architecture_linter.domain.rules import BaseRule, Violation
 
 
-class LawOfDemeterRule:
+class LawOfDemeterRule(BaseRule):
     """
     Rule for W9006: Law of Demeter violations.
 
@@ -117,7 +117,7 @@ class LawOfDemeterRule:
         )
 
 
-class GenericGovernanceCommentRule:
+class GenericGovernanceCommentRule(BaseRule):
     """
     Generic governance comment rule for all comment-only violations.
 
@@ -141,6 +141,8 @@ class GenericGovernanceCommentRule:
         """
         self.code = rule_code
         self.rule_name = rule_name
+        self.description = f"Governance comment: {rule_name}."
+        self.fix_type: str = "comment"
         self._adapter = adapter
 
     def check(self, node: astroid.nodes.NodeNG) -> list[Violation]:
@@ -168,7 +170,8 @@ class GenericGovernanceCommentRule:
         # Get manual fix instructions from adapter if available
         manual_instructions = "Review and fix the violation manually."
         if self._adapter:
-            manual_instructions = self._adapter.get_manual_fix_instructions(self.code)
+            manual_instructions = self._adapter.get_manual_fix_instructions(
+                self.code)
 
         # Build problem description from violation message
         problem = violation.message
@@ -194,50 +197,45 @@ class GenericGovernanceCommentRule:
             target_line=target_line,
         )
 
-
-# Rule name mapping for common architectural violations
-RULE_NAME_MAP = {
-    "W9001": "Illegal Dependency",
-    "clean-arch-dependency": "Illegal Dependency",
-    "W9003": "Protected Member Access",
-    "clean-arch-visibility": "Protected Member Access",
-    "W9004": "Forbidden I/O",
-    "clean-arch-resources": "Forbidden I/O",
-    "W9005": "Delegation Anti-Pattern",
-    "clean-arch-delegation": "Delegation Anti-Pattern",
-    "W9007": "Naked Return",
-    "W9009": "Missing Abstraction",
-    "W9010": "God File",
-    "clean-arch-god-file": "God File",
-    "W9011": "Deep Structure",
-    "clean-arch-layer": "Deep Structure",
-    "W9012": "Defensive None Check",
-    "W9013": "Illegal I/O Operation",
-    "W9201": "Contract Integrity",
-    "contract-integrity-violation": "Contract Integrity",
-    "W9301": "DI Violation",
-    "clean-arch-di": "DI Violation",
-    "W9016": "Banned Any",
-    "banned-any-usage": "Banned Any",
-    "W9501": "Anti-Bypass",
-    "clean-arch-bypass": "Anti-Bypass",
-}
+    def get_fix_instructions(self, violation: Violation) -> str:
+        """Provide human/AI instructions for manual fix (from adapter when available)."""
+        if self._adapter:
+            return self._adapter.get_manual_fix_instructions(self.code)
+        return "Review and fix the violation manually. See .agent/instructions.md."
 
 
-def create_governance_rule(
-    rule_code: str,
-    adapter: Optional[LinterAdapterProtocol] = None,
-) -> Optional[GenericGovernanceCommentRule]:
+class GovernanceRuleFactory:
     """
-    Factory function to create appropriate governance comment rule.
+    Creates governance comment rules for the fix pipeline.
 
-    Returns:
-        LawOfDemeterRule for W9006; GenericGovernanceCommentRule for others;
-        None if not comment-only.
+    No top-level functions; all factory logic lives here so W9018 is satisfied
+    (only __main__.py and checker.py may have top-level functions).
     """
-    if rule_code == "W9006" or rule_code == "clean-arch-demeter":
-        return LawOfDemeterRule()
 
-    rule_name = RULE_NAME_MAP.get(
-        rule_code, rule_code.replace("-", " ").title())
-    return GenericGovernanceCommentRule(rule_code, rule_name, adapter)
+    def _display_name_for_rule(
+        self, rule_code: str, adapter: Optional[LinterAdapterProtocol]
+    ) -> str:
+        """Resolve display name from adapter (registry) when available; else title-case fallback."""
+        get_display_name = getattr(adapter, "get_display_name", None)
+        if callable(get_display_name):
+            return get_display_name(rule_code)
+        return rule_code.replace("-", " ").title()
+
+    def create_rule(
+        self,
+        rule_code: str,
+        adapter: Optional[LinterAdapterProtocol] = None,
+    ) -> Optional[Union[GenericGovernanceCommentRule, LawOfDemeterRule]]:
+        """
+        Create the appropriate governance comment rule for the given code.
+
+        Returns:
+            LawOfDemeterRule for W9006; GenericGovernanceCommentRule for others;
+            None if not comment-only.
+        Display names come from rule_registry.yaml via adapter.get_display_name when available.
+        """
+        if rule_code == "W9006" or rule_code == "clean-arch-demeter":
+            return LawOfDemeterRule()
+
+        rule_name = self._display_name_for_rule(rule_code, adapter)
+        return GenericGovernanceCommentRule(rule_code, rule_name, adapter)

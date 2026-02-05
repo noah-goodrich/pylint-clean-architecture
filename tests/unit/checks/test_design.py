@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.use_cases.checks.design import DesignChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
@@ -11,7 +12,8 @@ class TestDesignChecker(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
         self.ast_gateway = MagicMock()
-        self.checker = DesignChecker(self.linter, self.ast_gateway)
+        self.config_loader = ConfigurationLoader({}, {})
+        self.checker = DesignChecker(self.linter, self.ast_gateway, self.config_loader, registry={})
 
     def test_banned_any_in_signature(self) -> None:
         # def foo(x: Any) -> None: ...
@@ -24,7 +26,7 @@ class TestDesignChecker(unittest.TestCase, CheckerTestCase):
         self.checker.visit_functiondef(node)
 
         # The annotation node for 'x' should trigger banned-any-usage
-        self.assertAddsMessage(self.checker, "banned-any-usage", args=("parameter 'x'",))
+        self.assertAddsMessage(self.checker, "W9016", args=("parameter 'x'",))
 
     def test_naked_return_io(self) -> None:
         # return session.query() -> inferred as 'Cursor' (which is in default raw_types)
@@ -39,7 +41,7 @@ class TestDesignChecker(unittest.TestCase, CheckerTestCase):
         self.checker.visit_return(node)
 
         # 'Cursor' is in defaults
-        self.assertAddsMessage(self.checker, "naked-return-violation", node, args=("Cursor",))
+        self.assertAddsMessage(self.checker, "W9007", node, args=("Cursor",))
 
     def test_missing_type_hint_return(self) -> None:
         node = create_mock_node(astroid.nodes.FunctionDef, name="foo")
@@ -53,4 +55,5 @@ class TestDesignChecker(unittest.TestCase, CheckerTestCase):
 
         self.checker.visit_functiondef(node)
 
-        self.assertAddsMessage(self.checker, "missing-type-hint", node, args=("return type", "foo"))
+        self.assertAddsMessage(self.checker, "W9015",
+                               node, args=("return type", "foo"))

@@ -8,20 +8,27 @@ class TestLayerRegistry(unittest.TestCase):
         """Test resolution by class name suffix (Priority 1)."""
         registry = LayerRegistry()
 
-        self.assertEqual(registry.resolve_layer("CreateUserUseCase", ""), "UseCase")
+        self.assertEqual(registry.resolve_layer(
+            "CreateUserUseCase", ""), "UseCase")
         self.assertEqual(registry.resolve_layer("UserEntity", ""), "Domain")
-        self.assertEqual(registry.resolve_layer("UserRepository", ""), "Infrastructure")
-        self.assertEqual(registry.resolve_layer("UserController", ""), "Interface")
+        self.assertEqual(registry.resolve_layer(
+            "UserRepository", ""), "Infrastructure")
+        self.assertEqual(registry.resolve_layer(
+            "UserController", ""), "Interface")
 
     def test_registry_resolve_layer_by_directory(self) -> None:
         """Test resolution by directory path (Priority 2)."""
         registry = LayerRegistry()
 
         # Relative paths
-        self.assertEqual(registry.resolve_layer("", "src/use_cases/create_user.py"), "UseCase")
-        self.assertEqual(registry.resolve_layer("", "src/domain/entities.py"), "Domain")
-        self.assertEqual(registry.resolve_layer("", "src/infrastructure/db.py"), "Infrastructure")
-        self.assertEqual(registry.resolve_layer("", "src/interface/cli.py"), "Interface")
+        self.assertEqual(registry.resolve_layer(
+            "", "src/use_cases/create_user.py"), "UseCase")
+        self.assertEqual(registry.resolve_layer(
+            "", "src/domain/entities.py"), "Domain")
+        self.assertEqual(registry.resolve_layer(
+            "", "src/infrastructure/db.py"), "Infrastructure")
+        self.assertEqual(registry.resolve_layer(
+            "", "src/interface/cli.py"), "Interface")
 
         # Absolute paths
         self.assertEqual(
@@ -30,32 +37,40 @@ class TestLayerRegistry(unittest.TestCase):
         )
 
         # Dotted module paths
-        self.assertEqual(registry.resolve_layer("", "app.use_cases.interactor"), "UseCase")
+        self.assertEqual(registry.resolve_layer(
+            "", "app.use_cases.interactor"), "UseCase")
 
     def test_registry_resolve_layer_unresolved(self) -> None:
         """Test that unknown layers return None."""
         registry = LayerRegistry()
-        self.assertIsNone(registry.resolve_layer("RandomClass", "utils/helper.py"))
+        self.assertIsNone(registry.resolve_layer(
+            "RandomClass", "utils/helper.py"))
 
     def test_registry_presets(self) -> None:
         """Test that project_type presets update the SUFFIX_MAP."""
         from clean_architecture_linter.domain.layer_registry import LayerRegistryConfig
 
-        registry = LayerRegistry(LayerRegistryConfig(project_type="fastapi_sqlalchemy"))
-        self.assertEqual(registry.resolve_layer("UserModel", ""), "Infrastructure")
+        registry = LayerRegistry(LayerRegistryConfig(
+            project_type="fastapi_sqlalchemy"))
+        self.assertEqual(registry.resolve_layer(
+            "UserModel", ""), "Infrastructure")
 
-        registry_cli = LayerRegistry(LayerRegistryConfig(project_type="cli_app"))
-        self.assertEqual(registry_cli.resolve_layer("DeployCommand", ""), "Interface")
+        registry_cli = LayerRegistry(
+            LayerRegistryConfig(project_type="cli_app"))
+        self.assertEqual(registry_cli.resolve_layer(
+            "DeployCommand", ""), "Interface")
 
     def test_registry_path_normalization(self) -> None:
         """Test path normalization logic."""
         registry = LayerRegistry()
 
         # Windows path
-        self.assertEqual(registry.resolve_layer("", "src\\domain\\logic.py"), "Domain")
+        self.assertEqual(registry.resolve_layer(
+            "", "src\\domain\\logic.py"), "Domain")
 
         # Dotted path with .py (should invoke strip)
-        self.assertEqual(registry.resolve_layer("", "src.domain.logic.py"), "Domain")
+        self.assertEqual(registry.resolve_layer(
+            "", "src.domain.logic.py"), "Domain")
 
     def test_get_layer_for_class_node_inheritance(self) -> None:
         """Test layer detection via inheritance using base_class_map."""
@@ -63,8 +78,9 @@ class TestLayerRegistry(unittest.TestCase):
 
         from clean_architecture_linter.domain.layer_registry import LayerRegistryConfig
 
-        config = LayerRegistryConfig()
-        config.base_class_map = {"BaseUseCase": "UseCase"}
+        config = LayerRegistryConfig(
+            base_class_map={"BaseUseCase": "UseCase"}
+        )
         registry = LayerRegistry(config)
 
         # Mock AST node

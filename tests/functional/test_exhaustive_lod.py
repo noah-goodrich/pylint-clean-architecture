@@ -1,7 +1,7 @@
 from unittest import mock
 
 import astroid
-from pylint.testutils import CheckerTestCase
+from pylint.testutils import CheckerTestCase, UnittestLinter
 
 from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
 from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
@@ -10,16 +10,22 @@ from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
 class TestLoDExhaustive(CheckerTestCase):
     CHECKER_CLASS = CouplingChecker
 
-    def setup_method(self):
-        super().setup_method()
-        # Inject gateways manually since CheckerTestCase doesn't know about them
+    def setup_method(self) -> None:
+        self.linter = UnittestLinter()
         container = ExcelsiorContainer.get_instance()
-        # Ensure we have fresh gateways
         python_gateway = container.get("PythonGateway")
         ast_gateway = container.get("AstroidGateway")
-
-        # Re-initialize checker with dependencies
-        self.checker = self.CHECKER_CLASS(self.linter, ast_gateway=ast_gateway, python_gateway=python_gateway)
+        stub_resolver = container.get("StubAuthority")
+        config_loader = container.get_config_loader()
+        registry = container.get_guidance_service().get_registry()
+        self.checker = self.CHECKER_CLASS(
+            self.linter,
+            ast_gateway=ast_gateway,
+            python_gateway=python_gateway,
+            stub_resolver=stub_resolver,
+            config_loader=config_loader,
+            registry=registry,
+        )
 
     def test_safe_zone_passes(self) -> None:
         """Verify 0 messages for SAFE_ZONE."""
@@ -36,7 +42,8 @@ class TestLoDExhaustive(CheckerTestCase):
             _ = [
                 f for f in node.body
                 if isinstance(f, astroid.nodes.FunctionDef)
-                and f.lineno < content.find("VIOLATION_ZONE") / 40  # Rough heuristic
+                # Rough heuristic
+                and f.lineno < content.find("VIOLATION_ZONE") / 40
             ]
             # Actually, let's just use the whole node but only assert no messages for safe lines
             self.walk(node)
@@ -58,7 +65,7 @@ class TestLoDExhaustive(CheckerTestCase):
     def test_violation_zone_fails(self) -> None:
         """Verify exhaustive violations are caught in VIOLATION_ZONE."""
         with open("tests/benchmarks/lod-samples.py") as f:
-             content = f.read()
+            content = f.read()
 
         node = astroid.parse(content)
         self.walk(node)

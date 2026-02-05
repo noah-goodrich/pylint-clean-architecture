@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 import astroid.nodes
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.layer_registry import LayerRegistry
 from clean_architecture_linter.use_cases.checks.dependencies import DependencyChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
@@ -12,7 +13,10 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
         self.python_gateway = MagicMock()
-        self.checker = DependencyChecker(self.linter, self.python_gateway)
+        self.config_loader = ConfigurationLoader({}, {})
+        self.checker = DependencyChecker(
+            self.linter, self.python_gateway, self.config_loader, registry={}
+        )
 
     def test_illegal_dependency_domain_imports_infra(self) -> None:
         # Setup: Domain -> Infrastructure (BANNED)
@@ -36,7 +40,7 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
 
         self.assertAddsMessage(
             self.checker,
-            "clean-arch-dependency",
+            "W9001",
             node,
             args=(LayerRegistry.LAYER_INFRASTRUCTURE,
                   LayerRegistry.LAYER_DOMAIN)
@@ -73,7 +77,7 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
 
         self.assertAddsMessage(
             self.checker,
-            "clean-arch-dependency",
+            "W9001",
             node,
             args=(LayerRegistry.LAYER_INFRASTRUCTURE,
                   LayerRegistry.LAYER_INTERFACE),

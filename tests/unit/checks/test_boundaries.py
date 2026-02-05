@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.use_cases.checks.boundaries import ResourceChecker, VisibilityChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
@@ -11,9 +12,10 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
         self.python_gateway = MagicMock()
+        self.config_loader = ConfigurationLoader({}, {})
 
     def test_visibility_protected_access(self) -> None:
-        checker = VisibilityChecker(self.linter)
+        checker = VisibilityChecker(self.linter, self.config_loader, registry={})
         # visibility_enforcement defaults to True in config, no need to set
 
         node = create_mock_node(
@@ -23,10 +25,10 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
         )
 
         checker.visit_attribute(node)
-        self.assertAddsMessage(checker, "clean-arch-visibility", node, args=("_internal",))
+        self.assertAddsMessage(checker, "W9003", node, args=("_internal",))
 
     def test_resource_access_forbidden(self) -> None:
-        checker = ResourceChecker(self.linter, self.python_gateway)
+        checker = ResourceChecker(self.linter, self.python_gateway, self.config_loader, registry={})
 
         # Configure layer to be Domain
         self.python_gateway.get_node_layer.return_value = "Domain"
@@ -37,10 +39,11 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
         checker.visit_import(node)
 
         # requests is forbidden in Domain
-        self.assertAddsMessage(checker, "clean-arch-resources", node, args=("import requests", "Domain"))
+        self.assertAddsMessage(checker, "W9004", node,
+                               args=("import requests", "Domain"))
 
     def test_resource_access_allowed_stdlib(self) -> None:
-        checker = ResourceChecker(self.linter, self.python_gateway)
+        checker = ResourceChecker(self.linter, self.python_gateway, self.config_loader, registry={})
         self.python_gateway.get_node_layer.return_value = "Domain"
 
         node = create_mock_node(astroid.nodes.Import)

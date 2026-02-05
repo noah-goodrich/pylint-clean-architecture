@@ -21,9 +21,10 @@ class TestGovernanceCommentTransformer:
             "rule_name": "Law of Demeter",
             "problem": "Chain access violation",
             "recommendation": "Delegate to immediate dependency",
+            "context_info": "Violation at line 2.",
             "target_line": 2,
-            "source_lines": source_lines,
         })
+        transformer.source_lines = source_lines
 
         modified = module.visit(transformer)
         code = modified.code
@@ -43,9 +44,10 @@ class TestGovernanceCommentTransformer:
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
+            "context_info": "",
             "target_line": 999,  # Beyond file length
-            "source_lines": source_lines,
         })
+        transformer.source_lines = source_lines
 
         modified = module.visit(transformer)
         code = modified.code
@@ -62,6 +64,7 @@ class TestGovernanceCommentTransformer:
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
+            "context_info": "",
             "target_line": 1,
         })
 
@@ -86,9 +89,10 @@ x = 1
             "rule_name": "Law of Demeter",
             "problem": "Chain access violation",
             "recommendation": "Delegate to immediate dependency",
+            "context_info": "",
             "target_line": 4,
-            "source_lines": source_lines,
         })
+        transformer.source_lines = source_lines
 
         modified = module.visit(transformer)
         code = modified.code
@@ -109,6 +113,7 @@ x = 1
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
+            "context_info": "",
             "target_line": 2,
         })
 
@@ -126,6 +131,7 @@ x = 1
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
+            "context_info": "",
             "target_line": 2,
         })
 
@@ -149,6 +155,7 @@ x = 1
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
+            "context_info": "",
             "target_line": 1,
         })
 
@@ -169,12 +176,14 @@ x = 1
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
+            "context_info": "",
             "target_line": 1,
-            "source_lines": source_lines,
         })
+        transformer.source_lines = source_lines
 
         # Manually modify comment_lines to have one without #
         original_build = transformer._build_comment_lines
+
         def mock_build():
             lines = original_build()
             # Add a line without #
@@ -197,9 +206,10 @@ x = 1
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
+            "context_info": "",
             "target_line": 1,
-            "source_lines": source_lines,
         })
+        transformer.source_lines = source_lines
 
         # Test with a statement node
         stmt = module.body[0]

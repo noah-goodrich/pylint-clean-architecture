@@ -11,6 +11,7 @@ These tests focus on methods identified as high-priority in TEST_PRIORITIES.md:
 import json
 from unittest.mock import MagicMock, mock_open, patch
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
 
 
@@ -21,7 +22,7 @@ class TestFileCreation:
         """Test _generate_instructions creates instructions.md file."""
         instructions_file = tmp_path / "instructions.md"
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {
@@ -42,7 +43,7 @@ class TestFileCreation:
         """Test init_project creates .agent directory."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir'), \
@@ -57,7 +58,7 @@ class TestFileCreation:
         """Test init_project creates pre-flight.md file."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir'), \
@@ -72,7 +73,7 @@ class TestFileCreation:
         """Test init_project creates ARCHITECTURE_ONBOARDING.md file."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir'), \
@@ -93,7 +94,7 @@ class TestPyprojectModification:
         pyproject_file.write_text('[project]\nname = "test"\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         result = scaffolder._load_pyproject(pyproject_file)
 
@@ -106,7 +107,7 @@ class TestPyprojectModification:
         pyproject_file.write_text('invalid toml !!!\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         result = scaffolder._load_pyproject(pyproject_file)
 
@@ -116,7 +117,7 @@ class TestPyprojectModification:
         """Test _load_pyproject_toml returns None when file doesn't exist."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         result = scaffolder._load_pyproject_toml()
 
@@ -129,7 +130,7 @@ class TestPyprojectModification:
         pyproject_file.write_text('[project]\nname = "test"\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         result = scaffolder._load_pyproject_toml()
 
@@ -143,7 +144,7 @@ class TestPyprojectModification:
         pyproject_file.write_text('[tool.ruff]\nline-length = 120\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.print'):
             scaffolder._perform_tool_audit(template=None)
@@ -158,7 +159,7 @@ class TestPyprojectModification:
         pyproject_file.write_text('[tool.clean-arch]\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.print'), \
              patch.object(scaffolder, '_apply_template_updates') as mock_apply:
@@ -178,7 +179,7 @@ class TestMakefileInjection:
         makefile.write_text("clean:\n\trm -rf build\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         scaffolder._update_makefile()
 
@@ -193,7 +194,7 @@ class TestMakefileInjection:
         makefile.write_text("handshake:\n\techo 'already here'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         scaffolder._update_makefile()
 
@@ -206,7 +207,7 @@ class TestMakefileInjection:
         """Test _update_makefile creates Makefile if it doesn't exist."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         scaffolder._update_makefile()
 
@@ -221,7 +222,7 @@ class TestTemplateApplication:
     def test_apply_template_updates_fastapi(self) -> None:
         """Test _apply_template_updates applies FastAPI template."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         data = {"tool": {"clean-arch": {}}}
         scaffolder._apply_template_updates(data, "fastapi")
@@ -234,7 +235,7 @@ class TestTemplateApplication:
     def test_apply_template_updates_sqlalchemy(self) -> None:
         """Test _apply_template_updates applies SQLAlchemy template."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         data = {"tool": {"clean-arch": {}}}
         scaffolder._apply_template_updates(data, "sqlalchemy")
@@ -250,7 +251,7 @@ class TestTemplateApplication:
     def test_apply_template_updates_handles_missing_tool_section(self) -> None:
         """Test _apply_template_updates handles missing tool section."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         data = {}
         scaffolder._apply_template_updates(data, "fastapi")
@@ -261,7 +262,7 @@ class TestTemplateApplication:
     def test_apply_template_updates_handles_invalid_template(self) -> None:
         """Test _apply_template_updates handles unknown template."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         data = {"tool": {"clean-arch": {}}}
         original_data = json.dumps(data, sort_keys=True)
@@ -278,7 +279,7 @@ class TestRuffWizard:
     def test_ruff_wizard_can_use_toml_returns_true_python311(self) -> None:
         """Test _ruff_wizard_can_use_toml returns True on Python 3.11+."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.version_info', (3, 11, 0)):
             result = scaffolder._ruff_wizard_can_use_toml()
@@ -288,7 +289,7 @@ class TestRuffWizard:
     def test_ruff_wizard_can_use_toml_checks_tomli_availability(self) -> None:
         """Test _ruff_wizard_can_use_toml checks tomli availability on older Python."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.version_info', (3, 10, 0)), \
              patch('importlib.util.find_spec', return_value=None):
@@ -304,7 +305,7 @@ class TestRuffWizard:
         pyproject_file.write_text('[tool.ruff]\nline-length = 100\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         result = scaffolder._ruff_wizard_has_existing_config()
 
@@ -317,7 +318,7 @@ class TestRuffWizard:
         pyproject_file.write_text('[tool.excelsior.ruff]\nline-length = 100\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         result = scaffolder._ruff_wizard_has_existing_config()
 
@@ -326,7 +327,7 @@ class TestRuffWizard:
     def test_ruff_wizard_prompt_overwrite_returns_false_on_no(self) -> None:
         """Test _ruff_wizard_prompt_overwrite returns False when user says no."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.input', return_value='n'), \
              patch('builtins.print'):
@@ -337,7 +338,7 @@ class TestRuffWizard:
     def test_ruff_wizard_prompt_overwrite_returns_true_on_yes(self) -> None:
         """Test _ruff_wizard_prompt_overwrite returns True when user says yes."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.input', return_value='y'):
             result = scaffolder._ruff_wizard_prompt_overwrite()
@@ -351,7 +352,7 @@ class TestRuffWizard:
         pyproject_file.write_text('[project]\nname = "test"\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         mock_tomli_w = MagicMock()
         mock_tomli_w.dump = MagicMock()
@@ -382,7 +383,7 @@ class TestRuffWizard:
         pyproject_file.write_text('[project]\nname = "test"\n')
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         # Remove tomli_w from sys.modules to force ImportError
         import sys
@@ -403,7 +404,7 @@ class TestRuffWizard:
         """Test _configure_ruff_wizard skips in non-interactive mode."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.stdin.isatty', return_value=False):
             scaffolder._configure_ruff_wizard()
@@ -415,16 +416,11 @@ class TestRuffWizard:
         """Test _check_layers displays active layer configuration."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
-
-        with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
-            mock_config.return_value.config = {
-                "layer_map": {
-                    "domain": "Domain",
-                    "use_cases": "UseCase"
-                }
-            }
-            scaffolder._check_layers()
+        config_loader = ConfigurationLoader(
+            {"layer_map": {"domain": "Domain", "use_cases": "UseCase"}}, {}
+        )
+        scaffolder = Scaffolder(telemetry, config_loader)
+        scaffolder._check_layers()
 
         telemetry.step.assert_any_call("Active Layer Configuration:")
         telemetry.step.assert_any_call("  domain -> Domain")
@@ -434,10 +430,8 @@ class TestRuffWizard:
         """Test _check_layers handles missing layer_map."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
-
-        with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
-            mock_config.return_value.config = {}
-            scaffolder._check_layers()
+        config_loader = ConfigurationLoader({}, {})
+        scaffolder = Scaffolder(telemetry, config_loader)
+        scaffolder._check_layers()
 
         telemetry.error.assert_called()

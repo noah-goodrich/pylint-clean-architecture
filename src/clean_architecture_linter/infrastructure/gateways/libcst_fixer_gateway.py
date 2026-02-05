@@ -1,6 +1,4 @@
-"""LibCST based Fixer Gateway."""
-
-from typing import Any, Union
+"""LibCST based Fixer Gateway. Accepts only TransformationPlan; no raw CSTTransformer at boundary."""
 
 import libcst as cst
 
@@ -33,17 +31,16 @@ class LibCSTFixerGateway(FixerGatewayProtocol):
         elif t == TransformationType.ADD_GOVERNANCE_COMMENT:
             return GovernanceCommentTransformer(params)
         else:
-            raise ValueError(f"Unknown transformation type: {plan.transformation_type}")
+            raise ValueError(
+                f"Unknown transformation type: {plan.transformation_type}")
 
-    def apply_fixes(
-        self, file_path: str, fixes: list[Union[cst.CSTTransformer, TransformationPlan, Any]]
-    ) -> bool:
+    def apply_fixes(self, file_path: str, fixes: list[TransformationPlan]) -> bool:
         """
-        Apply a list of fixes to a file.
+        Apply a list of transformation plans to a file.
 
         Args:
             file_path: Path to the file to modify
-            fixes: List of LibCST transformers or TransformationPlans to apply
+            fixes: List of TransformationPlans to apply (no raw CSTTransformer at boundary)
 
         Returns:
             True if the file was modified, False otherwise
@@ -55,18 +52,10 @@ class LibCSTFixerGateway(FixerGatewayProtocol):
             module = cst.parse_module(source)
             original_code = module.code
 
-            # Convert TransformationPlans to transformers and apply all
-            for fix in fixes:
-                if fix is None:
+            for plan in fixes:
+                if plan is None:
                     continue
-
-                # Convert plan to transformer if needed
-                if isinstance(fix, TransformationPlan):
-                    transformer = self._plan_to_transformer(fix)
-                else:
-                    transformer = fix
-
-                # If transformer needs source_lines, inject them
+                transformer = self._plan_to_transformer(plan)
                 if hasattr(transformer, "source_lines") and not transformer.source_lines:
                     transformer.source_lines = source_lines
                 module = module.visit(transformer)
@@ -79,4 +68,3 @@ class LibCSTFixerGateway(FixerGatewayProtocol):
             return False
         except Exception:
             return False
-

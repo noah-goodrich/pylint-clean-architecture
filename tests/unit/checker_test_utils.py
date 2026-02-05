@@ -1,4 +1,9 @@
-"""Helpers for mocking AST nodes and verifying messages."""
+"""Helpers for mocking AST nodes and verifying messages.
+
+When refactoring rules: checkers emit rule CODES (e.g. W9010, W9006), not symbols
+(clean-arch-god-file, clean-arch-demeter). Tests must assert on codes. See
+infrastructure/resources/rule_registry.yaml for code -> symbol mapping.
+"""
 
 import unittest.mock
 from unittest.mock import MagicMock
@@ -19,21 +24,25 @@ def create_mock_node(cls, **attrs) -> MagicMock:
         try:
             node.root.return_value = root
         except AttributeError:
-             pass
+            pass
 
     # Defaults required for internal checks
     if not hasattr(node, 'lineno'):
-         node.lineno = 1
+        node.lineno = 1
     if not hasattr(node, 'col_offset'):
-         node.col_offset = 0
+        node.col_offset = 0
 
     return node
+
 
 class CheckerTestCase:
     """Mixin for Checker tests."""
 
     def assertAddsMessage(self, checker, msg_id, node=None, args=None):
-        """Verify that checker.add_message was called."""
+        """Verify that checker.add_message was called.
+
+        msg_id must be the rule CODE (e.g. W9010, W9006), not the symbol.
+        """
         # We assert on the linter mock
         calls = checker.linter.add_message.call_args_list
         found: bool = False
@@ -74,10 +83,11 @@ class CheckerTestCase:
             break
 
         if not found:
-             raise AssertionError(f"Message {msg_id} not found in calls: {calls}")
+            raise AssertionError(
+                f"Message {msg_id} not found in calls: {calls}")
 
     def assertNoMessages(self, checker):
         calls = checker.linter.add_message.call_args_list
         if calls:
-             raise AssertionError(f"Expected no messages, but found: {calls}")
+            raise AssertionError(f"Expected no messages, but found: {calls}")
         checker.linter.add_message.assert_not_called()

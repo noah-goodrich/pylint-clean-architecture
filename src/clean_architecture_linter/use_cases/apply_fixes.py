@@ -4,17 +4,15 @@ import shutil
 import subprocess
 import sys
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional, TypedDict, cast
 
 import astroid  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
-    import libcst as cst
-
-    from clean_architecture_linter.domain.entities import LinterResult
+    from clean_architecture_linter.domain.entities import LinterResult, TransformationPlan
     from clean_architecture_linter.domain.rules import Violation
 else:
-    from clean_architecture_linter.domain.entities import LinterResult
+    from clean_architecture_linter.domain.entities import LinterResult, TransformationPlan
 
 from clean_architecture_linter.domain.constants import (
     RUFF_CODE_QUALITY_SELECT,
@@ -26,18 +24,36 @@ from clean_architecture_linter.domain.protocols import (
     FixerGatewayProtocol,
     LinterAdapterProtocol,
     TelemetryPort,
+    ViolationBridgeProtocol,
 )
 from clean_architecture_linter.domain.rules import BaseRule
 from clean_architecture_linter.domain.rules.governance_comments import (
-    create_governance_rule,
+    GovernanceRuleFactory,
 )
 from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
 
+
+class ManualSuggestionRow(TypedDict):
+    """One manual fix suggestion from the gateway (linter, code, message, file, line, suggestion)."""
+
+    linter: str
+    code: str
+    message: str
+    file: str
+    line: int
+    suggestion: str
+
+
+class RunPytestKwargs(TypedDict, total=False):
+    """Keyword arguments for subprocess.run when running pytest."""
+
+    capture_output: bool
+    timeout: int
+    cwd: str
+
+
 if TYPE_CHECKING:
     from clean_architecture_linter.domain.config import ConfigurationLoader
-    from clean_architecture_linter.infrastructure.services.violation_bridge import (
-        ViolationBridgeService,
-    )
     from clean_architecture_linter.use_cases.check_audit import CheckAuditUseCase
 
 
@@ -48,18 +64,18 @@ class ApplyFixesUseCase:
         self,
         fixer_gateway: FixerGatewayProtocol,
         filesystem: FileSystemProtocol,
-        linter_adapter: LinterAdapterProtocol = None,
-        telemetry: TelemetryPort = None,
+        linter_adapter: LinterAdapterProtocol,
+        telemetry: TelemetryPort,
+        astroid_gateway: AstroidProtocol,
+        ruff_adapter: LinterAdapterProtocol,
+        check_audit_use_case: "CheckAuditUseCase",
+        config_loader: "ConfigurationLoader",
+        excelsior_adapter: LinterAdapterProtocol,
+        violation_bridge: ViolationBridgeProtocol,
         require_confirmation: bool = False,
         create_backups: bool = True,
         cleanup_backups: bool = False,
         validate_with_tests: bool = True,
-        astroid_gateway: Optional[AstroidProtocol] = None,
-        ruff_adapter: Optional[LinterAdapterProtocol] = None,
-        check_audit_use_case: Optional["CheckAuditUseCase"] = None,
-        config_loader: Optional["ConfigurationLoader"] = None,
-        excelsior_adapter: Optional[LinterAdapterProtocol] = None,
-        violation_bridge: Optional["ViolationBridgeService"] = None,
     ) -> None:
         self.fixer_gateway = fixer_gateway
         self.filesystem = filesystem
@@ -82,6 +98,7 @@ class ApplyFixesUseCase:
         if self.telemetry:
             self.telemetry.step(f"🔧 Starting Fix Logic on {target_path}")
 
+        self._current_target_path = target_path
         self._run_baseline_if_enabled()
         files = self.filesystem.glob_python_files(target_path)
         modified_count: int = 0
@@ -116,26 +133,26 @@ class ApplyFixesUseCase:
         rollback_occurred: bool,
     ) -> tuple[int, bool, list[str]]:
         """Process one file in execute() loop. Returns (modified_count, rollback_occurred, failed_fixes)."""
-        transformers, failed_fixes, rule_codes = self._collect_transformers_from_rules(
+        plans, failed_fixes, rule_codes = self._collect_plans_from_rules(
             rules, file_path_str
         )
 
         if self.telemetry:
             _rel = self._rel_path(file_path_str)
-            if transformers:
+            if plans:
                 rules_str = ",".join(str(rc) for rc in rule_codes)
                 self.telemetry.step(
-                    f"file={_rel} attempt transformers={len(transformers)} rules=[{rules_str}]"
+                    f"file={_rel} attempt plans={len(plans)} rules=[{rules_str}]"
                 )
             else:
                 self.telemetry.step(
                     f"file={_rel} status=skipped reason=no_fixable_violations"
                 )
 
-        if not transformers:
+        if not plans:
             return (modified_count, rollback_occurred, failed_fixes)
 
-        if self._skip_confirmation(file_path_str, transformers):
+        if self._skip_confirmation(file_path_str, plans):
             if self.telemetry:
                 self.telemetry.warning(
                     f"file={self._rel_path(file_path_str)} status=skipped reason=user_declined"
@@ -145,7 +162,7 @@ class ApplyFixesUseCase:
         backup_path_str = (
             self._create_backup(file_path_str) if self.create_backups else None
         )
-        success = self.fixer_gateway.apply_fixes(file_path_str, transformers)
+        success = self.fixer_gateway.apply_fixes(file_path_str, plans)
 
         if success:
             mod_delta, did_rollback = self._handle_successful_fix(
@@ -162,14 +179,21 @@ class ApplyFixesUseCase:
         self._cleanup_backup_if_requested(backup_path_str)
         return (modified_count, rollback_occurred, failed_fixes)
 
-    def execute_multi_pass(self, rules: list[BaseRule], target_path: str) -> int:
+    def execute_multi_pass(
+        self,
+        rules: list[BaseRule],
+        target_path: str,
+        inject_governance_comments: bool = False,
+    ) -> int:
         """
         Execute multi-pass fixer with cache clearing:
-        Pass 1 (Ruff + W9015) → Clear Cache → Pass 2 (Architecture) → Pass 3 (LoD Comments).
+        Pass 1 (Ruff + W9015) → Clear Cache → Pass 2 (Architecture) → Pass 3 (LoD Comments, optional).
 
         Args:
             rules: List of BaseRule instances (Excelsior rules)
             target_path: Path to fix
+            inject_governance_comments: If True, inject EXCELSIOR comment blocks above violation
+                lines (Pass 4). Default False: use handover + plan-fix for instructions instead.
 
         Returns:
             Total number of files modified across all passes
@@ -178,6 +202,7 @@ class ApplyFixesUseCase:
             self.telemetry.step(
                 f"🔧 Starting Multi-Pass Fix Logic on {target_path}")
 
+        self._current_target_path = target_path
         self._run_baseline_if_enabled()
 
         # Phase 1: Deterministic fixes (Ruff + Type Hints)
@@ -191,9 +216,12 @@ class ApplyFixesUseCase:
         pass3_modified = self._execute_pass3_architecture_code(
             rules, target_path)
 
-        # Phase 3: Governance Comments (W9006 only - comment-only fixes)
-        pass4_modified = self._execute_pass4_governance_comments(
-            rules, target_path)
+        # Phase 3: Governance Comments (optional; use plan-fix / handover by default)
+        if inject_governance_comments:
+            pass4_modified = self._execute_pass4_governance_comments(
+                rules, target_path)
+        else:
+            pass4_modified = 0
 
         # Phase 4: Code quality last (Ruff E, F, W, C90, ...)
         pass5_modified = self._execute_pass5_ruff_code_quality(target_path)
@@ -222,7 +250,8 @@ class ApplyFixesUseCase:
             Path(target_path), select_only=RUFF_IMPORT_TYPING_SELECT
         )
         if ruff_modified and self.telemetry:
-            self.telemetry.step("✅ Pass 1 complete: Ruff import/typing applied")
+            self.telemetry.step(
+                "✅ Pass 1 complete: Ruff import/typing applied")
         return 1 if ruff_modified else 0
 
     def _execute_pass5_ruff_code_quality(self, target_path: str) -> int:
@@ -345,14 +374,10 @@ class ApplyFixesUseCase:
         if not self.astroid_gateway:
             return 0
 
-        # Use injected bridge or create lazily
-        if self.violation_bridge:
-            bridge_service = self.violation_bridge
-        else:
-            from clean_architecture_linter.infrastructure.services.violation_bridge import (
-                ViolationBridgeService,
-            )
-            bridge_service = ViolationBridgeService(self.astroid_gateway)
+        # Use injected bridge; skip governance comment injection if not provided
+        if not self.violation_bridge:
+            return 0
+        bridge_service = self.violation_bridge
         files = self.filesystem.glob_python_files(target_path)
         violations_by_file = self._group_violations_by_file(excelsior_results)
         modified_count = 0
@@ -370,17 +395,15 @@ class ApplyFixesUseCase:
             if not violations:
                 continue
 
-            transformers = self._build_governance_transformers(violations)
-            if not transformers:
+            plans = self._build_governance_plans(violations)
+            if not plans:
                 continue
 
             if self.telemetry:
                 self.telemetry.step(
-                    f"file={self._rel_path(file_path_str)} attempt governance_comments transformers={len(transformers)}"
+                    f"file={self._rel_path(file_path_str)} attempt governance_comments plans={len(plans)}"
                 )
-            delta = self._apply_transformers_to_file(
-                file_path_str, transformers
-            )
+            delta = self._apply_plans_to_file(file_path_str, plans)
             if self.telemetry and delta:
                 self.telemetry.step(
                     f"file={self._rel_path(file_path_str)} status=success applied=governance_comments"
@@ -400,37 +423,36 @@ class ApplyFixesUseCase:
                 violations_by_file[file_path].append(result)
         return violations_by_file
 
-    def _build_governance_transformers(
+    def _build_governance_plans(
         self, violations: list["Violation"]
-    ) -> list["cst.CSTTransformer"]:
-        """Build governance comment transformers for all comment-only violations."""
-        transformers = []
-        # Use injected excelsior_adapter instead of container access
+    ) -> list[TransformationPlan]:
+        """Build governance comment plans for all comment-only violations."""
+        plans: list[TransformationPlan] = []
         excelsior_adapter = self.excelsior_adapter
 
         for violation in violations:
-            # Only process comment-only violations
             if not violation.is_comment_only:
                 continue
 
-            rule = create_governance_rule(violation.code, excelsior_adapter)
+            factory = GovernanceRuleFactory()
+            rule = factory.create_rule(violation.code, excelsior_adapter)
             if rule:
-                transformer = rule.fix(violation)
-                if transformer:
-                    transformers.append(transformer)
-        return transformers
+                plan = rule.fix(violation)
+                if plan:
+                    plans.append(plan)
+        return plans
 
-    def _apply_transformers_to_file(
-        self, file_path_str: str, transformers: list["cst.CSTTransformer"]
+    def _apply_plans_to_file(
+        self, file_path_str: str, plans: list[TransformationPlan]
     ) -> int:
-        """Apply transformers to a single file."""
-        if self._skip_confirmation(file_path_str, transformers):
+        """Apply transformation plans to a single file."""
+        if self._skip_confirmation(file_path_str, plans):
             return 0
 
         backup_path_str = (
             self._create_backup(file_path_str) if self.create_backups else None
         )
-        success = self.fixer_gateway.apply_fixes(file_path_str, transformers)
+        success = self.fixer_gateway.apply_fixes(file_path_str, plans)
 
         if success:
             mod_delta, did_rollback = self._handle_successful_fix(
@@ -450,7 +472,8 @@ class ApplyFixesUseCase:
         w9015_rules = [r for r in rules if hasattr(
             r, 'code') and r.code == "W9015"]
         if not w9015_rules and self.astroid_gateway:
-            w9015_rules = [MissingTypeHintRule(self.astroid_gateway)]
+            w9015_rules = cast(
+                list[BaseRule], [MissingTypeHintRule(self.astroid_gateway)])
         return w9015_rules
 
     def _get_architecture_rules(self, rules: list[BaseRule]) -> list[BaseRule]:
@@ -495,26 +518,26 @@ class ApplyFixesUseCase:
         self, file_path_str: str, rules: list[BaseRule], modified_count: int
     ) -> tuple[int, list[str]]:
         """Process one file in _apply_rule_fixes. Returns (modified_count, failed_fixes)."""
-        transformers, failed_fixes, rule_codes = self._collect_transformers_from_rules(
+        plans, failed_fixes, rule_codes = self._collect_plans_from_rules(
             rules, file_path_str
         )
 
         if self.telemetry:
             _rel_path = self._rel_path(file_path_str)
-            if transformers:
+            if plans:
                 rules_str = ",".join(str(rc) for rc in rule_codes)
                 self.telemetry.step(
-                    f"file={_rel_path} attempt transformers={len(transformers)} rules=[{rules_str}]"
+                    f"file={_rel_path} attempt plans={len(plans)} rules=[{rules_str}]"
                 )
             else:
                 self.telemetry.step(
                     f"file={_rel_path} status=skipped reason=no_fixable_violations"
                 )
 
-        if not transformers:
+        if not plans:
             return (modified_count, failed_fixes)
 
-        if self._skip_confirmation(file_path_str, transformers):
+        if self._skip_confirmation(file_path_str, plans):
             if self.telemetry:
                 self.telemetry.warning(
                     f"file={self._rel_path(file_path_str)} status=skipped reason=user_declined"
@@ -524,7 +547,7 @@ class ApplyFixesUseCase:
         backup_path_str = (
             self._create_backup(file_path_str) if self.create_backups else None
         )
-        success = self.fixer_gateway.apply_fixes(file_path_str, transformers)
+        success = self.fixer_gateway.apply_fixes(file_path_str, plans)
 
         if success:
             mod_delta, _ = self._handle_successful_fix(
@@ -549,11 +572,11 @@ class ApplyFixesUseCase:
             failures = "passed" if self._test_baseline == 0 else f"{self._test_baseline} failures"
             self.telemetry.step(f"📊 Test baseline: {failures}")
 
-    def _skip_confirmation(self, file_path_str: str, transformers: list["cst.CSTTransformer"]) -> bool:
+    def _skip_confirmation(self, file_path_str: str, plans: list[TransformationPlan]) -> bool:
         """True if user skips (require_confirmation and not confirm). Emits telemetry when skipping."""
         if not self.require_confirmation:
             return False
-        if self._confirm_fix(file_path_str, transformers):
+        if self._confirm_fix(file_path_str, plans):
             return False
         if self.telemetry:
             # JUSTIFICATION: File name extraction for display only
@@ -596,35 +619,36 @@ class ApplyFixesUseCase:
         if self.telemetry:
             rel = self._rel_path(file_path_str)
             self.telemetry.step(f"✅ Auto-repaired: {rel}")
-            applied = ",".join(str(rc) for rc in rule_codes) if rule_codes else "n/a"
+            applied = ",".join(str(rc)
+                               for rc in rule_codes) if rule_codes else "n/a"
             self.telemetry.step(
                 f"file={rel} status=success applied_rules=[{applied}]"
             )
         return (modified_count, rollback_occurred)
 
-    def get_manual_fixes(self, target_path: str) -> list[dict[str, Any]]:
+    def get_manual_fixes(self, target_path: str) -> list[ManualSuggestionRow]:
         """Get manual fix suggestions for issues that cannot be auto-fixed."""
         if hasattr(self.fixer_gateway, 'get_manual_suggestions'):
-            return self.fixer_gateway.get_manual_suggestions(target_path)
+            return cast(list[ManualSuggestionRow], self.fixer_gateway.get_manual_suggestions(target_path))
         return []
 
-    def _collect_transformers_from_rules(
+    def _collect_plans_from_rules(
         self, rules: list[BaseRule], file_path_str: str
-    ) -> tuple[list["cst.CSTTransformer"], list[str], list[str]]:
+    ) -> tuple[list[TransformationPlan], list[str], list[str]]:
         """
-        Discover and collect transformers from enabled rules.
+        Discover and collect transformation plans from enabled rules.
 
         For each rule:
         1. Parse file with astroid to get module node
         2. Call rule.check(module_node) to get violations
-        3. For each fixable violation, call rule.fix(violation) to get transformer
-        4. Collect all transformers and failed fix reasons
+        3. For each fixable violation, call rule.fix(violation) to get plan(s)
+        4. Collect all plans and failed fix reasons
 
         Returns:
-            (transformers, failed_fixes, rule_codes) where failed_fixes is a list of
-            failure messages and rule_codes are rule codes that produced at least one transformer.
+            (plans, failed_fixes, rule_codes) where failed_fixes is a list of
+            failure messages and rule_codes are rule codes that produced at least one plan.
         """
-        transformers: list[cst.CSTTransformer] = []
+        plans: list[TransformationPlan] = []
         failed_fixes: list[str] = []
         rule_codes_applied: list[str] = []
 
@@ -635,11 +659,11 @@ class ApplyFixesUseCase:
                 source = f.read()
             module_node = astroid.parse(source, file_path_str)
             for rule in rules:
-                t, f, rc = self._collect_transformers_for_rule(
+                p, failed_list, rc = self._collect_plans_for_rule(
                     rule, module_node, file_path_str
                 )
-                transformers.extend(t)
-                failed_fixes.extend(f)
+                plans.extend(p)
+                failed_fixes.extend(failed_list)
                 for code in rc:
                     if code not in rule_codes_applied:
                         rule_codes_applied.append(code)
@@ -647,13 +671,13 @@ class ApplyFixesUseCase:
             if self.telemetry:
                 self.telemetry.error(f"Failed to parse {file_path_str}: {e}")
 
-        return (transformers, failed_fixes, rule_codes_applied)
+        return (plans, failed_fixes, rule_codes_applied)
 
-    def _collect_transformers_for_rule(
+    def _collect_plans_for_rule(
         self, rule: BaseRule, module_node: astroid.nodes.Module, file_path_str: str
-    ) -> tuple[list["cst.CSTTransformer"], list[str], list[str]]:
-        """Collect transformers from one rule for a module. Returns (transformers, failed_fixes, rule_codes)."""
-        transformers: list[cst.CSTTransformer] = []
+    ) -> tuple[list[TransformationPlan], list[str], list[str]]:
+        """Collect transformation plans from one rule for a module. Returns (plans, failed_fixes, rule_codes)."""
+        plans: list[TransformationPlan] = []
         failed_fixes: list[str] = []
         rule_code = getattr(rule, "code", "?")
         rule_codes_out: list[str] = []
@@ -663,8 +687,8 @@ class ApplyFixesUseCase:
             for violation in violations:
                 if not violation.fixable:
                     continue
-                transformer_or_transformers = rule.fix(violation)
-                if transformer_or_transformers is None:
+                plan_or_plans = rule.fix(violation)
+                if plan_or_plans is None:
                     reason = violation.fix_failure_reason or "Unknown reason"
                     failed_fixes.append(
                         f"Failed to fix {violation.code} in {file_path_str}: {reason}"
@@ -673,13 +697,13 @@ class ApplyFixesUseCase:
                         self.telemetry.error(
                             f"Failed to fix {violation.code} in {file_path_str}: {reason}"
                         )
-                elif isinstance(transformer_or_transformers, list):
-                    added = [t for t in transformer_or_transformers if t is not None]
-                    transformers.extend(added)
+                elif isinstance(plan_or_plans, list):
+                    added = [p for p in plan_or_plans if p is not None]
+                    plans.extend(added)
                     if added and rule_code not in rule_codes_out:
                         rule_codes_out.append(rule_code)
                 else:
-                    transformers.append(transformer_or_transformers)
+                    plans.append(plan_or_plans)
                     if rule_code not in rule_codes_out:
                         rule_codes_out.append(rule_code)
         except Exception as e:
@@ -687,9 +711,9 @@ class ApplyFixesUseCase:
                 self.telemetry.error(
                     f"Rule {rule_code} failed on {file_path_str}: {e}"
                 )
-        return (transformers, failed_fixes, rule_codes_out)
+        return (plans, failed_fixes, rule_codes_out)
 
-    def _confirm_fix(self, file_path_str: str, transformers: list["cst.CSTTransformer"]) -> bool:
+    def _confirm_fix(self, file_path_str: str, plans: list[TransformationPlan]) -> bool:
         """Ask user for confirmation before applying fix."""
         if not sys.stdin.isatty():
             # Non-interactive mode, apply automatically
@@ -699,8 +723,7 @@ class ApplyFixesUseCase:
         from pathlib import Path
         file_name = Path(file_path_str).name
         print(f"\n📝 File: {file_name}")
-        print(
-            f"   Transformers: {len(transformers)} transformer(s) will be applied")
+        print(f"   Plans: {len(plans)} fix(es) will be applied")
         response = input("   Apply fixes? [y/N]: ").strip().lower()
         return response in ['y', 'yes']
 
@@ -727,12 +750,17 @@ class ApplyFixesUseCase:
             Path(backup_path_str).unlink(missing_ok=True)
 
     def _run_pytest(self) -> int:
-        """Run pytest and return number of failures."""
+        """Run pytest and return number of failures (in project being fixed when set)."""
         try:
+            kwargs: RunPytestKwargs = {"capture_output": True, "timeout": 120}
+            cwd = getattr(self, "_current_target_path", None)
+            if cwd:
+                from pathlib import Path
+                p = Path(cwd)
+                kwargs["cwd"] = str(p.parent) if p.is_file() else cwd
             result = subprocess.run(
                 ['pytest', '--tb=no', '-q', '--no-cov'],
-                capture_output=True,
-                timeout=120
+                **kwargs
             )
             # Parse output for failure count
             output = result.stdout.decode() + result.stderr.decode()

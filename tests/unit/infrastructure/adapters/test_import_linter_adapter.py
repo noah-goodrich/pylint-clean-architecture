@@ -5,7 +5,7 @@ from clean_architecture_linter.infrastructure.adapters.import_linter_adapter imp
 
 def test_gather_results_success_broken_contract() -> None:
     """Parse 'Broken contract' + 'is not allowed to import' format."""
-    adapter = ImportLinterAdapter()
+    adapter = ImportLinterAdapter(guidance_service=MagicMock())
 
     mock_output: str = """
 Some header
@@ -37,7 +37,7 @@ domain.entities is not allowed to import infrastructure.db
 
 def test_parse_output_no_matches_for_ignored_import() -> None:
     """Parse 'No matches for ignored import X -> Y' format (actual import-linter output)."""
-    adapter = ImportLinterAdapter()
+    adapter = ImportLinterAdapter(guidance_service=MagicMock())
 
     mock_output = """
 No matches for ignored import clean_architecture_linter.interface.cli ->
@@ -51,7 +51,7 @@ clean_architecture_linter.infrastructure.adapters.linter_adapters.
     assert "linter_adapters" in results[0].message
 
 def test_gather_results_fallback() -> None:
-    adapter = ImportLinterAdapter()
+    adapter = ImportLinterAdapter(guidance_service=MagicMock())
 
     with patch("subprocess.run") as mock_run:
         # First call raises FileNotFoundError
@@ -65,7 +65,7 @@ def test_gather_results_fallback() -> None:
         assert results == []
 
 def test_gather_results_exception() -> None:
-    adapter = ImportLinterAdapter()
+    adapter = ImportLinterAdapter(guidance_service=MagicMock())
     with patch("subprocess.run", side_effect=Exception("Boom")):
         results = adapter.gather_results("src")
         assert len(results) == 1

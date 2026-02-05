@@ -39,7 +39,16 @@ def _run_coupling_checker_on_code(code: str, path: str) -> list:
         msgs.append((args, kwargs))
 
     linter.add_message = _add
-    checker = CouplingChecker(linter, ast_gateway, python_gateway)
+    from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
+    config_loader = container.get_config_loader()
+    checker = CouplingChecker(
+        linter,
+        ast_gateway,
+        python_gateway,
+        stub_resolver=StubAuthority(),
+        config_loader=config_loader,
+        registry={},
+    )
     checker._is_test_file = lambda n: False
 
     def walk(n):

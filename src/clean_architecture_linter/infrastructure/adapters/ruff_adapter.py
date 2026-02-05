@@ -3,9 +3,16 @@
 import json
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import LinterResult
+from clean_architecture_linter.infrastructure.services.guidance_service import (
+    GuidanceService,
+)
+
+# Ruff config: top-level keys (line-length, target-version, lint with nested dicts).
+RuffConfig = dict[str, str | int | dict[str, list[str] | dict[str, int]]]
 
 if TYPE_CHECKING:
     from stellar_ui_kit import TelemetryPort
@@ -16,16 +23,22 @@ if TYPE_CHECKING:
 class RuffAdapter:
     """Adapter for running Ruff and parsing results."""
 
+    LINTER = "ruff"
+
     def __init__(
         self,
-        telemetry: Optional["TelemetryPort"] = None,
-        raw_log_port: Optional["RawLogPort"] = None,
+        config_loader: ConfigurationLoader,
+        telemetry: "TelemetryPort",
+        raw_log_port: "RawLogPort",
+        guidance_service: GuidanceService,
     ) -> None:
+        self._config_loader = config_loader
         self.telemetry = telemetry
         self._raw_log_port = raw_log_port
+        self._guidance = guidance_service
 
     @staticmethod
-    def get_default_config() -> dict[str, Any]:
+    def get_default_config() -> RuffConfig:
         """Return Excelsior's opinionated Ruff defaults.
 
         Based on snowarch's strictest configuration.
@@ -64,9 +77,9 @@ class RuffAdapter:
 
     def _merge_configs(
         self,
-        project_config: dict[str, Any],
-        excelsior_config: dict[str, Any]
-    ) -> dict[str, Any]:
+        project_config: RuffConfig,
+        excelsior_config: RuffConfig,
+    ) -> RuffConfig:
         """Merge Ruff configs with project settings taking precedence.
 
         Strategy (Option C from user request):
@@ -109,7 +122,7 @@ class RuffAdapter:
     def run(
         self,
         target_path: Path,
-        config: Optional[dict[str, Any]] = None,
+        config: Optional[RuffConfig] = None,
         select_only: Optional[list[str]] = None,
     ) -> list[LinterResult]:
         """Run Ruff on target path and return violations.
@@ -282,27 +295,21 @@ class RuffAdapter:
         }
 
     def get_manual_fix_instructions(self, rule_code: str) -> str:
-        """Get manual fix instructions for a specific rule."""
-        manual_instructions = {
-            "ARG001": (
-                "Remove unused function argument or prefix with underscore (_arg) "
-                "to indicate intentional non-use."
-            ),
+        """Get manual fix instructions for a specific rule (from registry when available)."""
+        instructions = self._guidance.get_manual_instructions(self.LINTER, rule_code)
+        if instructions and instructions.strip():
+            return instructions
+        default = "See Ruff documentation: https://docs.astral.sh/ruff/rules/"
+        fallback: dict[str, str] = {
+            "ARG001": "Remove unused function argument or prefix with underscore (_arg) to indicate intentional non-use.",
             "ARG002": "Remove unused method argument or prefix with underscore",
-            "PLR0913": (
-                "Reduce number of function arguments. "
-                "Consider grouping related args into a dataclass/config object."
-            ),
+            "PLR0913": "Reduce number of function arguments. Consider grouping related args into a dataclass/config object.",
             "C901": "Reduce cyclomatic complexity by extracting logic into smaller functions",
-            "PLR0912": "Reduce number of branches. Consider using early returns, lookup tables, or strategy pattern",
+            "PLR0912": "Reduce number of branches. Consider early returns, lookup tables, or strategy pattern",
             "PLR0915": "Reduce function length by extracting logic into helper methods",
-            "B008": (
-                "Move default mutable argument (list/dict) inside function body "
-                "with 'if arg is None: arg = []'."
-            ),
+            "B008": "Move default mutable argument (list/dict) inside function body with 'if arg is None: arg = []'.",
         }
-        default: str = "See Ruff documentation: https://docs.astral.sh/ruff/rules/"
-        return manual_instructions.get(rule_code, default)
+        return fallback.get(rule_code, default)
 
     def apply_fixes(
         self,
@@ -327,14 +334,14 @@ class RuffAdapter:
             if select_only:
                 cmd.extend(["--select", ",".join(select_only)])
             else:
-                from clean_architecture_linter.domain.config import ConfigurationLoader
-                config_loader = ConfigurationLoader()
+                config_loader = self._config_loader
                 # Merge configs: excelsior defaults + project overrides
                 project_config = config_loader.get_project_ruff_config()
                 excelsior_config = config_loader.get_excelsior_ruff_config()
                 merged_config = self._merge_configs(
                     project_config if isinstance(project_config, dict) else {},
-                    excelsior_config if isinstance(excelsior_config, dict) else {}
+                    excelsior_config if isinstance(
+                        excelsior_config, dict) else {}
                 )
                 if merged_config and merged_config.get("lint", {}).get("select"):
                     select_rules = merged_config["lint"]["select"]

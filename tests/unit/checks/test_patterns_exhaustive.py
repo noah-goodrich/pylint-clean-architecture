@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker, PatternChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
@@ -10,39 +11,41 @@ from tests.unit.checker_test_utils import CheckerTestCase
 class TestPatternCheckerExhaustive(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
-        self.checker = PatternChecker(self.linter)
+        self.checker = PatternChecker(self.linter, registry={})
 
     def test_delegation_detected_deep_if(self) -> None:
-        """W9005: Deep delegation chain (if/elif/elif) detected."""
-        # if x: return delegate() elif y: return delegate()
-        node = create_strict_mock(astroid.nodes.If)
-        node.test = MagicMock() # Required for _is_main_block check
-
-        # Branch 1
-        node.body = [self._create_return_call()]
-
-        # orelse needs to be an If (representing elif)
-        elif_node = create_strict_mock(astroid.nodes.If)
-        elif_node.test = MagicMock()
-        elif_node.body = [self._create_return_call()]
-        elif_node.orelse = [self._create_return_call()] # Final else -> return call
-
-        node.orelse = [elif_node]
+        """W9005: Deep delegation chain (if/elif/else return) detected."""
+        # Use real astroid so rule sees real body/orelse lists (mocks break isinstance(list))
+        code = """
+if x:
+    return delegate()
+elif y:
+    return delegate()
+"""
+        import astroid
+        module = astroid.parse(code)
+        node = module.body[0]
 
         self.checker.visit_if(node)
-        self.assertAddsMessage(self.checker, "clean-arch-delegation", node=node)
+        self.assertAddsMessage(self.checker, "W9005", node=node)
 
-    def _create_return_call(self) -> MagicMock:
-        ret = create_strict_mock(astroid.nodes.Return)
-        ret.value = create_strict_mock(astroid.nodes.Call)
-        return ret
 
 class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
         self.ast_gateway = MagicMock()
         self.python_gateway = MagicMock()
-        self.checker = CouplingChecker(self.linter, ast_gateway=self.ast_gateway, python_gateway=self.python_gateway)
+        stub_resolver = MagicMock()
+        stub_resolver.get_stub_path.return_value = None
+        self.config_loader = ConfigurationLoader({}, {})
+        self.checker = CouplingChecker(
+            self.linter,
+            ast_gateway=self.ast_gateway,
+            python_gateway=self.python_gateway,
+            stub_resolver=stub_resolver,
+            config_loader=self.config_loader,
+            registry={},
+        )
         # Fix mock to avoid "str object has no attribute 'split'" or similar in _check_method_chain/is_test_file
         # Default responses
         self.ast_gateway.is_trusted_authority_call.return_value = False
@@ -77,11 +80,13 @@ class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         attr_c.expr = attr_b
         node.func = attr_c
 
-        # Mock to ensure the chain is not excluded by dynamic logic
-        self.checker._is_chain_excluded = MagicMock(return_value=False)
+        # Mock rule so chain is not excluded (thin checker delegates to rule)
+        self.checker._demeter_rule._is_chain_excluded = MagicMock(
+            return_value=False)
 
         self.checker.visit_call(node)
-        self.assertAddsMessage(self.checker, "clean-arch-demeter", node=node, args=("a.b.c",))
+        self.assertAddsMessage(self.checker, "W9006",
+                               node=node, args=("a.b.c",))
 
     def test_visit_call_trusted_authority_exclusion(self) -> None:
         """W9006: Excluded if Trusted Authority."""
@@ -163,11 +168,14 @@ class TestCouplingCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         call.func.attrname = "do_something"
         call.func.expr = create_strict_mock(astroid.nodes.Name, name="x")
 
-        # Mock to ensure the stranger check isn't excluded
-        self.checker._is_chain_excluded = MagicMock(return_value=False)
+        # Mock rule so stranger check isn't excluded (thin checker delegates to rule)
+        self.checker._demeter_rule._is_chain_excluded = MagicMock(
+            return_value=False)
 
         self.checker.visit_call(call)
-        self.assertAddsMessage(self.checker, "clean-arch-demeter", node=call, args=("x.do_something (Stranger)",))
+        self.assertAddsMessage(self.checker, "W9006",
+                               node=call, args=("x.do_something (Stranger)",))
+
 
 def create_strict_mock(spec_cls, **attrs) -> MagicMock:
     """Helper duplicate."""

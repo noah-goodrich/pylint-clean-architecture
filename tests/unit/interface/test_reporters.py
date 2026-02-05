@@ -12,16 +12,17 @@ class TestTerminalAuditReporter:
 
     def test_report_audit_blocked_by_ruff_prints_message_and_reports_ruff(self) -> None:
         """When blocked by Ruff, prints block message and shows Ruff table."""
-        rule_svc = RuleFixabilityService()
-        with patch(
-            "clean_architecture_linter.infrastructure.reporters.TerminalAuditReporter.__init__",
-            lambda self, _: None,
-        ):
-            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+        from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-            rep = TerminalAuditReporter(rule_svc)
-            rep.reporter = MagicMock()
-            rep.rule_fixability_service = rule_svc
+        rule_svc = RuleFixabilityService()
+        rep = TerminalAuditReporter(
+            rule_svc,
+            config_loader=MagicMock(),
+            guidance_service=MagicMock(),
+            raw_log_port=MagicMock(),
+            telemetry=MagicMock(),
+        )
+        rep.reporter = MagicMock()
 
         audit = AuditResult(
             blocked_by="ruff",
@@ -41,7 +42,13 @@ class TestTerminalAuditReporter:
         from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
         rule_svc = RuleFixabilityService()
-        rep = TerminalAuditReporter(rule_svc)
+        rep = TerminalAuditReporter(
+            rule_svc,
+            config_loader=MagicMock(),
+            guidance_service=MagicMock(),
+            raw_log_port=MagicMock(),
+            telemetry=MagicMock(),
+        )
         rep.reporter = MagicMock()
 
         audit = AuditResult(
@@ -74,7 +81,13 @@ class TestTerminalAuditReporter:
             ):
                 from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-                rep = TerminalAuditReporter(rule_svc)
+                rep = TerminalAuditReporter(
+                    rule_svc,
+                    config_loader=MagicMock(),
+                    guidance_service=MagicMock(),
+                    raw_log_port=MagicMock(),
+                    telemetry=MagicMock(),
+                )
 
         audit = AuditResult(
             mypy_results=[LinterResult("err", "msg", ["a.py:1"])],
@@ -104,7 +117,13 @@ class TestTerminalAuditReporter:
             ):
                 from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-                rep = TerminalAuditReporter(rule_svc)
+                rep = TerminalAuditReporter(
+                    rule_svc,
+                    config_loader=MagicMock(),
+                    guidance_service=MagicMock(),
+                    raw_log_port=MagicMock(),
+                    telemetry=MagicMock(),
+                )
 
         audit = AuditResult(
             excelsior_results=[LinterResult(
@@ -135,7 +154,13 @@ class TestTerminalAuditReporter:
             ):
                 from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-                rep = TerminalAuditReporter(rule_svc)
+                rep = TerminalAuditReporter(
+                    rule_svc,
+                    config_loader=MagicMock(),
+                    guidance_service=MagicMock(),
+                    raw_log_port=MagicMock(),
+                    telemetry=MagicMock(),
+                )
 
         audit = AuditResult(
             import_linter_results=[LinterResult("IL", "Boundary", ["c.py:1"])],
@@ -167,7 +192,13 @@ class TestTerminalAuditReporter:
             ):
                 from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-                rep = TerminalAuditReporter(rule_svc)
+                rep = TerminalAuditReporter(
+                    rule_svc,
+                    config_loader=MagicMock(),
+                    guidance_service=MagicMock(),
+                    raw_log_port=MagicMock(),
+                    telemetry=MagicMock(),
+                )
 
         audit = AuditResult(
             ruff_enabled=True,
@@ -185,7 +216,13 @@ class TestTerminalAuditReporter:
         ):
             from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-            rep = TerminalAuditReporter(rule_svc)
+            rep = TerminalAuditReporter(
+            rule_svc,
+            config_loader=MagicMock(),
+            guidance_service=MagicMock(),
+            raw_log_port=MagicMock(),
+            telemetry=MagicMock(),
+        )
 
         adapter = MagicMock()
         adapter.is_comment_only_rule = lambda code: True
@@ -204,7 +241,13 @@ class TestTerminalAuditReporter:
         ):
             from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-            rep = TerminalAuditReporter(rule_svc)
+            rep = TerminalAuditReporter(
+            rule_svc,
+            config_loader=MagicMock(),
+            guidance_service=MagicMock(),
+            raw_log_port=MagicMock(),
+            telemetry=MagicMock(),
+        )
 
         adapter = MagicMock()
         adapter.is_comment_only_rule = lambda code: False
@@ -223,7 +266,13 @@ class TestTerminalAuditReporter:
         ):
             from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
 
-            rep = TerminalAuditReporter(rule_svc)
+            rep = TerminalAuditReporter(
+            rule_svc,
+            config_loader=MagicMock(),
+            guidance_service=MagicMock(),
+            raw_log_port=MagicMock(),
+            telemetry=MagicMock(),
+        )
 
         adapter = MagicMock()
         adapter.is_comment_only_rule = lambda code: False

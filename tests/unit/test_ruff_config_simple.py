@@ -9,8 +9,7 @@ class TestRuffConfigMethods(unittest.TestCase):
     """Test Ruff configuration methods on ConfigurationLoader."""
 
     def setUp(self) -> None:
-        # Get the singleton instance
-        self.loader = ConfigurationLoader()
+        self.loader = ConfigurationLoader({}, {})
 
     def test_get_project_ruff_config_exists(self) -> None:
         """Should return dict for get_project_ruff_config."""

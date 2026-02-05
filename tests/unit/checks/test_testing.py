@@ -17,7 +17,7 @@ class TestTestingChecker(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         """Set up test fixtures."""
         self.linter = MagicMock()
-        self.checker = _TestingCheckerCls(self.linter)
+        self.checker = _TestingCheckerCls(self.linter, registry={})
 
     def test_visit_functiondef_skips_non_test_functions(self) -> None:
         """Test visit_functiondef skips non-test functions."""
@@ -71,7 +71,7 @@ def test_something():
 
         self.checker.leave_functiondef(func_def)
         self.assertAddsMessage(
-            self.checker, "fragile-test-mocks", func_def, args=(5,)
+            self.checker, "W9101", func_def, args=(5,)
         )
 
     def test_leave_functiondef_skips_under_limit(self) -> None:
@@ -181,7 +181,7 @@ def test_something():
         self.checker.visit_functiondef(func_def)
         self.checker.visit_call(call)
         self.assertAddsMessage(
-            self.checker, "private-method-test", call, args=("_private_method",)
+            self.checker, "W9102", call, args=("_private_method",)
         )
 
     def test_visit_call_skips_self_private_method(self) -> None:
@@ -253,28 +253,40 @@ def test_something():
 
     def test_count_mocks_detects_mock_in_string(self) -> None:
         """Test _count_mocks detects Mock in call string."""
-        code = "Mock()"
+        code = """
+def test_something():
+    Mock()
+"""
         module = astroid.parse(code)
-        call = module.body[0].value
-
+        func_def = module.body[0]
+        call = func_def.body[0].value
+        self.checker.visit_functiondef(func_def)
         self.checker._count_mocks(call)
         assert self.checker._mock_count == 1
 
     def test_count_mocks_detects_magicmock_in_string(self) -> None:
         """Test _count_mocks detects MagicMock in call string."""
-        code = "MagicMock()"
+        code = """
+def test_something():
+    MagicMock()
+"""
         module = astroid.parse(code)
-        call = module.body[0].value
-
+        func_def = module.body[0]
+        call = func_def.body[0].value
+        self.checker.visit_functiondef(func_def)
         self.checker._count_mocks(call)
         assert self.checker._mock_count == 1
 
     def test_count_mocks_detects_patch_in_string(self) -> None:
         """Test _count_mocks detects patch in call string."""
-        code = "patch('module')"
+        code = """
+def test_something():
+    patch('module')
+"""
         module = astroid.parse(code)
-        call = module.body[0].value
-
+        func_def = module.body[0]
+        call = func_def.body[0].value
+        self.checker.visit_functiondef(func_def)
         self.checker._count_mocks(call)
         assert self.checker._mock_count == 1
 
@@ -291,7 +303,7 @@ def test_something():
         self.checker.visit_functiondef(func_def)
         self.checker._check_private_method_call(call, "_private")
         self.assertAddsMessage(
-            self.checker, "private-method-test", call, args=("_private",)
+            self.checker, "W9102", call, args=("_private",)
         )
 
     def test_check_private_method_call_skips_when_no_current_function(self) -> None:

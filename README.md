@@ -55,6 +55,17 @@ Excelsior runs a **gated sequential audit** (check) and a **multi-pass fix** pip
 
 See **[docs/EXCELSIOR_PASSES_AND_GATES.md](docs/EXCELSIOR_PASSES_AND_GATES.md)** for full details: pass order, blocked-by values, Ruff rule groups, and recommended workflow.
 
+### Excelsior CLI Commands
+
+| Command | Description |
+|--------|-------------|
+| `excelsior check` [path] | Run the gated audit (import-linter → Ruff → Mypy → Excelsior → Ruff). Writes `.excelsior/last_audit_check.json`, `.excelsior/ai_handover_check.json`. |
+| `excelsior fix` [path] [--comments] | Multi-pass auto-fix (Ruff → W9015 → architecture → [governance comments if `--comments`] → Ruff). Default: no in-file comments; use handover + plan-fix for instructions. Writes `.excelsior/last_audit_fix.json`, `.excelsior/ai_handover_*.json`. |
+| `excelsior init` [--template …] [--check-layers] | Initialize project: creates `.agent/instructions.md`, `.agent/pre-flight.md`, `ARCHITECTURE_ONBOARDING.md` (if missing), appends handshake to Makefile; optionally runs Ruff wizard to add `[tool.excelsior.ruff]` to `pyproject.toml`. |
+| `excelsior generate-guidance` [--output-dir docs] | Generate `docs/GENERATION_GUIDANCE.md` from the rule registry; optionally append to `.cursorrules` if present. |
+| `excelsior plan-fix` \<rule_id\> [--violation-index N] [--source check\|fix\|ai_workflow] | Generate a single-violation fix plan markdown from the latest handover (`.excelsior/fix_plans/<rule_id>_<timestamp>.md`). |
+| `excelsior ai-workflow` [path] | Run fix then check; exit 1 if violations remain. Writes `.excelsior/last_audit_ai_workflow.json`. |
+
 ### Excelsior Auto-Fix Suite
 
 Excelsior can automatically repair several common architectural and stylistic violations.

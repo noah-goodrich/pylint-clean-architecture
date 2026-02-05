@@ -10,6 +10,13 @@ from clean_architecture_linter.infrastructure.services.violation_bridge import (
 )
 
 
+def _make_guidance_mock(*comment_only_codes: str):
+    """Guidance mock whose get_comment_only_codes() returns the given codes."""
+    guidance = MagicMock()
+    guidance.get_comment_only_codes.return_value = list(comment_only_codes)
+    return guidance
+
+
 class TestViolationBridgeService:
     """Test violation bridge service."""
 
@@ -26,7 +33,8 @@ class TestViolationBridgeService:
         module_node = astroid.parse(test_file.read_text())
         astroid_gateway.parse_file = MagicMock(return_value=module_node)
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        guidance = _make_guidance_mock("W9006", "clean-arch-demeter")
+        bridge = ViolationBridgeService(astroid_gateway, guidance)
 
         linter_results = [
             LinterResult(
@@ -50,7 +58,8 @@ class TestViolationBridgeService:
     def test_identifies_comment_only_rules(self) -> None:
         """Test that comment-only rules are identified correctly."""
         astroid_gateway = MagicMock()
-        bridge = ViolationBridgeService(astroid_gateway)
+        guidance = _make_guidance_mock("W9006", "clean-arch-demeter", "W9001")
+        bridge = ViolationBridgeService(astroid_gateway, guidance)
 
         assert bridge._is_comment_only_rule("W9006") is True
         assert bridge._is_comment_only_rule("clean-arch-demeter") is True
@@ -70,7 +79,8 @@ class TestViolationBridgeService:
         module_node = astroid.parse(test_file.read_text())
         astroid_gateway.parse_file = MagicMock(return_value=module_node)
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        guidance = _make_guidance_mock("W9006")
+        bridge = ViolationBridgeService(astroid_gateway, guidance)
 
         linter_results = [
             LinterResult(
@@ -98,7 +108,7 @@ class TestViolationBridgeService:
         astroid_gateway = MagicMock()
         astroid_gateway.parse_file.return_value = None
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         linter_results = [
             LinterResult(
@@ -127,7 +137,7 @@ class TestViolationBridgeService:
         astroid_gateway = MagicMock()
         module_node = astroid.parse(test_file.read_text())
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         # Find node at line 1 (function definition)
         node = bridge._find_node_at_line(module_node, 1)
@@ -144,7 +154,7 @@ class TestViolationBridgeService:
         module_node = astroid.parse(test_file.read_text())
         astroid_gateway.parse_file = MagicMock(return_value=module_node)
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         linter_results = [
             LinterResult(
@@ -170,7 +180,7 @@ class TestViolationBridgeService:
         module_node = astroid.parse(test_file.read_text())
         astroid_gateway.parse_file = MagicMock(return_value=module_node)
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         linter_results = [
             LinterResult(
@@ -196,7 +206,7 @@ class TestViolationBridgeService:
         # Make parse_file raise an exception
         astroid_gateway.parse_file = MagicMock(side_effect=Exception("Parse error"))
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         linter_results = [
             LinterResult(
@@ -216,7 +226,7 @@ class TestViolationBridgeService:
     def test_find_node_at_line_handles_exception(self) -> None:
         """Test that _find_node_at_line handles exceptions."""
         astroid_gateway = MagicMock()
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         # Create a mock module that will raise exception
         mock_module = MagicMock()
@@ -238,7 +248,7 @@ class TestViolationBridgeService:
         module_node = astroid.parse(test_file.read_text())
         astroid_gateway.parse_file = MagicMock(return_value=module_node)
 
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         # Find node at line 1 (function definition)
         node = bridge._find_node_at_line(module_node, 1)
@@ -261,7 +271,7 @@ class TestViolationBridgeService:
     def test_find_node_at_line_handles_exception_in_nodes_of_class(self) -> None:
         """Test that _find_node_at_line handles exception in nodes_of_class."""
         astroid_gateway = MagicMock()
-        bridge = ViolationBridgeService(astroid_gateway)
+        bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 
         # Create a mock module that raises exception in nodes_of_class
         mock_module = MagicMock()

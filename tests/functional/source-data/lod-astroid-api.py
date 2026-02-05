@@ -1,7 +1,7 @@
 """LoD exemptions for astroid API usage. These must NOT be flagged.
 
 Mimics: immutability.py:59 (node.locals.get), contracts.py:91 (method.name.startswith).
-Requires resolving ClassDef.locals and FunctionDef.name via stubs/core/astroid.pyi.
+Requires resolving ClassDef.locals and FunctionDef.name via bundled astroid stubs.
 """
 from astroid.nodes import ClassDef, FunctionDef
 

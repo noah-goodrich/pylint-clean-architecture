@@ -31,6 +31,14 @@ class FileSystemGateway(FileSystemProtocol):
         """Create directory and parent directories if needed."""
         Path(path).mkdir(parents=True, exist_ok=exist_ok)
 
+    def exists(self, path: str) -> bool:
+        """Return True if path exists (file or directory)."""
+        return Path(path).exists()
+
+    def read_text(self, path: str, encoding: str = "utf-8") -> str:
+        """Read text content from a file."""
+        return Path(path).read_text(encoding=encoding)
+
     def write_text(self, path: str, content: str, encoding: str = "utf-8") -> None:
         """Write text content to a file."""
         Path(path).write_text(content, encoding=encoding)

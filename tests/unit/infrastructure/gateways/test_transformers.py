@@ -425,9 +425,10 @@ class TestGovernanceCommentTransformer:
             "rule_name": "Law of Demeter",
             "problem": "Chain access exceeds one level",
             "recommendation": "Delegate to immediate object",
+            "context_info": "Violation at line 2.",
             "target_line": 2,
-            "source_lines": source.splitlines()
         })
+        transformer.source_lines = source.splitlines()
 
         modified = module.visit(transformer)
         code = modified.code
@@ -447,7 +448,8 @@ class TestGovernanceCommentTransformer:
             "rule_name": "Test",
             "problem": "Test",
             "recommendation": "Test",
-            "target_line": 0
+            "context_info": "",
+            "target_line": 0,
         })
 
         modified = module.visit(transformer)

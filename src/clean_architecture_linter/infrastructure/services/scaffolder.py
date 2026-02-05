@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Optional, cast
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.constants import (
@@ -18,8 +18,13 @@ from clean_architecture_linter.interface.telemetry import TelemetryPort
 class Scaffolder:
     """Handles project initialization and configuration."""
 
-    def __init__(self, telemetry: TelemetryPort) -> None:
+    def __init__(
+        self,
+        telemetry: TelemetryPort,
+        config_loader: ConfigurationLoader,
+    ) -> None:
         self.telemetry = telemetry
+        self._config_loader = config_loader
 
     def init_project(self, template: Optional[str] = None, check_layers: bool = False) -> None:
         """Initialize configuration and artifacts."""
@@ -78,27 +83,30 @@ class Scaffolder:
                 content = f.read()
 
         if "handshake:" in content:
-            self.telemetry.step("Makefile already contains handshake protocol.")
+            self.telemetry.step(
+                "Makefile already contains handshake protocol.")
             return
 
         with makefile_path.open("a", encoding="utf-8") as f:
             f.write(HANDSHAKE_SNIPPET)
-        self.telemetry.step("Injected Stellar Handshake Protocol into Makefile.")
+        self.telemetry.step(
+            "Injected Stellar Handshake Protocol into Makefile.")
 
     def _check_layers(self) -> None:
-        config = ConfigurationLoader().config
+        config = self._config_loader.config
         layer_map = config.get("layer_map", {})
 
         self.telemetry.step("Active Layer Configuration:")
         if not isinstance(layer_map, dict) or not layer_map:
-            self.telemetry.error("No layer_map found in pyproject.toml [tool.clean-arch].")
+            self.telemetry.error(
+                "No layer_map found in pyproject.toml [tool.clean-arch].")
             return
 
         for pattern, layer in layer_map.items():
             self.telemetry.step(f"  {pattern} -> {layer}")
 
     def _generate_instructions(self, path: Path) -> None:
-        config = ConfigurationLoader().config
+        config = self._config_loader.config
         layer_map = config.get("layer_map", {})
 
         display_names = {
@@ -156,8 +164,10 @@ class Scaffolder:
             self._print_architecture_only_mode_advice(found_tools)
 
         if template:
-            print(f"\n[TEMPLATE CONFIG] Add the following to [tool.clean-arch] for {template}:")
-            clean_arch_section_raw = cast(dict[str, object], new_data["tool"]).get("clean-arch")
+            print(
+                f"\n[TEMPLATE CONFIG] Add the following to [tool.clean-arch] for {template}:")
+            clean_arch_section_raw = cast(
+                dict[str, object], new_data["tool"]).get("clean-arch")
             print(json.dumps(clean_arch_section_raw, indent=2))
 
     def _load_pyproject(self, path: Path) -> dict[str, object] | None:
@@ -184,17 +194,25 @@ class Scaffolder:
             return
 
         if template == "fastapi":
-            layer_map = cast(dict[str, str], clean_arch.setdefault("layer_map", {}))
-            layer_map.update({"routers": "Interface", "services": "UseCase", "schemas": "Interface"})
+            layer_map = cast(
+                dict[str, str], clean_arch.setdefault("layer_map", {}))
+            layer_map.update(
+                {"routers": "Interface", "services": "UseCase", "schemas": "Interface"})
         elif template == "sqlalchemy":
-            layer_map = cast(dict[str, str], clean_arch.setdefault("layer_map", {}))
-            layer_map.update({"models": "Infrastructure", "repositories": "Infrastructure"})
-            base_class_map = cast(dict[str, str], clean_arch.setdefault("base_class_map", {}))
-            base_class_map.update({"Base": "Infrastructure", "DeclarativeBase": "Infrastructure"})
+            layer_map = cast(
+                dict[str, str], clean_arch.setdefault("layer_map", {}))
+            layer_map.update({"models": "Infrastructure",
+                             "repositories": "Infrastructure"})
+            base_class_map = cast(
+                dict[str, str], clean_arch.setdefault("base_class_map", {}))
+            base_class_map.update(
+                {"Base": "Infrastructure", "DeclarativeBase": "Infrastructure"})
 
     def _print_architecture_only_mode_advice(self, found_tools: set[str]) -> None:
-        self.telemetry.step(f"Detected style tools: {', '.join(found_tools)}. Enabling Architecture-Only Mode.")
-        print("\n[RECOMMENDED ACTION] Add this to pyproject.toml to disable conflicting style checks:")
+        self.telemetry.step(
+            f"Detected style tools: {', '.join(found_tools)}. Enabling Architecture-Only Mode.")
+        print(
+            "\n[RECOMMENDED ACTION] Add this to pyproject.toml to disable conflicting style checks:")
         print(
             """
 [tool.pylint.messages_control]
@@ -222,7 +240,8 @@ enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and
         if not self._ruff_wizard_prompt_use_defaults(defaults):
             return
 
-        line_length, max_complexity, select_rules = self._ruff_wizard_customize(defaults)
+        line_length, max_complexity, select_rules = self._ruff_wizard_customize(
+            defaults)
         self._write_ruff_config(line_length, max_complexity, select_rules)
         self.telemetry.step("✅ Ruff configuration added to pyproject.toml")
         print("\nℹ️  Configuration written to [tool.excelsior.ruff]")
@@ -235,7 +254,8 @@ enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and
             return True
         import importlib.util
         if importlib.util.find_spec("tomli") is None:
-            self.telemetry.step("⚠️  tomli not available, skipping Ruff wizard")
+            self.telemetry.step(
+                "⚠️  tomli not available, skipping Ruff wizard")
             return False
         return True
 
@@ -247,7 +267,7 @@ enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and
         tool = data.get("tool", {})
         return bool(tool.get("ruff") or tool.get("excelsior", {}).get("ruff"))
 
-    def _load_pyproject_toml(self) -> Optional[dict[str, Any]]:
+    def _load_pyproject_toml(self) -> Optional[dict[str, object]]:
         """Load pyproject.toml via tomllib/tomli. Returns None on missing or error."""
         pyproject_path = Path("pyproject.toml")
         if not pyproject_path.exists():
@@ -268,29 +288,33 @@ enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and
     def _ruff_wizard_prompt_overwrite(self) -> bool:
         """Ask user to overwrite existing Ruff config. True = overwrite."""
         print("✅ Ruff configuration already exists in pyproject.toml")
-        response = input("Overwrite with Excelsior defaults? [y/N]: ").strip().lower()
+        response = input(
+            "Overwrite with Excelsior defaults? [y/N]: ").strip().lower()
         if response not in ["y", "yes"]:
             print("Keeping existing Ruff configuration.")
             return False
         return True
 
-    def _ruff_wizard_prompt_use_defaults(self, defaults: dict[str, Any]) -> bool:
+    def _ruff_wizard_prompt_use_defaults(self, defaults: dict[str, object]) -> bool:
         """Print defaults, ask to use them. False = skip wizard."""
         print("\nExcelsior provides opinionated Ruff defaults for consistency:")
         print(f"  • Line Length: {defaults['line-length']} chars")
-        print(f"  • Max Complexity: {defaults['lint']['mccabe']['max-complexity']}")
-        print(f"  • Rule Categories: {len(defaults['lint']['select'])} enabled")
+        print(
+            f"  • Max Complexity: {defaults['lint']['mccabe']['max-complexity']}")
+        print(
+            f"  • Rule Categories: {len(defaults['lint']['select'])} enabled")
         print(f"    ({', '.join(defaults['lint']['select'][:8])}...)")
         print("\nThese defaults match the strictest config across your projects.")
         response = input("\nUse Excelsior defaults? [Y/n]: ").strip().lower()
         if response in ["n", "no"]:
             print("\nℹ️  Skipping Ruff configuration.")
-            print("   You can manually add [tool.excelsior.ruff] to pyproject.toml later.")
+            print(
+                "   You can manually add [tool.excelsior.ruff] to pyproject.toml later.")
             return False
         return True
 
     def _ruff_wizard_customize(
-        self, defaults: dict[str, Any]
+        self, defaults: dict[str, object]
     ) -> tuple[int, int, list[str]]:
         """Optional line-length and max-complexity overrides."""
         print("\n--- Optional Customizations ---")
@@ -299,7 +323,8 @@ enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and
         if custom_length.isdigit():
             line_length = int(custom_length)
         max_complexity = defaults["lint"]["mccabe"]["max-complexity"]
-        custom_complexity = input(f"Max complexity [{max_complexity}]: ").strip()
+        custom_complexity = input(
+            f"Max complexity [{max_complexity}]: ").strip()
         if custom_complexity.isdigit():
             max_complexity = int(custom_complexity)
         return (line_length, max_complexity, defaults["lint"]["select"])
@@ -342,7 +367,7 @@ enable = ["clean-arch-classes", "clean-arch-imports", "clean-arch-layers"] # and
 
         # Write back (we need tomlkit or tomli-w for writing)
         try:
-            import tomli_w
+            import tomli_w  # type: ignore[import-not-found]
             with pyproject_path.open("wb") as f:
                 tomli_w.dump(data, f)
         except ImportError:

@@ -4,8 +4,41 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+def test_mypy_adapter_reports_error_when_output_unparseable(tmp_path: Path) -> None:
+    """When mypy fails with unparseable output (e.g. config error), MypyAdapter returns MYPY_ERROR.
+
+    This prevents silent failures where mypy exits non-zero but the adapter returns
+    an empty list because the output doesn't match the expected error line pattern.
+
+    Regression test for: "Source file found twice under different module names" silent failure.
+    """
+    from clean_architecture_linter.infrastructure.adapters.mypy_adapter import MypyAdapter
+
+    # Mock subprocess.run to return mypy's "found twice" error
+    mock_result = MagicMock()
+    mock_result.returncode = 2
+    mock_result.stdout = (
+        "src/stubs/astroid.pyi: error: Source file found twice under different "
+        "module names: \"package.stubs.astroid\" and \"astroid\"\n"
+        "Found 1 error in 1 file (errors prevented further checking)\n"
+    )
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result):
+        adapter = MypyAdapter(raw_log_port=MagicMock(),
+                              guidance_service=MagicMock())
+        results = adapter.gather_results("src")
+
+    # Must NOT return empty list - this was the silent failure bug
+    assert len(
+        results) == 1, "Unparseable mypy errors must be reported, not silently ignored"
+    assert results[0].code == "MYPY_ERROR"
+    assert "Source file found twice" in results[0].message
 
 
 def test_raw_logs_generated_when_mypy_adapter_runs(tmp_path: Path) -> None:
@@ -20,7 +53,8 @@ def test_raw_logs_generated_when_mypy_adapter_runs(tmp_path: Path) -> None:
     )
 
     svc = SubprocessLoggingService(log_dir=log_dir)
-    adapter = MypyAdapter(raw_log_port=svc)
+    guidance_service = MagicMock()
+    adapter = MypyAdapter(raw_log_port=svc, guidance_service=guidance_service)
     adapter.gather_results(str(tmp_path))
 
     raw_mypy = Path(log_dir) / "raw_mypy.log"

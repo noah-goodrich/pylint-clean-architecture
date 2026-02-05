@@ -1,15 +1,18 @@
 """Bridge service to convert Pylint violations to Rule Violation objects."""
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 
 from clean_architecture_linter.domain.entities import LinterResult
-from clean_architecture_linter.domain.protocols import AstroidProtocol
+from clean_architecture_linter.domain.protocols import AstroidProtocol, ViolationBridgeProtocol
 from clean_architecture_linter.domain.rules import Violation
 
+if TYPE_CHECKING:
+    from clean_architecture_linter.domain.protocols import GuidanceServiceProtocol
 
-class ViolationBridgeService:
+
+class ViolationBridgeService(ViolationBridgeProtocol):
     """
     Service to bridge Pylint violations (LinterResult) to Rule Violation objects.
 
@@ -17,8 +20,13 @@ class ViolationBridgeService:
     objects that can be processed by Rule classes for governance comment injection.
     """
 
-    def __init__(self, astroid_gateway: AstroidProtocol) -> None:
+    def __init__(
+        self,
+        astroid_gateway: AstroidProtocol,
+        guidance_service: "GuidanceServiceProtocol",
+    ) -> None:
         self.astroid_gateway = astroid_gateway
+        self._guidance = guidance_service
 
     def convert_linter_results_to_violations(
         self, linter_results: list[LinterResult], file_path: str
@@ -58,7 +66,8 @@ class ViolationBridgeService:
                     node = self._find_node_at_line(module_node, line_num)
                     if node:
                         # Determine if this is a comment-only fix
-                        is_comment_only = self._is_comment_only_rule(result.code)
+                        is_comment_only = self._is_comment_only_rule(
+                            result.code)
 
                         violation = Violation(
                             code=result.code,
@@ -103,33 +112,6 @@ class ViolationBridgeService:
 
         Comment-only rules are those that require manual architectural changes
         but can benefit from governance comment injection.
+        Source: rule_registry.yaml (comment_only: true) via injected GuidanceService.
         """
-        comment_only_rules = {
-            "W9006",  # Law of Demeter
-            "clean-arch-demeter",  # Law of Demeter (alternative code)
-            "W9001",  # Illegal Dependency
-            "clean-arch-dependency",
-            "W9003",  # Protected Member Access
-            "clean-arch-visibility",
-            "W9004",  # Forbidden I/O
-            "clean-arch-resources",
-            "W9005",  # Delegation Anti-Pattern
-            "clean-arch-delegation",
-            "W9007",  # Naked Return
-            "W9009",  # Missing Abstraction
-            "W9010",  # God File
-            "clean-arch-god-file",
-            "W9011",  # Deep Structure
-            "clean-arch-layer",
-            "W9012",  # Defensive None Check
-            "W9013",  # Illegal I/O Operation
-            "W9201",  # Contract Integrity
-            "contract-integrity-violation",
-            "W9301",  # DI Violation
-            "clean-arch-di",
-            "W9016",  # Banned Any
-            "banned-any-usage",
-            "W9501",  # Anti-Bypass
-            "clean-arch-bypass",
-        }
-        return rule_code in comment_only_rules
+        return rule_code in self._guidance.get_comment_only_codes()

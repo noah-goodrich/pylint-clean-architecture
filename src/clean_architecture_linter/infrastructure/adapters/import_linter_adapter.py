@@ -6,12 +6,25 @@ from typing import Optional
 
 from clean_architecture_linter.domain.entities import LinterResult
 from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
+from clean_architecture_linter.infrastructure.services.guidance_service import (
+    GuidanceService,
+)
 
 
 class ImportLinterAdapter(LinterAdapterProtocol):
     """Adapter for Import Linter output."""
 
-    def gather_results(self, target_path: str) -> list[LinterResult]:
+    LINTER = "import_linter"
+    DEFAULT_RULE_CODE = "contract"
+
+    def __init__(self, guidance_service: GuidanceService) -> None:
+        self._guidance = guidance_service
+
+    def gather_results(
+        self,
+        target_path: str,
+        select_only: Optional[list[str]] = None,
+    ) -> list[LinterResult]:
         """Run import-linter and gather results."""
         # Note: import-linter looks for pyproject.toml [tool.importlinter] in cwd.
         # It doesn't take a target path; we run from project root.
@@ -58,17 +71,31 @@ class ImportLinterAdapter(LinterAdapterProtocol):
 
         # Format 2: "Broken contract" + "X is not allowed to import Y" (older format)
         if not results and "Broken contract" in text:
-            lines = text.splitlines()
-            current_contract: str = ""
-            for line in lines:
-                if "Broken contract" in line:
-                    current_contract = line.strip()
-                elif "is not allowed to import" in line:
-                    results.append(
-                        LinterResult("IL001", f"{current_contract}: {line.strip()}", [])
-                    )
+            state: dict = {"current_contract": "", "results": results}
+            for line in text.splitlines():
+                for pattern, handler_name in self._PARSE_LINE_HANDLERS:
+                    if pattern in line:
+                        getattr(self, handler_name)(line, state)
+                        break
 
         return results
+
+    _PARSE_LINE_HANDLERS: list[tuple[str, str]] = [
+        ("Broken contract", "_handle_broken_contract_line"),
+        ("is not allowed to import", "_handle_import_violation_line"),
+    ]
+
+    def _handle_broken_contract_line(self, line: str, state: dict) -> None:
+        state["current_contract"] = line.strip()
+
+    def _handle_import_violation_line(self, line: str, state: dict) -> None:
+        state["results"].append(
+            LinterResult(
+                "IL001",
+                f"{state['current_contract']}: {line.strip()}",
+                [],
+            )
+        )
 
     def supports_autofix(self) -> bool:
         """Check if this linter supports automatic fixing."""
@@ -87,7 +114,12 @@ class ImportLinterAdapter(LinterAdapterProtocol):
         return False
 
     def get_manual_fix_instructions(self, rule_code: str) -> str:
-        """Readable, step-by-step guidance for juniors and AI."""
+        """Readable, step-by-step guidance for juniors and AI (from registry when available)."""
+        instructions = self._guidance.get_manual_instructions(
+            self.LINTER, self.DEFAULT_RULE_CODE
+        )
+        if instructions and instructions.strip():
+            return instructions
         return (
             "Remove or refactor the import that breaks the contract. "
             "1) Check pyproject.toml [tool.importlinter] for defined contracts. "

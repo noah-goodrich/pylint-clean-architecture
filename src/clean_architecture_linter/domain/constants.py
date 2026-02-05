@@ -14,6 +14,9 @@ _EXCELSIOR_ART: str = r"""
 """
 EXCELSIOR_BANNER = _RED + _EXCELSIOR_ART + _RESET
 
+# Rule registry key prefix (e.g. excelsior.W9015)
+EXCELSIOR_PREFIX = "excelsior."
+
 
 DEFAULT_INTERNAL_MODULES: frozenset[str] = frozenset(
     {
@@ -36,7 +39,8 @@ DEFAULT_INTERNAL_MODULES: frozenset[str] = frozenset(
 )
 
 # Ruff rule selectors for gated audit (used by CheckAuditUseCase)
-RUFF_IMPORT_TYPING_SELECT: list[str] = ["I", "UP", "B"]  # isort, pyupgrade, bugbear
+RUFF_IMPORT_TYPING_SELECT: list[str] = [
+    "I", "UP", "B"]  # isort, pyupgrade, bugbear
 RUFF_CODE_QUALITY_SELECT: list[str] = [
     "E", "F", "W", "C90", "N", "PL", "PT", "A", "C4", "SIM", "ARG", "PTH", "RUF",
 ]
@@ -103,6 +107,10 @@ Inner layers ({domain_layer}, {use_case_layer}) **MUST NOT** import from Outer l
     *   *Chaining is permitted on methods returning primitives or members of allowed_lod_modules.*
     *   *Avoid manual method-name overrides in configuration unless absolutely necessary.*
 *   **Justify Bypasses**: If you must disable a linter rule, add a `# JUSTIFICATION: ...` comment.
+
+## Helper Command
+
+To check compliance, run: `excelsior check` or `pylint src/`
 """
 
 ONBOARDING_TEMPLATE: str = """# Architecture Onboarding Strategy
@@ -135,7 +143,7 @@ PRE_FLIGHT_WORKFLOW_TEMPLATE: str = """# Stellar Pre-Flight Checklist
 You MUST complete this checklist for EVERY file changed before proceeding.
 
 1.  **Handshake**: `make handshake` (Confirming compliance).
-2.  **Audit**: `make verify-file FILE=<file_path>`.
+2.  **Audit**: `excelsior check` or `make verify-file FILE=<file_path>`.
 3.  **Complexity**: Ruff C901 score must be <= 11.
 4.  **Coverage**: Minimum 85% coverage on new logic.
 5.  **Integrity**: Mypy --strict must return 0 errors.
@@ -175,4 +183,9 @@ verify-file:
 	mypy $(FILE) --strict
 	PYTHONPATH=src pylint $(FILE) --fail-under=10.0
 	pytest --cov=src --cov-report=term-missing | grep $(FILE)
+
+.PHONY: pre-flight
+pre-flight:
+	excelsior check src
+	PYTHONPATH=src pytest
 """

@@ -11,18 +11,20 @@ from clean_architecture_linter.infrastructure.services.stub_authority import (
 class TestStubAuthorityGetStubPath:
     """Tests for StubAuthority.get_stub_path."""
 
-    def test_astroid_resolves_to_core_astroid_pyi(self) -> None:
+    def test_astroid_resolves_to_bundled_stub(self) -> None:
+        """Bundled astroid stub is found (as package: stubs/astroid/__init__.pyi)."""
         sa = StubAuthority()
         p = sa.get_stub_path("astroid", None)
         assert p is not None
-        assert p.endswith("stubs/core/astroid.pyi")
+        assert "stubs/astroid/__init__.pyi" in p.replace("\\", "/")
         assert Path(p).exists()
 
-    def test_astroid_nodes_resolves_to_core_astroid_pyi(self) -> None:
+    def test_astroid_nodes_resolves_to_bundled_stub(self) -> None:
+        """Bundled astroid.nodes stub is found (stubs/astroid/nodes.pyi)."""
         sa = StubAuthority()
         p = sa.get_stub_path("astroid.nodes", None)
         assert p is not None
-        assert "astroid.pyi" in p
+        assert "stubs/astroid/nodes.pyi" in p.replace("\\", "/")
         assert Path(p).exists()
 
     def test_unknown_module_returns_none_without_project_root(self) -> None:
@@ -44,30 +46,28 @@ class TestStubAuthorityGetStubPath:
             assert Path(p).exists()
 
     def test_project_stubs_nonexistent_returns_none(self) -> None:
+        """Project stubs that don't exist and aren't bundled return None."""
         sa = StubAuthority()
         with tempfile.TemporaryDirectory() as tmp:
-            assert sa.get_stub_path("snowflake.connector", tmp) is None
+            # Use a module that isn't in bundled stubs
+            assert sa.get_stub_path(
+                "some_unknown_package.submodule", tmp) is None
 
-    def test_project_root_none_skips_project_stubs(self) -> None:
+    def test_bundled_snowflake_connector_stub(self) -> None:
+        """Bundled snowflake.connector stub is found."""
         sa = StubAuthority()
-        # Would only find in project; with None we should not look
-        assert sa.get_stub_path("snowflake.connector", None) is None
+        p = sa.get_stub_path("snowflake.connector", None)
+        assert p is not None
+        assert "stubs/snowflake/connector.pyi" in p.replace("\\", "/")
 
 
 class TestStubAuthorityGetAttributeType:
     """Tests for StubAuthority.get_attribute_type."""
 
-    def test_violation_location_returns_builtins_str(self) -> None:
+    def test_wrong_module_returns_none(self) -> None:
+        """Unknown module does not resolve."""
         sa = StubAuthority()
-        r = sa.get_attribute_type(
-            "clean_architecture_linter.domain.rules", "Violation", "location", None
-        )
-        assert r == "builtins.str"
-
-    def test_violation_wrong_module_returns_none(self) -> None:
-        """Fully generic: wrong module (builtins) does not resolve; no class-name special-case."""
-        sa = StubAuthority()
-        r = sa.get_attribute_type("builtins", "Violation", "location", None)
+        r = sa.get_attribute_type("builtins", "SomeClass", "location", None)
         assert r is None
 
     def test_classdef_locals_returns_builtins_dict(self) -> None:
@@ -94,12 +94,14 @@ class TestStubAuthorityGetAttributeType:
 
     def test_nonexistent_class_returns_none(self) -> None:
         sa = StubAuthority()
-        r = sa.get_attribute_type("astroid.nodes", "NonExistentClass", "x", None)
+        r = sa.get_attribute_type(
+            "astroid.nodes", "NonExistentClass", "x", None)
         assert r is None
 
     def test_nonexistent_attribute_returns_none(self) -> None:
         sa = StubAuthority()
-        r = sa.get_attribute_type("astroid.nodes", "ClassDef", "nonexistent_attr", None)
+        r = sa.get_attribute_type(
+            "astroid.nodes", "ClassDef", "nonexistent_attr", None)
         assert r is None
 
     def test_project_stub_attribute_type(self) -> None:
@@ -133,43 +135,37 @@ class TestStubAuthorityGetAttributeType:
         assert r == "builtins.dict"
 
 
-class TestStubAuthorityCoreStubExistence:
-    """Ensure core astroid.pyi is present and well-formed."""
+class TestStubAuthorityBundledStubExistence:
+    """Ensure bundled stubs are present and well-formed via public API only."""
 
-    def test_core_astroid_pyi_exists(self) -> None:
-        from clean_architecture_linter.infrastructure.services.stub_authority import (
-            _core_stubs_dir,
-        )
+    def test_bundled_astroid_stub_exists(self) -> None:
+        """Bundled astroid stub exists: get_stub_path('astroid') returns an existing path."""
+        sa = StubAuthority()
+        p = sa.get_stub_path("astroid", None)
+        assert p is not None, "bundled astroid stub must resolve"
+        assert Path(p).exists(), f"stub path must exist: {p}"
 
-        core = _core_stubs_dir()
-        astroid_pyi = core / "astroid.pyi"
-        assert astroid_pyi.exists(), "stubs/core/astroid.pyi must exist"
-
-    def test_core_astroid_pyi_defines_required_classes(self) -> None:
+    def test_bundled_astroid_nodes_stub_defines_required_classes(self) -> None:
+        """Bundled astroid.nodes stub defines NodeNG, ClassDef, FunctionDef."""
         import ast
 
-        from clean_architecture_linter.infrastructure.services.stub_authority import (
-            _core_stubs_dir,
-        )
-
-        core = _core_stubs_dir()
-        astroid_pyi = core / "astroid.pyi"
-        tree = ast.parse(astroid_pyi.read_text())
+        sa = StubAuthority()
+        p = sa.get_stub_path("astroid.nodes", None)
+        assert p is not None
+        tree = ast.parse(Path(p).read_text())
         classes = {n.name for n in tree.body if isinstance(n, ast.ClassDef)}
         assert "NodeNG" in classes
         assert "ClassDef" in classes
         assert "FunctionDef" in classes
 
-    def test_core_astroid_pyi_classdef_has_locals(self) -> None:
+    def test_bundled_astroid_nodes_classdef_has_locals(self) -> None:
+        """Bundled astroid.nodes stub ClassDef has 'locals' attribute."""
         import ast
 
-        from clean_architecture_linter.infrastructure.services.stub_authority import (
-            _core_stubs_dir,
-        )
-
-        core = _core_stubs_dir()
-        astroid_pyi = core / "astroid.pyi"
-        tree = ast.parse(astroid_pyi.read_text())
+        sa = StubAuthority()
+        p = sa.get_stub_path("astroid.nodes", None)
+        assert p is not None
+        tree = ast.parse(Path(p).read_text())
         classes = {n.name: n for n in tree.body if isinstance(n, ast.ClassDef)}
         assert "ClassDef" in classes
         cdef = classes["ClassDef"]
@@ -179,24 +175,3 @@ class TestStubAuthorityCoreStubExistence:
             if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
         ]
         assert "locals" in attrs
-
-    def test_core_rules_pyi_violation_has_location(self) -> None:
-        import ast
-
-        from clean_architecture_linter.infrastructure.services.stub_authority import (
-            _core_stubs_dir,
-        )
-
-        core = _core_stubs_dir()
-        rules_pyi = core / "clean_architecture_linter" / "domain" / "rules.pyi"
-        assert rules_pyi.exists(), "stubs/core/clean_architecture_linter/domain/rules.pyi must exist"
-        tree = ast.parse(rules_pyi.read_text())
-        classes = {n.name: n for n in tree.body if isinstance(n, ast.ClassDef)}
-        assert "Violation" in classes
-        viol = classes["Violation"]
-        attrs = [
-            n.target.id
-            for n in viol.body
-            if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
-        ]
-        assert "location" in attrs

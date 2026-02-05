@@ -4,6 +4,18 @@ This document explains how **Excelsior check** and **Excelsior fix** work: the m
 
 ---
 
+## Tool run failure = critical failure
+
+**In a gated audit, a linter failing to run is as much a critical failure as a violation.** The system must not silently treat “tool didn’t run” as “no issues.”
+
+- **Mypy:** If mypy fails to run (e.g. stderr: `No module named mypy`, or non-zero exit with run-failure stderr), the audit reports **MYPY_ERROR** and blocks. Later passes are not run.
+- **Ruff:** If Ruff is missing (FileNotFoundError), times out, or output cannot be parsed, the audit reports **RUFF_ERROR** (or **RUFF_PARSE_ERROR**) and blocks.
+- **Import-Linter / Excelsior:** Same principle: missing binary, module not found, or non-zero exit with clear run-failure stderr should be treated as a **blocking error**, not as “empty results.”
+
+When in doubt: **tool run failure = critical failure.** Fix the environment (install the tool, fix the path) before re-running the audit. Raw subprocess logs (see below) help debug run failures.
+
+---
+
 ## Raw subprocess logs
 
 When Ruff, Mypy, or Pylint run (during `excelsior check` or fix), their raw stdout/stderr are appended to:
@@ -45,7 +57,7 @@ All five passes are **blocking**. If Pass 1 has violations, the audit stops and 
 
 ### Ruff rule sets
 
-- **Pass 2 – Import & typing:** `RUFF_IMPORT_TYPING_SELECT = ["I", "UP", "B"]`  
+- **Pass 2 – Import & typing:** `RUFF_IMPORT_TYPING_SELECT = ["I", "UP", "B"]`
   (isort, pyupgrade, bugbear.)
 
 - **Pass 5 – Code quality:** `RUFF_CODE_QUALITY_SELECT` includes E, F, W, C90, N, PL, PT, A, C4, SIM, ARG, PTH, RUF.
@@ -74,13 +86,14 @@ If Ruff is disabled in config (`ruff_enabled = False`), Pass 2 and Pass 5 are sk
 | **2** | Type hints (W9015) | Injects missing type hints (MissingTypeHintRule). | No – always runs. |
 | *(cache clear)* | Astroid cache | Clears inference cache after Pass 1–2 so Pass 3 sees updated code. | — |
 | **3** | Architectural code | Applies Excelsior **code** fixes (e.g. immutability, signatures), **excluding** W9015 and W9006. | **Yes** – runs full gated audit; if blocked, Pass 3 is skipped. |
-| **4** | Governance comments | Applies **comment-only** fixes (e.g. W9006). | **Yes** – same audit; if blocked, Pass 4 is skipped. |
+| **4** | Governance comments | Applies **comment-only** fixes (e.g. W9006). **Optional:** only when `--comments` is passed. | **Yes** – same audit; if blocked, Pass 4 is skipped. Default: **skipped** (use handover + plan-fix for instructions). |
 | **5** | Ruff code quality | `ruff check --fix` with E, F, W, C90, … only. | No – always runs (if Ruff enabled). |
 
 So:
 
 - **Not gated:** Pass 1 (Ruff I/UP/B), Pass 2 (W9015), Pass 5 (Ruff code quality). They always run (subject to config).
 - **Gated:** Pass 3 and Pass 4. Each runs `check_audit_use_case.execute(target_path)`. If `audit_result.is_blocked()` is true (e.g. import_linter, ruff, mypy, or excelsior), that pass is skipped and the corresponding fixes are not applied.
+- **Pass 4 (governance comments) is off by default.** The intended flow is: run `excelsior check` → run `excelsior plan-fix <rule_id>` for per-violation fix plans → fix using the plan (or handover). Use `excelsior fix --comments` to inject EXCELSIOR comment blocks into source files as well.
 
 ### Why Pass 3 and Pass 4 are gated
 
@@ -110,9 +123,10 @@ and governance/architectural fixes will not be applied until you clear the block
 ## Recommended workflow
 
 1. Run **`excelsior check`** to see the current state and which gate is blocking (if any).
-2. Run **`excelsior fix`** to auto-fix what can be fixed (Ruff passes 1 and 5, W9015, and when unblocked, Pass 3 and 4).
-3. Re-run **`excelsior check`**. If still blocked (e.g. on Import-Linter, Mypy, Excelsior, or Ruff code quality), fix remaining issues manually or by iterating fix/check until the gate passes.
-4. Once the audit is not blocked, Pass 3 and Pass 4 of fix will run on the next `excelsior fix`, applying architectural and governance-comment fixes.
+2. Run **`excelsior fix`** to auto-fix what can be fixed (Ruff passes 1 and 5, W9015, and when unblocked, Pass 3). Pass 4 (governance comments) is **skipped by default**; use **`excelsior fix --comments`** to inject EXCELSIOR comment blocks into source.
+3. For manual-fix violations, use **`excelsior plan-fix <rule_id>`** to generate a fix-plan markdown (`.excelsior/fix_plans/`) with locations, manual instructions, and prompt fragment. Fix using that plan (or the handover JSON).
+4. Re-run **`excelsior check`**. If still blocked, fix remaining issues and iterate check → plan-fix → fix until the gate passes.
+5. Once the audit is not blocked, Pass 3 (and optionally Pass 4 with `--comments`) of fix will run on the next `excelsior fix`.
 
 ---
 
@@ -120,10 +134,17 @@ and governance/architectural fixes will not be applied until you clear the block
 
 Defined in `clean_architecture_linter.infrastructure.adapters.ruff_adapter`:
 
-- **RUFF_IMPORT_TYPING_SELECT** = `["I", "UP", "B"]`  
+- **RUFF_IMPORT_TYPING_SELECT** = `["I", "UP", "B"]`
   Used in check Pass 2 and fix Pass 1.
 
-- **RUFF_CODE_QUALITY_SELECT** = `["E", "F", "W", "C90", "N", "PL", "PT", "A", "C4", "SIM", "ARG", "PTH", "RUF"]`  
+- **RUFF_CODE_QUALITY_SELECT** = `["E", "F", "W", "C90", "N", "PL", "PT", "A", "C4", "SIM", "ARG", "PTH", "RUF"]`
   Used in check Pass 5 and fix Pass 5.
 
 See [Ruff rule codes](https://docs.astral.sh/ruff/rules/) for the full list.
+
+---
+
+## Related
+
+- **[GENERATION_GUIDANCE.md](GENERATION_GUIDANCE.md)** — Proactive guidance for writing code that passes Excelsior (architecture, types, style).
+- **[excelsior_prompts.yaml](excelsior_prompts.yaml)** — Prompt registry: rule-keyed `manual_instructions` (how to fix) and `proactive_guidance` (how to write compliant code). Key format: `{linter}.{rule_code}`.

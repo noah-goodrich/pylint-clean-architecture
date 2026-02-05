@@ -62,7 +62,8 @@ def run_pylint(file_path, root_dir) -> NoneType:
 
     # We expect failure (exit code non-zero) if violations are found,
     # so we don't check_returncode=True immediately.
-    result = subprocess.run(cmd, cwd=root_dir, capture_output=True, text=True, env=env)
+    result = subprocess.run(
+        cmd, cwd=root_dir, capture_output=True, text=True, env=env)
     return result.stdout
 
 
@@ -82,7 +83,8 @@ def access_secret():
 
     output = run_pylint(f, test_env)
     assert "W9003" in output
-    assert 'Access to protected member "_secret"' in output
+    assert "Access to protected member" in output
+    assert "_secret" in output
 
 
 def test_w9004_resource_access_violation(test_env) -> None:

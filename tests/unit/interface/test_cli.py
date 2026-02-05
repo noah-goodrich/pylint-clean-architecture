@@ -1,5 +1,6 @@
 """Unit tests for Typer-based CLI interface."""
 
+import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -9,8 +10,7 @@ from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import AuditResult, LinterResult
 from clean_architecture_linter.interface.cli import (
     CLIDependencies,
-    _resolve_target_path,
-    create_app,
+    CLIAppFactory,
 )
 
 runner = CliRunner()
@@ -21,7 +21,10 @@ def _make_mock_deps(**overrides) -> CLIDependencies:
     mock_telemetry = Mock()
     mock_reporter = Mock()
     mock_audit_trail = Mock()
+    mock_config_loader = Mock(spec=ConfigurationLoader)
+    mock_config_loader.ruff_enabled = True
     defaults: dict = {
+        "config_loader": mock_config_loader,
         "telemetry": mock_telemetry,
         "mypy_adapter": Mock(),
         "excelsior_adapter": Mock(),
@@ -32,7 +35,11 @@ def _make_mock_deps(**overrides) -> CLIDependencies:
         "scaffolder": Mock(),
         "astroid_gateway": Mock(),
         "filesystem": Mock(),
+        "artifact_storage": Mock(),
         "fixer_gateway": Mock(),
+        "guidance_service": Mock(),
+        "stub_creator": Mock(),
+        "violation_bridge": Mock(),
     }
     defaults.update(overrides)
     return CLIDependencies(**defaults)
@@ -43,7 +50,7 @@ class TestResolveTargetPath:
 
     def test_resolve_with_explicit_path(self) -> None:
         """Test that explicit path is returned as-is."""
-        result = _resolve_target_path(Path("custom/path"))
+        result = CLIAppFactory.resolve_target_path(Path("custom/path"))
         assert result == "custom/path"
 
     def test_resolve_defaults_to_src_when_exists(self, tmp_path: Path) -> None:
@@ -54,7 +61,7 @@ class TestResolveTargetPath:
         try:
             import os
             os.chdir(tmp_path)
-            result = _resolve_target_path(None)
+            result = CLIAppFactory.resolve_target_path(None)
             assert result == "src"
         finally:
             os.chdir(original_cwd)
@@ -65,7 +72,7 @@ class TestResolveTargetPath:
         try:
             import os
             os.chdir(tmp_path)
-            result = _resolve_target_path(None)
+            result = CLIAppFactory.resolve_target_path(None)
             assert result == "."
         finally:
             os.chdir(original_cwd)
@@ -97,7 +104,7 @@ class TestCheckCommand:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["check", "src"])
 
         mock_use_case_class.assert_called_once()
@@ -122,7 +129,8 @@ class TestCheckCommand:
         deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
-            ruff_results=[LinterResult("R001", "Ruff violation", ["file.py:1"])],
+            ruff_results=[LinterResult(
+                "R001", "Ruff violation", ["file.py:1"])],
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
@@ -130,7 +138,7 @@ class TestCheckCommand:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["check", "src"])
         assert result.exit_code == 1
 
@@ -157,10 +165,59 @@ class TestCheckCommand:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["check"])
         mock_use_case_instance.execute.assert_called_once()
         assert result.exit_code == 0
+
+    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
+    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
+    def test_check_interactive_stub_creation_uses_valid_path(
+        self,
+        mock_use_case_class,
+        mock_config_loader_class,
+    ) -> None:
+        """Regression test for interactive W9019 stub path construction."""
+        mock_config_loader = Mock(spec=ConfigurationLoader)
+        mock_config_loader.ruff_enabled = True
+        mock_config_loader_class.return_value = mock_config_loader
+
+        deps = _make_mock_deps()
+        deps.stub_creator.extract_w9019_modules.return_value = {
+            "libcst._parser.entrypoints"
+        }
+        deps.stub_creator.create_stub.return_value = (True, "ok")
+        mock_use_case_instance = Mock()
+        mock_use_case_instance.execute.return_value = AuditResult(
+            ruff_results=[],
+            mypy_results=[],
+            excelsior_results=[
+                LinterResult("W9019", "Uninferable dependency", ["file.py:1"])
+            ],
+            ruff_enabled=True,
+            blocked_by="excelsior",
+        )
+        mock_use_case_class.return_value = mock_use_case_instance
+        deps.artifact_storage.read_artifact.return_value = (
+            '{"rule_ids": ["excelsior.W9019"]}'
+        )
+
+        app = CLIAppFactory.create_app(deps)
+
+        with patch.object(
+            sys.stdin, "isatty", return_value=True
+        ), patch(
+            "builtins.input",
+            return_value="n",
+        ):
+            result = runner.invoke(app, ["check", "src"])
+
+        # Regression: must not raise TypeError (Path + str) when building stub path.
+        # If the interactive W9019 block runs, stub_path is built as Path(project_root)/"stubs"/filename.
+        assert not isinstance(
+            result.exception, TypeError
+        ), f"Stub path build raised TypeError: {result.exception}"
+        assert "unsupported operand type" not in (result.stdout or "").lower()
 
 
 class TestFixCommand:
@@ -189,7 +246,7 @@ class TestFixCommand:
         mock_check_audit_instance.execute.return_value = AuditResult()
         mock_check_audit.return_value = mock_check_audit_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["fix", "src"])
 
         mock_apply_fixes.assert_called_once()
@@ -201,7 +258,7 @@ class TestFixCommand:
         mock_ruff.apply_fixes.return_value = True
         deps = _make_mock_deps(ruff_adapter=mock_ruff)
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
         mock_ruff.apply_fixes.assert_called_once()
         assert result.exit_code == 0
@@ -212,7 +269,7 @@ class TestFixCommand:
         for adapter in (deps.ruff_adapter, deps.mypy_adapter, deps.excelsior_adapter, deps.import_linter_adapter):
             adapter.gather_results.return_value = []
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["fix", "src", "--manual-only"])
         deps.telemetry.handshake.assert_called_once()
 
@@ -227,11 +284,13 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["init"])
 
-        mock_use_case_class.assert_called_once_with(deps.scaffolder, deps.telemetry)
-        mock_use_case_instance.execute.assert_called_once_with(template=None, check_layers=False)
+        mock_use_case_class.assert_called_once_with(
+            deps.scaffolder, deps.telemetry)
+        mock_use_case_instance.execute.assert_called_once_with(
+            template=None, check_layers=False)
         deps.telemetry.handshake.assert_called_once()
 
     @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
@@ -241,9 +300,10 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["init", "--template", "fastapi", "--check-layers"])
-        mock_use_case_instance.execute.assert_called_once_with(template="fastapi", check_layers=True)
+        mock_use_case_instance.execute.assert_called_once_with(
+            template="fastapi", check_layers=True)
 
     @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
     def test_init_command_with_template_only(self, mock_use_case_class) -> None:
@@ -252,9 +312,10 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["init", "--template", "sqlalchemy"])
-        mock_use_case_instance.execute.assert_called_once_with(template="sqlalchemy", check_layers=False)
+        mock_use_case_instance.execute.assert_called_once_with(
+            template="sqlalchemy", check_layers=False)
 
     @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
     def test_init_command_with_check_layers_only(self, mock_use_case_class) -> None:
@@ -263,9 +324,10 @@ class TestInitCommand:
         mock_use_case_instance = Mock()
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["init", "--check-layers"])
-        mock_use_case_instance.execute.assert_called_once_with(template=None, check_layers=True)
+        mock_use_case_instance.execute.assert_called_once_with(
+            template=None, check_layers=True)
 
 
 class TestGatedAuditLogic:
@@ -286,7 +348,8 @@ class TestGatedAuditLogic:
         deps = _make_mock_deps()
         mock_use_case_instance = Mock()
         mock_use_case_instance.execute.return_value = AuditResult(
-            ruff_results=[LinterResult("R001", "Ruff violation", ["file.py:1"])],
+            ruff_results=[LinterResult(
+                "R001", "Ruff violation", ["file.py:1"])],
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
@@ -294,7 +357,7 @@ class TestGatedAuditLogic:
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["check", "src"])
         assert "blocked" in result.stdout.lower() or result.exit_code == 1
         assert result.exit_code == 1
@@ -306,7 +369,8 @@ class TestFixManualOnly:
     def test_manual_only_all_linters(self) -> None:
         """Test manual-only with all linters."""
         mock_ruff = Mock()
-        mock_ruff.gather_results.return_value = [LinterResult("R001", "Ruff issue", ["file.py:1"])]
+        mock_ruff.gather_results.return_value = [
+            LinterResult("R001", "Ruff issue", ["file.py:1"])]
         mock_ruff.supports_autofix.return_value = True
         mock_ruff.get_fixable_rules.return_value = []
         mock_ruff.get_manual_fix_instructions.return_value = "Fix it"
@@ -318,7 +382,7 @@ class TestFixManualOnly:
             import_linter_adapter=Mock(gather_results=Mock(return_value=[])),
         )
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["fix", "src", "--manual-only"])
         deps.telemetry.step.assert_any_call(
             "📋 Gathering manual fix suggestions from all linters...")
@@ -329,7 +393,7 @@ class TestFixManualOnly:
         mock_ruff.gather_results.return_value = []
 
         deps = _make_mock_deps(ruff_adapter=mock_ruff)
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         runner.invoke(app, ["fix", "src", "--manual-only", "--linter", "ruff"])
 
     def test_manual_only_excelsior_suite(self) -> None:
@@ -340,8 +404,9 @@ class TestFixManualOnly:
             import_linter_adapter=Mock(gather_results=Mock(return_value=[])),
         )
 
-        app = create_app(deps)
-        runner.invoke(app, ["fix", "src", "--manual-only", "--linter", "excelsior"])
+        app = CLIAppFactory.create_app(deps)
+        runner.invoke(app, ["fix", "src", "--manual-only",
+                      "--linter", "excelsior"])
         deps.telemetry.step.assert_any_call(
             "📋 Gathering manual fix suggestions from Excelsior suite...")
 
@@ -355,7 +420,7 @@ class TestFixRuff:
         mock_ruff.apply_fixes.return_value = True
 
         deps = _make_mock_deps(ruff_adapter=mock_ruff)
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
 
         deps.telemetry.step.assert_any_call("🔧 Applying Ruff fixes...")
@@ -368,7 +433,7 @@ class TestFixRuff:
         mock_ruff.apply_fixes.return_value = False
 
         deps = _make_mock_deps(ruff_adapter=mock_ruff)
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
         assert result.exit_code == 1
 
@@ -402,7 +467,7 @@ class TestFixExcelsior:
         mock_use_case_instance.execute_multi_pass.return_value = 5
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
+        app = CLIAppFactory.create_app(deps)
         result = runner.invoke(app, ["fix", "src"])
 
         mock_use_case_class.assert_called_once()
@@ -436,8 +501,9 @@ class TestFixExcelsior:
         mock_use_case_instance.execute_multi_pass.return_value = 0
         mock_use_case_class.return_value = mock_use_case_instance
 
-        app = create_app(deps)
-        runner.invoke(app, ["fix", "src", "--confirm", "--no-backup", "--skip-tests", "--cleanup-backups"])
+        app = CLIAppFactory.create_app(deps)
+        runner.invoke(app, ["fix", "src", "--confirm",
+                      "--no-backup", "--skip-tests", "--cleanup-backups"])
 
         call_kwargs = mock_use_case_class.call_args[1]
         assert call_kwargs["require_confirmation"] is True

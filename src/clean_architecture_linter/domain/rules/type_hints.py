@@ -6,10 +6,11 @@ import astroid  # type: ignore[import-untyped]
 
 from clean_architecture_linter.domain.entities import TransformationPlan
 from clean_architecture_linter.domain.protocols import AstroidProtocol
-from clean_architecture_linter.domain.rules import Violation
+from clean_architecture_linter.domain.rules import BaseRule, Violation
+from clean_architecture_linter.domain.transformation_contexts import ImportContext
 
 
-class MissingTypeHintRule:
+class MissingTypeHintRule(BaseRule):
     """
     High-Integrity Rule for Missing Type Hints (W9015).
 
@@ -41,10 +42,9 @@ class MissingTypeHintRule:
                 return_type_qname = self._infer_return_type(func_def)
                 fixable, failure_reason = self._can_fix_type(return_type_qname)
 
-                violations.append(Violation(
+                violations.append(Violation.from_node(
                     code=self.code,
                     message=f"Missing Type Hint: return type in {func_def.name} signature.",
-                    location=f"{getattr(node, 'file', 'unknown')}:{func_def.lineno}",
                     node=func_def,
                     fixable=fixable,
                     fix_failure_reason=failure_reason,
@@ -59,20 +59,22 @@ class MissingTypeHintRule:
                 # Check if parameter has annotation
                 has_hint = False
                 has_annotation = (
-                    (i < len(func_def.args.annotations) and func_def.args.annotations[i])
+                    (i < len(func_def.args.annotations)
+                     and func_def.args.annotations[i])
                     or (hasattr(arg, "annotation") and arg.annotation)
                 )
                 if has_annotation:
                     has_hint = True
 
                 if not has_hint:
-                    param_type_qname = self._infer_parameter_type(func_def, arg, i)
-                    fixable, failure_reason = self._can_fix_type(param_type_qname)
+                    param_type_qname = self._infer_parameter_type(
+                        func_def, arg, i)
+                    fixable, failure_reason = self._can_fix_type(
+                        param_type_qname)
 
-                    violations.append(Violation(
+                    violations.append(Violation.from_node(
                         code=self.code,
                         message=f"Missing Type Hint: parameter '{arg.name}' in {func_def.name} signature.",
-                        location=f"{getattr(node, 'file', 'unknown')}:{func_def.lineno}",
                         node=arg,
                         fixable=fixable,
                         fix_failure_reason=failure_reason,
@@ -150,7 +152,8 @@ class MissingTypeHintRule:
                 type_name = self._qname_to_type_name(return_type_qname)
                 plans: list[TransformationPlan] = []
 
-                import_ctx = self._import_context_for_qname(return_type_qname, node)
+                import_ctx = self._import_context_for_qname(
+                    return_type_qname, node)
                 if import_ctx:
                     plans.append(TransformationPlan.add_import(
                         import_ctx["module"], import_ctx["imports"]
@@ -171,12 +174,15 @@ class MissingTypeHintRule:
                 # Find which parameter this is
                 for i, arg in enumerate(func_def.args.args):
                     if arg == node:
-                        param_type_qname = self._infer_parameter_type(func_def, arg, i)
+                        param_type_qname = self._infer_parameter_type(
+                            func_def, arg, i)
                         if param_type_qname:
-                            type_name = self._qname_to_type_name(param_type_qname)
+                            type_name = self._qname_to_type_name(
+                                param_type_qname)
                             plans = []
 
-                            import_ctx = self._import_context_for_qname(param_type_qname, arg)
+                            import_ctx = self._import_context_for_qname(
+                                param_type_qname, arg)
                             if import_ctx:
                                 plans.append(TransformationPlan.add_import(
                                     import_ctx["module"], import_ctx["imports"]
@@ -194,7 +200,7 @@ class MissingTypeHintRule:
 
     def _import_context_for_qname(
         self, type_qname: str, node: astroid.nodes.NodeNG
-    ) -> Optional[dict]:
+    ) -> Optional[ImportContext]:
         """Build AddImportTransformer context for a qname, or None if no import needed."""
         # builtins.* never needs imports
         if type_qname.startswith("builtins."):

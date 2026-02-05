@@ -3,8 +3,7 @@ from typing import Optional, Union
 
 import astroid  # type: ignore[import-untyped]
 
-from clean_architecture_linter.domain.protocols import AstroidProtocol
-from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
+from clean_architecture_linter.domain.protocols import AstroidProtocol, StubAuthorityProtocol
 from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
 
 
@@ -412,7 +411,7 @@ class AstroidGateway(AstroidProtocol):
                     return stub_res
         return self._get_stub_attribute_type(module_name, class_name, attr_name, context)
 
-    def _get_stub_authority(self) -> Optional[StubAuthority]:
+    def _get_stub_authority(self) -> Optional[StubAuthorityProtocol]:
         """Lazy StubAuthority for core and project .pyi. Stub-First, no nominal maps."""
         try:
             from clean_architecture_linter.infrastructure.services.stub_authority import (
@@ -814,10 +813,10 @@ class AstroidGateway(AstroidProtocol):
 
             if qname.startswith(".") or "." not in qname:
                 clean_name = qname.lstrip(".")
-                is_local: bool = True
+                is_local = True
             elif root_name and qname.startswith(root_name + "."):
                 clean_name = qname[len(root_name)+1:]
-                is_local: bool = True
+                is_local = True
 
             if is_local and hasattr(root, "lookup"):
                 lookup_res = root.lookup(clean_name)

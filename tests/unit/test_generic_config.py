@@ -4,18 +4,16 @@ import tempfile
 import unittest
 
 from clean_architecture_linter.domain.config import ConfigurationLoader
+from clean_architecture_linter.infrastructure.config_file_loader import ConfigFileLoader
 
 
 class TestGenericConfiguration(unittest.TestCase):
     def setUp(self) -> None:
-        # Reset Singleton
-        ConfigurationLoader._instance = None
         self.test_dir = tempfile.mkdtemp()
         self.old_cwd = os.getcwd()
         os.chdir(self.test_dir)
 
     def tearDown(self) -> None:
-        ConfigurationLoader._instance = None
         os.chdir(self.old_cwd)
         shutil.rmtree(self.test_dir)
 
@@ -32,14 +30,17 @@ Infrastructure = "gateways"
         with open("pyproject.toml", "w") as f:
             f.write(content)
 
-        loader = ConfigurationLoader()
+        config_dict, tool_section = ConfigFileLoader.load_config_from_fs()
+        loader = ConfigurationLoader(config_dict, tool_section)
         registry = loader.registry
 
         # Check explicit resolution
         # 1. 'services' and 'managers' directory should be UseCase
-        layer = registry.resolve_layer("UserService", "src/services/user_service.py")
+        layer = registry.resolve_layer(
+            "UserService", "src/services/user_service.py")
         self.assertEqual(layer, "UseCase")
-        layer = registry.resolve_layer("UserManager", "src/managers/user_manager.py")
+        layer = registry.resolve_layer(
+            "UserManager", "src/managers/user_manager.py")
         self.assertEqual(layer, "UseCase")
 
         # 2. 'gateways' directory should be Infrastructure

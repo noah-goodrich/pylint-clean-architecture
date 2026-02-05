@@ -1,12 +1,15 @@
 .PHONY: handshake test test-fast test-slow test-all
 handshake:
 	@echo "=== STELLAR PROTOCOL HANDSHAKE (Augmented) ==="
-	@echo "1. INTERPRETER AUDIT:"
+	@echo "1. READING REQUIREMENTS..."
+	@ls .agent/*.md 2>/dev/null | grep -v "_" || (echo "ERROR: Files in .agent/ must use dashes, not underscores!" && exit 1)
+	@echo "   [OK] .agent/ files verified."
+	@echo "2. INTERPRETER AUDIT:"
 	@python3 -c "import sys; print(f'   [INFO] StdLib Modules: {len(sys.stdlib_module_names)}');"
 	@python3 -c "import sysconfig; print(f'   [INFO] StdLib Path: {sysconfig.get_path(\"stdlib\")}')"
-	@echo "2. STUB AUDIT:"
+	@echo "3. STUB AUDIT:"
 	@pip freeze | grep "astroid" > /dev/null && echo "   [OK] astroid found" || (echo "   [FAIL] astroid MISSING" && exit 1)
-	@echo "3. RULE ZERO:"
+	@echo "4. RULE ZERO:"
 	@echo "   HEURISTICS DELETED. DYNAMIC DISCOVERY ACTIVE."
 	@echo "   [Strict] Site-Packages = Infrastructure"
 	@echo "   [Strict] Annotation Priority = Absolute Truth"

@@ -51,6 +51,7 @@ def _run_checker_on_file(file_path: str, code: str) -> list:
     container = ExcelsiorContainer.get_instance()
     ast_gateway = container.get("AstroidGateway")
     python_gateway = container.get("PythonGateway")
+    config_loader = container.get_config_loader()
     linter = mock.MagicMock()
     if not hasattr(linter, "release_messages"):
         linter.release_messages = lambda: []
@@ -61,7 +62,15 @@ def _run_checker_on_file(file_path: str, code: str) -> list:
         msgs.append((msg_id, args, kwargs))
 
     linter.add_message = _add
-    checker = CouplingChecker(linter, ast_gateway=ast_gateway, python_gateway=python_gateway)
+    from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
+    checker = CouplingChecker(
+        linter,
+        ast_gateway=ast_gateway,
+        python_gateway=python_gateway,
+        stub_resolver=StubAuthority(),
+        config_loader=config_loader,
+        registry={},
+    )
     checker._is_test_file = lambda _: False
 
     def walk(n: astroid.nodes.NodeNG) -> None:
@@ -89,11 +98,19 @@ class TestSnowflakeUnstableW9019:
         """snowflake.connector.connect().cursor().execute with no stub -> W9019."""
         # No pyproject, no stubs: _get_project_root may return None; get_stub_path returns None
         file_path = str(tmp_path / "snowflake_unstable.py")
-        msgs = _run_checker_on_file(file_path, _SNOWFLAKE_CODE)
-        assert _has_w9019(msgs), (
-            "Expected W9019 (clean-arch-unstable-dep) for snowflake chain without stubs; got %s"
-            % ([m[0] for m in msgs],)
-        )
+
+        # We need to ensure the bundled stubs don't interfere with this test
+        # Since StubAuthority._bundled_stubs_dir() is hardcoded to the package stubs,
+        # and we are running tests in the repo, it will find snowflake/connector.pyi.
+
+        # We can mock StubAuthority.get_stub_path to simulate missing stubs
+        from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
+        with mock.patch.object(StubAuthority, 'get_stub_path', return_value=None):
+            msgs = _run_checker_on_file(file_path, _SNOWFLAKE_CODE)
+            assert _has_w9019(msgs), (
+                "Expected W9019 (clean-arch-unstable-dep) for snowflake chain without stubs; got %s"
+                % ([m[0] for m in msgs],)
+            )
 
 
 class TestSnowflakeStableNoW9019:

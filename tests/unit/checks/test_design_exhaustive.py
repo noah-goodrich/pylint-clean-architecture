@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.layer_registry import LayerRegistry
 from clean_architecture_linter.use_cases.checks.design import DesignChecker
 from tests.unit.checker_test_utils import CheckerTestCase
@@ -12,8 +13,10 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
         self.gateway = MagicMock()
-        self.checker = DesignChecker(self.linter, ast_gateway=self.gateway)
-        self.checker.open() # Load config
+        self.config_loader = ConfigurationLoader({}, {})
+        self.checker = DesignChecker(
+            self.linter, ast_gateway=self.gateway, config_loader=self.config_loader, registry={}
+        )
 
     def test_visit_return_naked_return_raw_type(self) -> None:
         """W9007: Return of raw type triggers violation."""
@@ -29,7 +32,7 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         # Session is in raw_types (default)
         self.checker.visit_return(node)
 
-        self.assertAddsMessage(self.checker, "naked-return-violation", node=node)
+        self.assertAddsMessage(self.checker, "W9007", node=node)
 
     def test_visit_assign_missing_abstraction(self) -> None:
         """W9009: Assigning infrastructure object in UseCase."""
@@ -41,7 +44,8 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node.value = create_strict_mock(astroid.nodes.Call)
 
         # Mock layer context (UseCase)
-        self.checker.config_loader.get_layer_for_module = MagicMock(return_value=LayerRegistry.LAYER_USE_CASE)
+        self.checker.config_loader.get_layer_for_module = MagicMock(
+            return_value=LayerRegistry.LAYER_USE_CASE)
         mock_root = MagicMock()
         mock_root.file = "src/use_cases/create_user.py"
         mock_root.name = "use_cases.create_user"
@@ -56,7 +60,7 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         # Ensure boto3 is in infrastructure_modules
         self.checker.visit_assign(node)
 
-        self.assertAddsMessage(self.checker, "missing-abstraction-violation", node=node)
+        self.assertAddsMessage(self.checker, "W9009", node=node)
 
     def test_defensive_none_check_in_domain(self) -> None:
         """W9012: Defensive None check in Domain layer."""
@@ -64,14 +68,16 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node = create_strict_mock(astroid.nodes.If)
 
         # Context -> Domain
-        self.checker.config_loader.get_layer_for_module = MagicMock(return_value=LayerRegistry.LAYER_DOMAIN)
+        self.checker.config_loader.get_layer_for_module = MagicMock(
+            return_value=LayerRegistry.LAYER_DOMAIN)
         mock_root = MagicMock()
         mock_root.name = "domain.logic"
         node.root.return_value = mock_root
 
         # Test condition: x is None
         compare = create_strict_mock(astroid.nodes.Compare)
-        compare.ops = [("is", create_strict_mock(astroid.nodes.Const, value=None))]
+        compare.ops = [("is", create_strict_mock(
+            astroid.nodes.Const, value=None))]
         compare.left = create_strict_mock(astroid.nodes.Name, name="x")
         node.test = compare
 
@@ -79,14 +85,15 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node.body = [create_strict_mock(astroid.nodes.Raise)]
 
         self.checker.visit_if(node)
-        self.assertAddsMessage(self.checker, "defensive-none-check", node=node)
+        self.assertAddsMessage(self.checker, "W9012", node=node)
 
     def test_any_in_signature_recursive(self) -> None:
         """W9016: Explicit 'Any' in generic aliases."""
         # def foo(x: List[Any]) -> None: ...
         node = create_strict_mock(astroid.nodes.FunctionDef)
         node.name = "foo"
-        node.returns = None
+        # Set return type so W9015 (missing return) is not added; we only test W9016 (Any in signature)
+        node.returns = MagicMock()
 
         # Args with annotations
         args = MagicMock()
@@ -96,15 +103,16 @@ class TestDesignCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         # We simulate the AST structure
         subscript = create_strict_mock(astroid.nodes.Subscript)
         subscript.slice = create_strict_mock(astroid.nodes.Name, name="Any")
-        subscript.value = MagicMock() # Required attribute
+        subscript.value = MagicMock()  # Required attribute
         # Subscript.value can be anything normally, we recurse on slice
 
         args.annotations = [subscript]
         node.args = args
 
         self.checker.visit_functiondef(node)
-        # Warning is on the slice (the 'Any' part), not the subscript itself
-        self.assertAddsMessage(self.checker, "banned-any-usage", node=subscript.slice)
+        # Warning is on the slice (the 'Any' part) -> W9016 (banned Any)
+        self.assertAddsMessage(self.checker, "W9016", node=subscript.slice)
+
 
 def create_strict_mock(spec_cls, **attrs) -> MagicMock:
     """Helper duplicate."""

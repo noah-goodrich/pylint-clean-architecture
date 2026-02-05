@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import astroid
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.layer_registry import LayerRegistry
 from clean_architecture_linter.use_cases.checks.di import DIChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
@@ -16,10 +17,13 @@ class TestDIChecker(unittest.TestCase, CheckerTestCase):
         self.linter = MagicMock()
         self.ast_gateway = MagicMock()
         self.python_gateway = MagicMock()
+        self.config_loader = ConfigurationLoader({}, {})
         self.checker = DIChecker(
             self.linter,
             ast_gateway=self.ast_gateway,
             python_gateway=self.python_gateway,
+            config_loader=self.config_loader,
+            registry={},
         )
 
     def test_visit_call_use_case_instantiates_gateway_adds_message(self) -> None:
@@ -33,7 +37,7 @@ class TestDIChecker(unittest.TestCase, CheckerTestCase):
 
         self.assertAddsMessage(
             self.checker,
-            "di-enforcement-violation",
+            "W9301",
             node=node,
             args=("FileSystemGateway",),
         )
@@ -67,7 +71,7 @@ class TestDIChecker(unittest.TestCase, CheckerTestCase):
         node = create_mock_node(astroid.nodes.Call)
         self.checker.visit_call(node)
         self.assertAddsMessage(
-            self.checker, "di-enforcement-violation", node=node, args=("UserRepository",)
+            self.checker, "W9301", node=node, args=("UserRepository",)
         )
 
     def test_visit_call_use_case_instantiates_client_adds_message(self) -> None:
@@ -77,7 +81,7 @@ class TestDIChecker(unittest.TestCase, CheckerTestCase):
         node = create_mock_node(astroid.nodes.Call)
         self.checker.visit_call(node)
         self.assertAddsMessage(
-            self.checker, "di-enforcement-violation", node=node, args=("HttpClient",)
+            self.checker, "W9301", node=node, args=("HttpClient",)
         )
 
     def test_visit_call_use_case_plain_class_no_message(self) -> None:

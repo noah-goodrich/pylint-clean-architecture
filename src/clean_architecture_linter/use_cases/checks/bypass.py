@@ -1,12 +1,16 @@
 """Anti-Bypass Guard checks (W9501)."""
 
 import tokenize
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from pylint.lint import PyLinter
 
 from pylint.checkers import BaseTokenChecker
+
+from clean_architecture_linter.domain.registry_types import RuleRegistryEntry
+from clean_architecture_linter.domain.rule_msgs import RuleMsgBuilder
 
 _MODULE_HEADER_MAX_LINES: int = 20
 
@@ -15,16 +19,12 @@ class BypassChecker(BaseTokenChecker):
     """W9501: Anti-Bypass Guard enforcement."""
 
     name: str = "clean-arch-bypass"
+    CODES = ["W9501"]
 
-    def __init__(self, linter: "PyLinter") -> None:
-        self.msgs = {
-            "W9501": (
-                "Anti-Bypass Violation: %s detected. %s Clean Fix: Justify with '# JUSTIFICATION: <reason>' or "
-                "resolve the architectural issue.",
-                "anti-bypass-violation",
-                "Module-level disables or unjustified complexity disables are forbidden.",
-            )
-        }
+    def __init__(
+        self, linter: "PyLinter", registry: Mapping[str, RuleRegistryEntry]
+    ) -> None:
+        self.msgs = RuleMsgBuilder.build_msgs_for_codes(registry, self.CODES)
         super().__init__(linter)
 
     ALLOWED_DISABLES: ClassVar[set[str]] = {
@@ -51,7 +51,7 @@ class BypassChecker(BaseTokenChecker):
         is_standalone = not line_content.split("#")[0].strip()
         if lineno < _MODULE_HEADER_MAX_LINES and is_standalone:
             self.add_message(
-                "anti-bypass-violation",
+                "W9501",
                 line=lineno,
                 args=("Global pylint: disable", "Fix the issue instead."),
             )
@@ -59,7 +59,8 @@ class BypassChecker(BaseTokenChecker):
         # 2. Check for disables not in the allow list
         # Extract everything after disable=
         try:
-            disable_part = tok_string.split("disable=")[1].split("#")[0].split(";")[0]
+            disable_part = tok_string.split("disable=")[1].split("#")[
+                0].split(";")[0]
             rules = [r.strip() for r in disable_part.split(",")]
             for rule in rules:
                 if not rule:
@@ -83,14 +84,14 @@ class BypassChecker(BaseTokenChecker):
         if prev_lineno in lines:
             line = lines[prev_lineno]
             if "JUSTIFICATION:" in line:
-                justified: bool = True
+                justified = True
                 content_part: str = line.split("JUSTIFICATION:")[1]
                 justification_raw: str = content_part.strip()
                 justification_content = justification_raw.lower()
 
         if not justified:
             self.add_message(
-                "anti-bypass-violation",
+                "W9501",
                 line=lineno,
                 args=(
                     f"Unjustified disable of {forbidden}",
@@ -103,7 +104,7 @@ class BypassChecker(BaseTokenChecker):
         for banned in self.BANNED_PHRASES:
             if banned in justification_content:
                 self.add_message(
-                    "anti-bypass-violation",
+                    "W9501",
                     line=lineno,
                     args=(
                         f"Banned justification for {forbidden}",

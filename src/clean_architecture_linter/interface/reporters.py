@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 class AuditReporter(Protocol):
     """Protocol for reporting audit results."""
 
-    def report_audit(self, audit_result: "AuditResult") -> None:
-        """Report audit results to the user."""
+    def report_audit(
+        self, audit_result: "AuditResult", view: str = "by_code"
+    ) -> None:
+        """Report audit results to the user. view: 'by_code' (default) or 'by_file'."""
         ...

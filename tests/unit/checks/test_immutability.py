@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import astroid
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.layer_registry import LayerRegistry
 from clean_architecture_linter.use_cases.checks.immutability import ImmutabilityChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
@@ -17,8 +18,10 @@ class TestImmutabilityChecker(unittest.TestCase, CheckerTestCase):
         """Set up test fixtures."""
         self.linter = MagicMock()
         self.python_gateway = MagicMock()
-        self.checker = ImmutabilityChecker(self.linter, self.python_gateway)
-        self.config_loader = self.checker.config_loader
+        self.config_loader = ConfigurationLoader({}, {})
+        self.checker = ImmutabilityChecker(
+            self.linter, self.python_gateway, self.config_loader, registry={}
+        )
 
     def test_visit_assignattr_skips_non_domain_layer(self) -> None:
         """Test visit_assignattr skips non-Domain layer."""
@@ -39,7 +42,7 @@ class TestImmutabilityChecker(unittest.TestCase, CheckerTestCase):
 
         self.checker.visit_assignattr(node)
         self.assertAddsMessage(
-            self.checker, "domain-immutability-violation", node, args=(LayerRegistry.LAYER_DOMAIN,)
+            self.checker, "W9601", node, args=(LayerRegistry.LAYER_DOMAIN,)
         )
 
     def test_visit_assignattr_skips_init_assignments(self) -> None:
@@ -96,7 +99,8 @@ class X:
 """
         module = astroid.parse(code)
         decorator = module.body[0].decorators.nodes[0]
-        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([decorator])
+        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([
+                                                                                 decorator])
         assert is_dataclass is True
         assert is_frozen is False
 
@@ -109,7 +113,8 @@ class X:
 """
         module = astroid.parse(code)
         decorator = module.body[0].decorators.nodes[0]
-        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([decorator])
+        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([
+                                                                                 decorator])
         assert is_dataclass is True
         assert is_frozen is True
 
@@ -122,7 +127,8 @@ class X:
 """
         module = astroid.parse(code)
         decorator = module.body[0].decorators.nodes[0]
-        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([decorator])
+        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([
+                                                                                 decorator])
         assert is_dataclass is True
         assert is_frozen is False
 
@@ -135,7 +141,8 @@ class X:
 """
         module = astroid.parse(code)
         decorator = module.body[0].decorators.nodes[0]
-        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([decorator])
+        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([
+                                                                                 decorator])
         assert is_dataclass is True
         assert is_frozen is True
 
@@ -170,7 +177,7 @@ class MyClass:
 
         self.checker.visit_classdef(node)
         self.assertAddsMessage(
-            self.checker, "domain-immutability-violation", node, args=(LayerRegistry.LAYER_DOMAIN,)
+            self.checker, "W9601", node, args=(LayerRegistry.LAYER_DOMAIN,)
         )
 
     def test_visit_classdef_skips_frozen_dataclass(self) -> None:
@@ -198,7 +205,8 @@ class X:
 """
         module = astroid.parse(code)
         decorator = module.body[0].decorators.nodes[0]
-        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([decorator])
+        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([
+                                                                                 decorator])
         assert is_dataclass is True
         assert is_frozen is False
 
@@ -213,7 +221,8 @@ class X:
 """
         module = astroid.parse(code)
         decorator = module.body[1].decorators.nodes[0]
-        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([decorator])
+        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([
+                                                                                 decorator])
         assert is_dataclass is True
         assert is_frozen is False  # Not a Const, so can't determine
 
@@ -226,7 +235,8 @@ class X:
 """
         module = astroid.parse(code)
         decorator = module.body[0].decorators.nodes[0]
-        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([decorator])
+        is_dataclass, is_frozen = self.checker._dataclass_frozen_from_decorators([
+                                                                                 decorator])
         assert is_dataclass is True
         assert is_frozen is False  # Wrong keyword name
 

@@ -5,7 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.entities import AuditResult, LinterResult
+from clean_architecture_linter.infrastructure.gateways.artifact_storage_gateway import (
+    LocalArtifactStorage,
+)
 from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
 from clean_architecture_linter.infrastructure.services.audit_trail import AuditTrailService
 from clean_architecture_linter.infrastructure.services.rule_analysis import RuleFixabilityService
@@ -19,8 +23,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -40,8 +52,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -73,8 +93,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -102,8 +130,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -133,8 +169,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -160,8 +204,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -186,8 +238,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -214,8 +274,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -237,8 +305,8 @@ class TestAuditTrailService:
                 )
                 path = service.save_ai_handover(audit_result)
 
-                assert path == ".excelsior/ai_handover.json"
-                assert Path(path).exists()
+                assert path == "ai_handover.json"
+                assert Path(".excelsior", path).exists()
                 telemetry.step.assert_called()
                 call_str = str(telemetry.step.call_args)
                 assert "ai_handover" in call_str or "AI Handover" in call_str
@@ -250,8 +318,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -272,9 +348,62 @@ class TestAuditTrailService:
                 assert data["version"] == "1.0.0"
                 assert "summary" in data
                 assert "total_violations" in data["summary"]
+                assert "rule_ids" in data
+                assert isinstance(data["rule_ids"], list)
                 assert "violations_by_rule" in data
                 assert "next_steps" in data
                 assert "files_with_governance_comments" in data
+            finally:
+                os.chdir(original_cwd)
+
+    def test_save_ai_handover_includes_rule_id_and_prompt_fragment(self) -> None:
+        """Test that each violation in handover has rule_id and prompt_fragment (B+)."""
+        telemetry = Mock()
+        rule_fixability_service = RuleFixabilityService()
+        filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
+        service = AuditTrailService(
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
+
+        with TemporaryDirectory() as tmpdir:
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                Path(".excelsior").mkdir(exist_ok=True)
+
+                audit_result = AuditResult(
+                    excelsior_results=[
+                        LinterResult(
+                            "W9015",
+                            "Missing type hint",
+                            ["src/foo.py:10"],
+                        ),
+                    ],
+                )
+                service.save_ai_handover(audit_result)
+
+                import json
+                data = json.loads(
+                    Path(".excelsior/ai_handover.json").read_text())
+                violations_by_rule = data["violations_by_rule"]
+                assert "W9015" in violations_by_rule
+                entries = violations_by_rule["W9015"]
+                assert len(entries) == 1
+                entry = entries[0]
+                assert entry["rule_id"] == "excelsior.W9015"
+                assert "prompt_fragment" in entry
+                frag = entry["prompt_fragment"]
+                assert "Fix [excelsior.W9015]" in frag
+                assert "Missing type hint" in frag
+                assert "src/foo.py:10" in frag
+                assert "Instructions:" in frag
             finally:
                 os.chdir(original_cwd)
 
@@ -283,8 +412,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -302,6 +439,7 @@ class TestAuditTrailService:
                 steps = data["next_steps"]
                 assert any("BLOCKED" in s for s in steps)
                 assert any("ruff" in s.lower() for s in steps)
+                assert any("plan-fix" in s for s in steps)
             finally:
                 os.chdir(original_cwd)
 
@@ -310,8 +448,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = {"W9006"}
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -348,8 +494,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -374,8 +528,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -405,8 +567,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -427,6 +597,7 @@ class TestAuditTrailService:
                     Path(".excelsior/ai_handover.json").read_text())
                 steps = data["next_steps"]
                 assert any("manual" in s.lower() for s in steps)
+                assert any("plan-fix" in s for s in steps)
             finally:
                 os.chdir(original_cwd)
 
@@ -435,8 +606,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = {"W9006"}
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -464,12 +643,20 @@ class TestAuditTrailService:
     def test_save_audit_trail_with_source_writes_source_specific_files(
         self,
     ) -> None:
-        """With source='check', writes last_audit_check.json and last_audit_check.txt."""
+        """With source='check', writes check/last_audit.json and check/last_audit.txt."""
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -478,8 +665,8 @@ class TestAuditTrailService:
                 audit_result = AuditResult(ruff_enabled=True)
                 service.save_audit_trail(audit_result, source="check")
 
-                assert Path(".excelsior/last_audit_check.json").exists()
-                assert Path(".excelsior/last_audit_check.txt").exists()
+                assert Path(".excelsior/check/last_audit.json").exists()
+                assert Path(".excelsior/check/last_audit.txt").exists()
             finally:
                 os.chdir(original_cwd)
 
@@ -490,8 +677,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -500,8 +695,8 @@ class TestAuditTrailService:
                 audit_result = AuditResult(ruff_enabled=True)
                 path = service.save_ai_handover(audit_result, source="fix")
 
-                assert path == ".excelsior/ai_handover_fix.json"
-                assert Path(".excelsior/ai_handover_fix.json").exists()
+                assert path == "fix/ai_handover.json"
+                assert Path(".excelsior/fix/ai_handover.json").exists()
             finally:
                 os.chdir(original_cwd)
 
@@ -510,8 +705,16 @@ class TestAuditTrailService:
         telemetry = Mock()
         rule_fixability_service = RuleFixabilityService()
         filesystem = FileSystemGateway()
+        artifact_storage = LocalArtifactStorage(".excelsior", filesystem)
+        config_loader = ConfigurationLoader({}, {})
+        guidance = Mock()
+        guidance.get_fixable_codes.return_value = []
+        guidance.get_comment_only_codes.return_value = set()
+        guidance.get_manual_instructions.return_value = ""
+        guidance.get_display_name.return_value = "Rule"
         service = AuditTrailService(
-            telemetry, rule_fixability_service, filesystem)
+            telemetry, rule_fixability_service, artifact_storage, config_loader,
+            guidance_service=guidance, raw_log_port=Mock())
 
         with TemporaryDirectory() as tmpdir:
             original_cwd = os.getcwd()
@@ -523,8 +726,8 @@ class TestAuditTrailService:
                 service.append_audit_history(
                     audit_result,
                     source="check",
-                    json_path=".excelsior/last_audit_check.json",
-                    txt_path=".excelsior/last_audit_check.txt",
+                    json_path="check/last_audit.json",
+                    txt_path="check/last_audit.txt",
                 )
                 content1 = Path(".excelsior/audit_history.jsonl").read_text()
                 lines1 = [l for l in content1.strip().split("\n") if l.strip()]
@@ -532,8 +735,8 @@ class TestAuditTrailService:
                 service.append_audit_history(
                     audit_result,
                     source="fix",
-                    json_path=".excelsior/last_audit_fix.json",
-                    txt_path=".excelsior/last_audit_fix.txt",
+                    json_path="fix/last_audit.json",
+                    txt_path="fix/last_audit.txt",
                 )
                 content2 = Path(".excelsior/audit_history.jsonl").read_text()
                 lines2 = [l for l in content2.strip().split("\n") if l.strip()]

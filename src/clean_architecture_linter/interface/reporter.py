@@ -132,7 +132,7 @@ class CleanArchitectureSummaryReporter(BaseReporter):
 
             for i, pkg in enumerate(sorted_packages):
                 count = details.get(pkg, 0)
-                val = str(count if count > 0 else 0)
+                val = str(count if (isinstance(count, int) and count > 0) else 0)
                 padded_row.append(f"{val:<{widths[3 + i]}}")
                 if isinstance(count, int):
                     package_totals[pkg] += count

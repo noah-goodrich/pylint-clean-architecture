@@ -1,18 +1,24 @@
-"""Domain Immutability Rule (W9601) - Auto-fix for frozen dataclasses."""
+"""Domain Immutability Rule (W9601) - Detection + auto-fix for frozen dataclasses."""
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import astroid  # type: ignore[import-untyped]
 
 from clean_architecture_linter.domain.entities import TransformationPlan
-from clean_architecture_linter.domain.rules import Violation
+from clean_architecture_linter.domain.rules import BaseRule, Violation
+
+if TYPE_CHECKING:
+    from clean_architecture_linter.domain.config import ConfigurationLoader
+    from clean_architecture_linter.domain.protocols import PythonProtocol
 
 
-class DomainImmutabilityRule:
+class DomainImmutabilityRule(BaseRule):
     """
     Rule for W9601: Domain Immutability violations.
 
-    Automatically converts Domain layer classes to frozen dataclasses.
+    - Detection: Domain layer classes must be immutable (frozen dataclasses),
+      and attributes must not be reassigned outside of constructors.
+    - Fix: Converts Domain classes to frozen dataclasses via TransformationPlan.
     """
 
     code: str = "W9601"
@@ -22,18 +28,131 @@ class DomainImmutabilityRule:
     )
     fix_type: str = "code"
 
-    def __init__(self) -> None:
-        pass
+    def __init__(
+        self,
+        python_gateway: "PythonProtocol | None" = None,
+        config_loader: "ConfigurationLoader | None" = None,
+    ) -> None:
+        # python_gateway + config_loader are required for AST-side detection,
+        # but optional for fix-only usage in the plan-fix pipeline.
+        self._python_gateway = python_gateway
+        self._config_loader = config_loader
+
+    # --------------------------------------------------------------------- #
+    # BaseRule-style detection entrypoint
+    # --------------------------------------------------------------------- #
 
     def check(self, node: astroid.nodes.NodeNG) -> list[Violation]:
         """
         Check for Domain Immutability violations.
 
-        Note: Violations are detected by ImmutabilityChecker (Pylint checker).
-        This check() is a no-op in the fix pipeline; violations are supplied
-        by Pylint. fix() is invoked with those Violation instances.
+        When constructed with python_gateway + config_loader, this can be used
+        directly from the ImmutabilityChecker. In the fix pipeline, violations
+        typically come from the checker and this method is a no-op.
         """
+        # If gateways are not wired (plan-fix pipeline), detection is a no-op.
+        if self._python_gateway is None or self._config_loader is None:
+            return []
+
+        if isinstance(node, astroid.nodes.AssignAttr):
+            return self.check_assignattr(node)
+        if isinstance(node, astroid.nodes.ClassDef):
+            return self.check_classdef(node)
         return []
+
+    # --------------------------------------------------------------------- #
+    # AST-side detection helpers (used by both checker and check())
+    # --------------------------------------------------------------------- #
+
+    def check_assignattr(self, node: astroid.nodes.NodeNG) -> list[Violation]:
+        """Check AssignAttr for W9601. Returns at most one violation."""
+        from clean_architecture_linter.domain.layer_registry import LayerRegistry
+
+        if self._python_gateway is None or self._config_loader is None:
+            return []
+        if not hasattr(node, "attrname"):
+            return []
+
+        layer = self._python_gateway.get_node_layer(node, self._config_loader)
+        if layer != LayerRegistry.LAYER_DOMAIN:
+            return []
+
+        frame = getattr(node, "frame", lambda: None)()
+        if frame and getattr(frame, "name", None) in ("__init__", "__new__"):
+            return []
+
+        return [
+            Violation.from_node(
+                code=self.code,
+                message=f"Domain immutability: attribute assignment in {layer}.",
+                node=node,
+                message_args=(layer,),
+            )
+        ]
+
+    def check_classdef(self, node: astroid.nodes.NodeNG) -> list[Violation]:
+        """Check ClassDef for W9601 (dataclass not frozen). Returns at most one violation."""
+        from clean_architecture_linter.domain.layer_registry import LayerRegistry
+
+        if self._python_gateway is None or self._config_loader is None:
+            return []
+        if not hasattr(node, "decorators") or not node.decorators:
+            return []
+
+        layer = self._python_gateway.get_node_layer(node, self._config_loader)
+        if layer != LayerRegistry.LAYER_DOMAIN:
+            return []
+
+        is_dataclass, is_frozen = self._dataclass_frozen_from_decorators(
+            getattr(node.decorators, "nodes", [])
+        )
+        if not is_dataclass or is_frozen:
+            return []
+
+        return [
+            Violation.from_node(
+                code=self.code,
+                message=(
+                    f"Domain immutability: dataclass in {layer} must be frozen."
+                ),
+                node=node,
+                message_args=(layer,),
+            )
+        ]
+
+    def _dataclass_frozen_from_decorators(
+        self, decorators: list[astroid.nodes.NodeNG]
+    ) -> tuple[bool, bool]:
+        is_dataclass = False
+        is_frozen = False
+        for dec in decorators or []:
+            if self._is_dataclass_name(dec):
+                is_dataclass = True
+            elif hasattr(dec, "keywords") and dec.keywords:
+                if self._is_dataclass_name(getattr(dec, "func", None)):
+                    is_dataclass = True
+                for kw in dec.keywords:
+                    if (
+                        getattr(kw, "arg", None) == "frozen"
+                        and getattr(getattr(kw, "value", None), "value", None)
+                        is True
+                    ):
+                        is_frozen = True
+                        break
+        return (is_dataclass, is_frozen)
+
+    def _is_dataclass_name(self, n: astroid.nodes.NodeNG | None) -> bool:
+        if n is None:
+            return False
+        if hasattr(n, "name"):
+            return getattr(n, "name", None) == "dataclass"
+        if hasattr(n, "attrname"):
+            return getattr(n, "attrname", None) == "dataclass"
+        return False
+
+    # --------------------------------------------------------------------- #
+    # Fix pipeline
+    # --------------------------------------------------------------------- #
 
     def fix(self, violation: Violation) -> Optional[TransformationPlan]:
         """

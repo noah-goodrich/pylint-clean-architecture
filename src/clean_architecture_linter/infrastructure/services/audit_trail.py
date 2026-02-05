@@ -3,7 +3,7 @@
 import json
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 from clean_architecture_linter.domain.entities import (
     AuditResult,
@@ -13,14 +13,26 @@ from clean_architecture_linter.domain.entities import (
     LinterResult,
     ViolationWithFixInfo,
 )
-from clean_architecture_linter.domain.protocols import FileSystemProtocol, TelemetryPort
+from clean_architecture_linter.domain.protocols import (
+    ArtifactStorageProtocol,
+    RawLogPort,
+    TelemetryPort,
+)
 from clean_architecture_linter.infrastructure.adapters.linter_adapters import (
     ExcelsiorAdapter,
     ImportLinterAdapter,
     MypyAdapter,
 )
 from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
-from clean_architecture_linter.infrastructure.services.rule_analysis import RuleFixabilityService
+from clean_architecture_linter.infrastructure.services.guidance_service import (
+    GuidanceService,
+)
+from clean_architecture_linter.infrastructure.services.rule_analysis import (
+    RuleFixabilityService,
+)
+
+if TYPE_CHECKING:
+    from clean_architecture_linter.domain.config import ConfigurationLoader
 
 
 class AuditTrailService:
@@ -30,11 +42,17 @@ class AuditTrailService:
         self,
         telemetry: TelemetryPort,
         rule_fixability_service: RuleFixabilityService,
-        filesystem: FileSystemProtocol,
+        artifact_storage: ArtifactStorageProtocol,
+        config_loader: "ConfigurationLoader",
+        guidance_service: GuidanceService,
+        raw_log_port: RawLogPort,
     ) -> None:
         self.telemetry = telemetry
         self.rule_fixability_service = rule_fixability_service
-        self.filesystem = filesystem
+        self.artifact_storage = artifact_storage
+        self._config_loader = config_loader
+        self._guidance = guidance_service
+        self._raw_log_port = raw_log_port
 
     def save_audit_trail(
         self, audit_result: AuditResult, source: Optional[str] = None
@@ -45,37 +63,49 @@ class AuditTrailService:
         Args:
             audit_result: Result of the audit.
             source: Command that produced the audit ('check', 'fix', 'ai_workflow').
-                     When set, files are named last_audit_{source}.json and last_audit_{source}.txt
-                     so check and fix produce separate sets for debugging gaps.
+                     When set, files are under .excelsior/{source}/ (e.g. check/last_audit.json).
         """
-        excelsior_dir = ".excelsior"
-        self.filesystem.make_dirs(excelsior_dir, exist_ok=True)
-
-        base = "last_audit" if not source else f"last_audit_{source}"
-        json_path = self.filesystem.join_path(excelsior_dir, f"{base}.json")
-        txt_path = self.filesystem.join_path(excelsior_dir, f"{base}.txt")
+        if source:
+            json_key = f"{source}/last_audit.json"
+            txt_key = f"{source}/last_audit.txt"
+        else:
+            json_key = "last_audit.json"
+            txt_key = "last_audit.txt"
 
         # Build domain entity from audit result
-        audit_trail = self._build_audit_trail(audit_result, excelsior_dir)
+        audit_trail = self._build_audit_trail(audit_result)
 
         json_content = json.dumps(audit_trail.to_dict(), indent=2)
-        self.filesystem.write_text(json_path, json_content)
+        self.artifact_storage.write_artifact(json_key, json_content)
 
         txt_content = self._build_text_content(audit_result, audit_trail)
-        self.filesystem.write_text(txt_path, txt_content)
+        self.artifact_storage.write_artifact(txt_key, txt_content)
 
         self.telemetry.step(
-            f"💾 Audit Trail persisted to: {json_path} and {txt_path}")
+            f"💾 Audit Trail persisted to: {json_key} and {txt_key}")
 
-    def _build_audit_trail(
-        self, audit_result: AuditResult, excelsior_dir: str
-    ) -> AuditTrail:
+    def _build_audit_trail(self, audit_result: AuditResult) -> AuditTrail:
         """Build domain AuditTrail entity from AuditResult."""
-        mypy_adapter = MypyAdapter()
-        excelsior_adapter = ExcelsiorAdapter()
-        il_adapter = ImportLinterAdapter()
-        ruff_adapter = RuffAdapter(
-            telemetry=None) if audit_result.ruff_enabled else None
+        mypy_adapter = MypyAdapter(
+            raw_log_port=self._raw_log_port,
+            guidance_service=self._guidance,
+        )
+        excelsior_adapter = ExcelsiorAdapter(
+            config_loader=self._config_loader,
+            raw_log_port=self._raw_log_port,
+            guidance_service=self._guidance,
+        )
+        il_adapter = ImportLinterAdapter(guidance_service=self._guidance)
+        ruff_adapter = (
+            RuffAdapter(
+                config_loader=self._config_loader,
+                telemetry=self.telemetry,
+                raw_log_port=self._raw_log_port,
+                guidance_service=self._guidance,
+            )
+            if audit_result.ruff_enabled
+            else None
+        )
 
         summary = AuditTrailSummary(
             type_integrity=len(audit_result.mypy_results),
@@ -104,7 +134,7 @@ class AuditTrailService:
 
         return AuditTrail(
             version="2.0.0",
-            timestamp=str(self.filesystem.get_mtime(excelsior_dir)),
+            timestamp=datetime.now().isoformat(),
             summary=summary,
             violations=violations,
         )
@@ -113,8 +143,26 @@ class AuditTrailService:
         self, results: list[LinterResult], adapter: object
     ) -> list[ViolationWithFixInfo]:
         """Build domain ViolationWithFixInfo entities from LinterResults."""
+        from clean_architecture_linter.domain.entities import LinterResult
         violations = []
-        for result in results:
+
+        # Consolidation for R0801: Group all duplicate-code results into a single entry
+        r0801_results = [r for r in results if r.code == "R0801"]
+        other_results = [r for r in results if r.code != "R0801"]
+
+        if r0801_results:
+            all_locations = []
+            for r in r0801_results:
+                all_locations.extend(r.locations)
+
+            consolidated = LinterResult(
+                code="R0801",
+                message="Duplicate code detected across multiple files. See locations for details.",
+                locations=sorted(list(set(all_locations)))
+            )
+            other_results.append(consolidated)
+
+        for result in other_results:
             fixable = self.rule_fixability_service.is_rule_fixable(
                 adapter, result.code)
             comment_only = (
@@ -204,23 +252,22 @@ class AuditTrailService:
         Args:
             audit_result: Result of the audit.
             source: Command that produced the audit ('check', 'fix', 'ai_workflow').
-                    When set, file is named ai_handover_{source}.json.
+                    When set, file is under .excelsior/{source}/ (e.g. check/ai_handover.json).
 
         Returns:
-            Path to the generated JSON file
+            Logical key of the generated JSON artifact (e.g. check/ai_handover.json)
         """
-        excelsior_dir = ".excelsior"
-        self.filesystem.make_dirs(excelsior_dir, exist_ok=True)
-
-        base = "ai_handover" if not source else f"ai_handover_{source}"
-        json_path = self.filesystem.join_path(excelsior_dir, f"{base}.json")
+        if source:
+            json_key = f"{source}/ai_handover.json"
+        else:
+            json_key = "ai_handover.json"
 
         handover = self._build_ai_handover(audit_result)
         json_content = json.dumps(handover, indent=2)
-        self.filesystem.write_text(json_path, json_content)
+        self.artifact_storage.write_artifact(json_key, json_content)
 
-        self.telemetry.step(f"🤖 AI Handover bundle saved to: {json_path}")
-        return json_path
+        self.telemetry.step(f"🤖 AI Handover bundle saved to: {json_key}")
+        return json_key
 
     def append_audit_history(
         self,
@@ -235,11 +282,7 @@ class AuditTrailService:
         Helps debug gaps between check and fix by viewing history of what each run found.
         Each line is a single JSON object (NDJSON).
         """
-        excelsior_dir = ".excelsior"
-        self.filesystem.make_dirs(excelsior_dir, exist_ok=True)
-        history_path = self.filesystem.join_path(
-            excelsior_dir, "audit_history.jsonl"
-        )
+        history_key = "audit_history.jsonl"
 
         total = (
             len(audit_result.ruff_results)
@@ -260,22 +303,46 @@ class AuditTrailService:
             "snapshot_txt": txt_path,
         }
         line = json.dumps(record) + "\n"
-        self.filesystem.append_text(history_path, line)
+        self.artifact_storage.append_artifact(history_key, line)
         self.telemetry.step(
-            f"📜 Audit history appended to: {history_path}"
+            f"📜 Audit history appended to: {history_key}"
         )
 
-    def _build_ai_handover(self, audit_result: AuditResult) -> dict[str, Any]:
+    def _build_ai_handover(self, audit_result: AuditResult) -> dict[str, object]:
         """Build AI handover JSON structure."""
-        mypy_adapter = MypyAdapter()
-        excelsior_adapter = ExcelsiorAdapter()
-        il_adapter = ImportLinterAdapter()
-        ruff_adapter = RuffAdapter(
-            telemetry=None) if audit_result.ruff_enabled else None
+        mypy_adapter = MypyAdapter(
+            raw_log_port=self._raw_log_port,
+            guidance_service=self._guidance,
+        )
+        excelsior_adapter = ExcelsiorAdapter(
+            config_loader=self._config_loader,
+            raw_log_port=self._raw_log_port,
+            guidance_service=self._guidance,
+        )
+        il_adapter = ImportLinterAdapter(guidance_service=self._guidance)
+        ruff_adapter = (
+            RuffAdapter(
+                config_loader=self._config_loader,
+                telemetry=self.telemetry,
+                raw_log_port=self._raw_log_port,
+                guidance_service=self._guidance,
+            )
+            if audit_result.ruff_enabled
+            else None
+        )
 
         # Group violations by rule code
-        violations_by_rule: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        violations_by_rule: dict[str,
+                                 list[dict[str, object]]] = defaultdict(list)
         files_with_comments: dict[str, list[int]] = defaultdict(list)
+
+        # Category -> linter name for registry rule_id (e.g. mypy.no-any-return, excelsior.W9006)
+        category_to_linter: dict[str, str] = {
+            "code_quality": "ruff",
+            "type_integrity": "mypy",
+            "architectural": "excelsior",
+            "contracts": "import_linter",
+        }
 
         # Process all violations
         all_results = [
@@ -289,7 +356,26 @@ class AuditTrailService:
             if not adapter or not results:
                 continue
 
-            for result in results:
+            linter = category_to_linter.get(category, category)
+
+            # Consolidation for R0801 in AI Handover
+            current_results = results
+            if category == "architectural":
+                r0801_results = [r for r in results if r.code == "R0801"]
+                if r0801_results:
+                    from clean_architecture_linter.domain.entities import LinterResult
+                    other_results = [r for r in results if r.code != "R0801"]
+                    all_locations = []
+                    for r in r0801_results:
+                        all_locations.extend(r.locations)
+                    consolidated = LinterResult(
+                        code="R0801",
+                        message="Duplicate code detected across multiple files. See locations for details.",
+                        locations=sorted(list(set(all_locations)))
+                    )
+                    current_results = other_results + [consolidated]
+
+            for result in current_results:
                 fixable = self.rule_fixability_service.is_rule_fixable(
                     adapter, result.code)
                 comment_only = (
@@ -298,9 +384,24 @@ class AuditTrailService:
                     else False
                 )
                 manual_instructions = None
-                if not fixable and hasattr(adapter, "get_manual_fix_instructions"):
+                if hasattr(adapter, "get_manual_fix_instructions"):
                     manual_instructions = adapter.get_manual_fix_instructions(
                         result.code)
+                if manual_instructions is None and self._guidance:
+                    manual_instructions = self._guidance.get_manual_instructions(
+                        linter, result.code)
+
+                # rule_id for registry lookup (e.g. mypy.no-any-return, excelsior.W9006)
+                rule_id = f"{linter}.{result.code}"
+
+                # Ready-to-paste directive for an AI to fix this single violation
+                locations_str = ", ".join(
+                    result.locations) if result.locations else "N/A"
+                prompt_fragment = (
+                    f"Fix [{rule_id}]: {result.message}\n"
+                    f"Location(s): {locations_str}\n"
+                    f"Instructions: {manual_instructions or 'See registry for this rule_id.'}"
+                )
 
                 # Extract file paths and line numbers
                 for location in result.locations:
@@ -315,6 +416,7 @@ class AuditTrailService:
                             pass
 
                 violation_data = {
+                    "rule_id": rule_id,
                     "code": result.code,
                     "message": result.message,
                     "locations": result.locations,
@@ -322,11 +424,21 @@ class AuditTrailService:
                     "fixable": fixable,
                     "comment_only": comment_only,
                     "manual_instructions": manual_instructions,
+                    "prompt_fragment": prompt_fragment,
                 }
                 violations_by_rule[result.code].append(violation_data)
 
         # Build next steps guidance
         next_steps = self._build_next_steps(audit_result, violations_by_rule)
+
+        # Unique rule_ids for plan-fix workflow (e.g. mypy.union-attr, excelsior.W9006)
+        rule_ids = sorted(
+            rid
+            for entries in violations_by_rule.values()
+            for v in entries
+            for rid in (v.get("rule_id"),)
+            if rid is not None
+        )
 
         return {
             "version": "1.0.0",
@@ -337,6 +449,7 @@ class AuditTrailService:
                 "files_with_governance_comments": len(files_with_comments),
                 "blocked_by": audit_result.blocked_by,
             },
+            "rule_ids": rule_ids,
             "violations_by_rule": dict(violations_by_rule),
             "files_with_governance_comments": {
                 file_path: sorted(set(line_nums))
@@ -346,7 +459,7 @@ class AuditTrailService:
         }
 
     def _build_next_steps(
-        self, audit_result: AuditResult, violations_by_rule: dict[str, list[dict[str, Any]]]
+        self, audit_result: AuditResult, violations_by_rule: dict[str, list[dict[str, object]]]
     ) -> list[str]:
         """Build next steps guidance for AI."""
         steps = []
@@ -355,6 +468,10 @@ class AuditTrailService:
             steps.append(
                 f"⚠️  BLOCKED: Audit was blocked by {audit_result.blocked_by}. "
                 f"Fix upstream violations first."
+            )
+            steps.append(
+                "   For each violation type, run: excelsior plan-fix <rule_id> "
+                "(rule_ids are in this handover). Then fix guided by the generated plan."
             )
             return steps
 
@@ -366,7 +483,7 @@ class AuditTrailService:
         if auto_fixable_rules:
             steps.append(
                 f"✅ {len(auto_fixable_rules)} rule(s) are auto-fixable. "
-                f"Run 'excelsior fix' to apply automatic fixes."
+                f"Run 'excelsior fix' to apply automatic fixes (or plan-fix first for per-rule plans)."
             )
             # W9015: type hints are only auto-injected when type can be inferred
             if "W9015" in auto_fixable_rules:
@@ -398,7 +515,8 @@ class AuditTrailService:
         if manual_fix_rules:
             steps.append(
                 f"⚠️  {len(manual_fix_rules)} rule(s) require manual fixes. "
-                f"See 'manual_instructions' in violation data."
+                f"Run 'excelsior plan-fix <rule_id>' for each (see handover 'rule_ids'); "
+                f"then fix guided by the generated plan. See 'manual_instructions' in violation data."
             )
 
         if not steps:

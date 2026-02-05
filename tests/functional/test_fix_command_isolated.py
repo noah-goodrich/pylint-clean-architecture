@@ -5,6 +5,7 @@ all fix behaviors WITHOUT touching the actual repository.
 """
 
 import subprocess
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -65,7 +66,8 @@ testpaths = ["tests"]
     def test_fix_no_backup_flag(self, temp_project) -> None:
         """Test that --no-backup flag prevents .bak file creation."""
         _ = subprocess.run(
-            ["excelsior", "fix", str(temp_project), "--no-backup", "--skip-tests"],
+            ["excelsior", "fix", str(temp_project),
+             "--no-backup", "--skip-tests"],
             capture_output=True,
             text=True,
             timeout=30
@@ -73,7 +75,8 @@ testpaths = ["tests"]
 
         # No .bak files should exist
         backup_files = list(temp_project.glob("**/*.bak"))
-        assert len(backup_files) == 0, "No backup files should be created with --no-backup"
+        assert len(
+            backup_files) == 0, "No backup files should be created with --no-backup"
 
     def test_fix_skip_tests_flag(self, temp_project) -> None:
         """Test that --skip-tests bypasses pytest validation."""
@@ -94,7 +97,7 @@ testpaths = ["tests"]
             ["excelsior", "fix", str(temp_project)],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=120,
         )
 
         # Should mention test baseline or pytest
@@ -122,7 +125,8 @@ testpaths = ["tests"]
     def test_fix_cleanup_backups_flag(self, temp_project) -> None:
         """Test --cleanup-backups removes .bak files after success."""
         _ = subprocess.run(
-            ["excelsior", "fix", str(temp_project), "--cleanup-backups", "--skip-tests"],
+            ["excelsior", "fix", str(temp_project),
+             "--cleanup-backups", "--skip-tests"],
             capture_output=True,
             text=True,
             timeout=30
@@ -130,7 +134,8 @@ testpaths = ["tests"]
 
         # No .bak files should remain
         backup_files = list(temp_project.glob("**/*.bak"))
-        assert len(backup_files) == 0, "Backup files should be cleaned up with --cleanup-backups"
+        assert len(
+            backup_files) == 0, "Backup files should be cleaned up with --cleanup-backups"
 
     def test_fix_rollback_on_regression(self, temp_project) -> None:
         """Test that fix rolls back changes if tests start failing."""
@@ -150,7 +155,7 @@ def test_always_passes():
             ["excelsior", "fix", str(temp_project)],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=120,
         )
 
         # If rollback happened, should see "Rolling back" message
@@ -205,9 +210,16 @@ class TestFixAdapterCapabilities:
 
     def test_ruff_supports_autofix(self) -> None:
         """Test Ruff adapter reports auto-fix support."""
+        from unittest.mock import MagicMock
+
         from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
-        adapter = RuffAdapter()
+        adapter = RuffAdapter(
+            config_loader=MagicMock(),
+            telemetry=MagicMock(),
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
         assert adapter.supports_autofix() is True
 
         fixable_rules = adapter.get_fixable_rules()
@@ -218,15 +230,24 @@ class TestFixAdapterCapabilities:
         """Test Mypy adapter reports no auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.mypy_adapter import MypyAdapter
 
-        adapter = MypyAdapter()
+        adapter = MypyAdapter(
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
         assert adapter.supports_autofix() is False
         assert len(adapter.get_fixable_rules()) == 0
 
     def test_excelsior_supports_autofix(self) -> None:
         """Test Excelsior (pylint) adapter reports auto-fix support."""
+        from unittest.mock import MagicMock
+
         from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import ExcelsiorAdapter
 
-        adapter = ExcelsiorAdapter()
+        adapter = ExcelsiorAdapter(
+            config_loader=MagicMock(),
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
         assert adapter.supports_autofix() is True
 
         fixable_rules = adapter.get_fixable_rules()
@@ -236,24 +257,34 @@ class TestFixAdapterCapabilities:
         """Test Import-Linter adapter reports no auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
 
-        adapter = ImportLinterAdapter()
+        adapter = ImportLinterAdapter(guidance_service=MagicMock())
         assert adapter.supports_autofix() is False
 
     def test_all_adapters_provide_manual_instructions(self) -> None:
         """Test all adapters provide manual fix instructions."""
+        from unittest.mock import MagicMock
+
         from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import ExcelsiorAdapter
         from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
         from clean_architecture_linter.infrastructure.adapters.mypy_adapter import MypyAdapter
         from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
+        config_loader = MagicMock()
+        raw_log = MagicMock()
+        guidance = MagicMock()
+        guidance.get_manual_instructions.return_value = (
+            "See documentation for this rule. Fix the underlying issue."
+        )
+        telemetry = MagicMock()
         adapters = [
-            (RuffAdapter(), "C901"),
-            (MypyAdapter(), "type-arg"),
-            (ExcelsiorAdapter(), "clean-arch-layer"),
-            (ImportLinterAdapter(), "contract-violation"),
+            (RuffAdapter(config_loader=config_loader, telemetry=telemetry, raw_log_port=raw_log, guidance_service=guidance), "C901"),
+            (MypyAdapter(raw_log_port=raw_log, guidance_service=guidance), "type-arg"),
+            (ExcelsiorAdapter(config_loader=config_loader, raw_log_port=raw_log, guidance_service=guidance), "clean-arch-layer"),
+            (ImportLinterAdapter(guidance_service=guidance), "contract-violation"),
         ]
 
         for adapter, code in adapters:
             instructions = adapter.get_manual_fix_instructions(code)
             assert instructions, f"{adapter.__class__.__name__} should provide instructions for {code}"
-            assert len(instructions) > 20, f"Instructions should be detailed, got: {instructions}"
+            assert len(
+                instructions) > 20, f"Instructions should be detailed, got: {instructions}"

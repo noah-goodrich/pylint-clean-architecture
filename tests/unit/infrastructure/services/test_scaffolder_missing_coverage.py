@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
 
 
@@ -12,7 +13,7 @@ class TestScaffolderMissingCoverage:
         """Test lines 27-28: _check_layers() early return in init_project."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         # Create layers.yaml to trigger early return
         layers_file = tmp_path / "layers.yaml"
@@ -33,7 +34,7 @@ class TestScaffolderMissingCoverage:
         """Test lines 113-114: handling invalid layer_map entries."""
         instructions_file = tmp_path / "instructions.md"
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {
@@ -52,7 +53,7 @@ class TestScaffolderMissingCoverage:
         """Test line 116: handling non-alphanumeric directory names."""
         instructions_file = tmp_path / "instructions.md"
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {
@@ -69,7 +70,7 @@ class TestScaffolderMissingCoverage:
         """Test lines 132-133: handling missing pyproject.toml."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         # No pyproject.toml exists
         scaffolder._perform_tool_audit(None)
@@ -84,7 +85,7 @@ class TestScaffolderMissingCoverage:
         pyproject_file.write_text("invalid toml content !!!\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         scaffolder._perform_tool_audit(None)
 
@@ -100,7 +101,7 @@ name = "test"
 """)
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         scaffolder._perform_tool_audit(None)
 
@@ -114,7 +115,7 @@ name = "test"
         pyproject_file.write_text("[project]\nname = 'test'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.version_info', (3, 10)), \
                 patch('importlib.util.find_spec', return_value=None):
@@ -136,7 +137,7 @@ line-length = 100
 """)
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.stdin.isatty', return_value=True), \
                 patch('builtins.input', return_value='n'), \
@@ -154,7 +155,7 @@ line-length = 100
         pyproject_file.write_text("[project]\nname = 'test'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.stdin.isatty', return_value=True), \
                 patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=True), \
@@ -171,7 +172,7 @@ line-length = 100
     def test_ruff_wizard_prompt_use_defaults_returns_false_on_no(self) -> None:
         """Test lines 286-289: _ruff_wizard_prompt_use_defaults returns False when user says no."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         defaults = {
             'line-length': 120,
@@ -190,7 +191,7 @@ line-length = 100
     def test_ruff_wizard_prompt_use_defaults_returns_true_on_yes(self) -> None:
         """Test line 290: _ruff_wizard_prompt_use_defaults returns True when user says yes."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         defaults = {
             'line-length': 120,
@@ -209,7 +210,7 @@ line-length = 100
     def test_ruff_wizard_prompt_use_defaults_returns_true_on_empty(self) -> None:
         """Test _ruff_wizard_prompt_use_defaults returns True on empty input (default)."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         defaults = {
             'line-length': 120,
@@ -228,7 +229,7 @@ line-length = 100
     def test_ruff_wizard_customize_uses_defaults_when_empty(self) -> None:
         """Test lines 298-300: _ruff_wizard_customize uses defaults when input is empty."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         defaults = {
             'line-length': 120,
@@ -250,7 +251,7 @@ line-length = 100
     def test_ruff_wizard_customize_uses_custom_values(self) -> None:
         """Test lines 299-300, 303-304: _ruff_wizard_customize uses custom values when provided."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         defaults = {
             'line-length': 120,
@@ -272,7 +273,7 @@ line-length = 100
     def test_ruff_wizard_customize_ignores_non_digit_input(self) -> None:
         """Test _ruff_wizard_customize ignores non-digit input."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         defaults = {
             'line-length': 120,
@@ -293,7 +294,7 @@ line-length = 100
     def test_ruff_wizard_prompt_overwrite_returns_false_on_no(self) -> None:
         """Test lines 272-274: _ruff_wizard_prompt_overwrite returns False when user says no."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.input', return_value='n'), \
                 patch('builtins.print'):
@@ -304,7 +305,7 @@ line-length = 100
     def test_ruff_wizard_prompt_overwrite_returns_true_on_yes(self) -> None:
         """Test line 275: _ruff_wizard_prompt_overwrite returns True when user says yes."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.input', return_value='yes'), \
                 patch('builtins.print'):
@@ -316,7 +317,7 @@ line-length = 100
         """Test lines 27-28: init_project calls _check_layers and returns early."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch.object(scaffolder, '_check_layers') as mock_check:
             scaffolder.init_project(check_layers=True)
@@ -334,7 +335,7 @@ name = "test"
 """)
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         # Mock _load_pyproject to return data with non-dict tool
         with patch.object(scaffolder, '_load_pyproject', return_value={"tool": "invalid"}):
@@ -346,7 +347,7 @@ name = "test"
     def test_load_pyproject_handles_import_error(self, tmp_path) -> None:
         """Test lines 168-171: _load_pyproject handles ImportError for tomli."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         test_file = tmp_path / "test.toml"
         test_file.write_text("[project]\nname = 'test'\n")
@@ -361,7 +362,7 @@ name = "test"
     def test_apply_template_updates_handles_non_dict_tool_section(self) -> None:
         """Test line 181: _apply_template_updates handles non-dict tool section."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         data = {"tool": "invalid"}  # Not a dict
         scaffolder._apply_template_updates(data, "fastapi")
@@ -373,7 +374,7 @@ name = "test"
         """Test line 208-209: _configure_ruff_wizard skips in non-interactive mode."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.stdin.isatty', return_value=False):
             scaffolder._configure_ruff_wizard()
@@ -388,7 +389,7 @@ name = "test"
         pyproject_file.write_text("[project]\nname = 'test'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.stdin.isatty', return_value=True), \
                 patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=False):
@@ -404,7 +405,7 @@ name = "test"
         pyproject_file.write_text("[project]\nname = 'test'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.stdin.isatty', return_value=True), \
                 patch.object(scaffolder, '_ruff_wizard_can_use_toml', return_value=True), \
@@ -418,7 +419,7 @@ name = "test"
     def test_ruff_wizard_can_use_toml_returns_true_when_tomli_available(self) -> None:
         """Test line 240: _ruff_wizard_can_use_toml returns True when tomli is available."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.version_info', (3, 10)), \
                 patch('importlib.util.find_spec', return_value=MagicMock()):  # tomli found
@@ -430,7 +431,7 @@ name = "test"
         """Test line 246: _ruff_wizard_has_existing_config returns False when no data."""
         monkeypatch.chdir(tmp_path)
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch.object(scaffolder, '_load_pyproject_toml', return_value=None):
             result = scaffolder._ruff_wizard_has_existing_config()
@@ -444,7 +445,7 @@ name = "test"
         pyproject_file.write_text("[project]\nname = 'test'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         # Mock Python < 3.11 and tomli import failure
         with patch('sys.version_info', (3, 10)), \
@@ -460,7 +461,7 @@ name = "test"
         pyproject_file.write_text("invalid toml !!!\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         # Mock toml_lib.load to raise exception
         with patch('sys.version_info', (3, 11)), \
@@ -476,7 +477,7 @@ name = "test"
         pyproject_file.write_text("[project]\nname = 'test'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         # Mock Python < 3.11 and tomli_w import failure
         # We need to patch the import that happens inside the method
@@ -502,7 +503,7 @@ name = "test"
     def test_load_pyproject_handles_file_not_found(self, tmp_path) -> None:
         """Test line 168: handling file not found in _load_pyproject."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         missing_file = tmp_path / "nonexistent.toml"
         result = scaffolder._load_pyproject(missing_file)
@@ -512,7 +513,7 @@ name = "test"
     def test_load_pyproject_handles_parse_error(self, tmp_path) -> None:
         """Test line 171: handling parse error in _load_pyproject."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         invalid_file = tmp_path / "invalid.toml"
         invalid_file.write_text("invalid toml !!!\n")
@@ -524,7 +525,7 @@ name = "test"
     def test_apply_template_updates_handles_missing_tool_key(self) -> None:
         """Test lines 181, 258-261: handling missing tool key in data."""
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         data = {}  # No tool key
         scaffolder._apply_template_updates(data, "fastapi")
@@ -539,7 +540,7 @@ name = "test"
         pyproject_file.write_text("[project]\nname = 'test'\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         import sys
         original_tomli_w = sys.modules.pop('tomli_w', None)
@@ -561,7 +562,7 @@ name = "test"
         makefile.write_text("existing content\n")
 
         telemetry = MagicMock()
-        scaffolder = Scaffolder(telemetry)
+        scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('pathlib.Path.read_text', side_effect=PermissionError("Cannot read")):
             # Should handle gracefully

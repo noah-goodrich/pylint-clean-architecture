@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
+from clean_architecture_linter.domain.config import ConfigurationLoader
 from clean_architecture_linter.domain.layer_registry import LayerRegistry
 from clean_architecture_linter.use_cases.checks.contracts import ContractChecker
 from tests.unit.checker_test_utils import CheckerTestCase
@@ -12,9 +13,13 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
         self.python_gateway = MagicMock()
+        self.config_loader = ConfigurationLoader({}, {})
         self.checker = ContractChecker(
-            self.linter, python_gateway=self.python_gateway)
-        self.checker.open()  # Load config
+            self.linter,
+            python_gateway=self.python_gateway,
+            config_loader=self.config_loader,
+            registry={},
+        )
 
     def test_visit_classdef_infrastructure_missing_domain_base(self) -> None:
         """W9201: Infrastructure class must inherit from Domain Protocol."""
@@ -29,7 +34,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
 
         self.checker.visit_classdef(node)
         self.assertAddsMessage(
-            self.checker, "contract-integrity-violation", node=node, args=("SqlUserRepo",))
+            self.checker, "W9201", node=node, args=("SqlUserRepo",))
 
     def test_visit_classdef_infrastructure_has_domain_base_passes(self) -> None:
         """W9201: Passes if Domain base exists."""
@@ -84,7 +89,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node.methods.return_value = [method_save, method_delete]
 
         self.checker.visit_classdef(node)
-        self.assertAddsMessage(self.checker, "contract-integrity-violation",
+        self.assertAddsMessage(self.checker, "W9201",
                                node=method_delete, args=("SqlUserRepo",))
 
     def test_concrete_method_stub(self) -> None:
@@ -103,7 +108,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
 
         self.checker.visit_functiondef(node)
         self.assertAddsMessage(
-            self.checker, "concrete-method-stub", node=node, args=("do_something",))
+            self.checker, "W9202", node=node, args=("do_something",))
 
     def test_concrete_method_stub_skipped_for_pyi_file(self) -> None:
         """W9202: No message when file is a .pyi stub (by design stubs are empty)."""
@@ -113,7 +118,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node.is_generator.return_value = False
         node.parent = create_strict_mock(astroid.nodes.ClassDef)
         node.root.return_value = MagicMock(
-            file="src/clean_architecture_linter/stubs/core/astroid.pyi")
+            file="src/clean_architecture_linter/stubs/astroid/nodes.pyi")
         node.body = [create_strict_mock(astroid.nodes.Pass)]
 
         self.python_gateway.is_protocol_node.return_value = False

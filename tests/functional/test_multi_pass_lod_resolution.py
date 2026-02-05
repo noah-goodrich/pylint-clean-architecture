@@ -107,10 +107,14 @@ def main():
         use_case = TestUseCase(
             FakeFixerGateway(),
             filesystem,
-            astroid_gateway=astroid_gateway,
+            linter_adapter=MagicMock(),
             telemetry=telemetry,
-            config_loader=FakeConfigLoader(),
+            astroid_gateway=astroid_gateway,
+            ruff_adapter=MagicMock(),
             check_audit_use_case=FakeCheckAuditUseCase(),
+            config_loader=FakeConfigLoader(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
             validate_with_tests=False,
         )
 

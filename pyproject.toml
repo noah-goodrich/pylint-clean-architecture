@@ -25,11 +25,17 @@ classifiers = [
 dependencies = [
     "pylint>=2.15.0",
     "tomli; python_version < '3.11'",
+    "tomli-w>=1.0.0",
     "typeshed-client",
     "stellar-ui-kit @ file:///development/stellar-ui-kit",
     "import-linter",
     "libcst>=1.0.0",
     "typer[all]>=0.12.0",
+    "mypy>=1.0.0",
+    "astroid>=3.0.0",
+    "ruff>=0.3.0",
+    "PyYAML>=6.0",
+    "types-PyYAML>=6.0.12",
 ]
 
 [project.scripts]
@@ -39,17 +45,27 @@ excelsior = "clean_architecture_linter.__main__:main"
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "astroid",
-    "ruff",
     "pytest-coverage-impact @ file:///development/pytest-coverage-impact",
 ]
 
+[tool.mypy]
+# Stubs for untyped packages (astroid, libcst, snowflake, etc.) live inside the package
+# at src/clean_architecture_linter/stubs/ for distribution alongside the main package.
+mypy_path = "src/clean_architecture_linter/stubs"
+follow_imports = "silent"
+ignore_missing_imports = true
+# Exclude the stubs directory from being treated as a Python module to avoid
+# "Source file found twice under different module names" error
+exclude = ["src/clean_architecture_linter/stubs/"]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["clean_architecture_linter"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
-"clean_architecture_linter" = ["py.typed", "stubs/core/*.pyi", "stubs/core/**/*.pyi"]
+"clean_architecture_linter" = ["py.typed", "stubs/**/*.pyi", "infrastructure/resources/*.yaml"]
 "*" = ["assets/*.png"]
 
 [tool.pytest.ini_options]
@@ -137,6 +153,8 @@ audit_exclude_paths = ["tests/bait"]
 "clean_architecture_linter.use_cases" = "UseCase"
 "clean_architecture_linter.interface" = "Interface"
 "clean_architecture_linter.infrastructure" = "Infrastructure"
+"clean_architecture_linter.__main__" = "Infrastructure"
+# Note: clean_architecture_linter.stubs is excluded from mypy (contains .pyi stubs, not Python code)
 
 [tool.coverage.run]
 source = ["clean_architecture_linter"]

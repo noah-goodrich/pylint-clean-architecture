@@ -11,7 +11,7 @@ from clean_architecture_linter.use_cases.checks.bypass import BypassChecker
 class TestBypassChecker(unittest.TestCase):
     def setUp(self) -> None:
         self.linter = MagicMock()
-        self.checker = BypassChecker(self.linter)
+        self.checker = BypassChecker(self.linter, registry={})
 
     def _tokenize(self, code: str) -> list[tokenize.TokenInfo]:
         """Helper to tokenize code."""
@@ -34,7 +34,7 @@ class TestBypassChecker(unittest.TestCase):
         msgid = positional_args[0]  # msgid
         args_tuple = positional_args[3]  # args tuple is at index 3
 
-        self.assertEqual(msgid, 'anti-bypass-violation')
+        self.assertEqual(msgid, 'W9501')
         self.assertIn('Global pylint: disable', args_tuple[0])
 
     def test_allowed_disable_no_violation(self) -> None:
@@ -55,7 +55,7 @@ class TestBypassChecker(unittest.TestCase):
 
         self.assertTrue(self.linter.add_message.called)
         msgid = self.linter.add_message.call_args[0][0]
-        self.assertEqual(msgid, 'anti-bypass-violation')
+        self.assertEqual(msgid, 'W9501')
 
     def test_justified_disable_no_violation(self) -> None:
         """Justified disable with proper format should not trigger W9501."""

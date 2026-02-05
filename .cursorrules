@@ -1,0 +1,12 @@
+# Rule metadata: single source of truth
+
+Rule metadata (codes, symbols, display names, message templates, fixable, comment_only) has a **single source**: `src/clean_architecture_linter/infrastructure/resources/rule_registry.yaml`.
+
+- **Adding a rule:** Add or update the YAML first (primary key by code, e.g. `excelsior.W9010`); then wire the checker and any adapters. Do not add parallel lists, sets, or dicts (fixable, comment_only, display names) in Python; all consumers load from the registry via GuidanceService.
+- **Lookup:** GuidanceService resolves by code or symbol (implementation detail); one YAML entry per rule, keyed by code. See `docs/ARCHITECTURAL_ENTROPY.md` for the general pattern and `docs/RULE_CONSOLIDATION_PROPOSAL.md` for the rules-specific design.
+
+## __init__ and tests: no Optional for required deps
+
+- **Do NOT** make `__init__` parameters `Optional` or default to `None` when the dependency is **necessary for the class to run**. Required dependencies must be required (no default).
+- **Tests:** For required dependencies, pass **Mocks** (or real instances where appropriate) and verify the mocks receive the expected calls. Do **not** pass `None` or omit required args and rely on in-method fallbacks (e.g. `self._x or Default()`).
+- **Rule to enforce:** When adding or reviewing code, check: if a parameter is `Optional`/defaults to `None`, and the **only** call sites that omit it are in tests, then fix by (1) making the parameter required, and (2) updating tests to pass real or mock instances. Making parameters optional solely to simplify testing is not acceptable.

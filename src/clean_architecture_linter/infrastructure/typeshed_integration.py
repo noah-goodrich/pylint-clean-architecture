@@ -5,7 +5,7 @@ from typing import Optional
 from typeshed_client import finder
 
 from clean_architecture_linter.domain.protocols import TypeshedProtocol
-from clean_architecture_linter.infrastructure.pyi_annotation import find_attr_in_ast
+from clean_architecture_linter.infrastructure.pyi_annotation import PyiAnnotationHelper
 
 
 class TypeshedService(TypeshedProtocol):
@@ -86,4 +86,4 @@ class TypeshedService(TypeshedProtocol):
                 tree = ast.parse(f.read())
         except (OSError, SyntaxError, ImportError):
             return None
-        return find_attr_in_ast(tree, class_name, attr_name)
+        return PyiAnnotationHelper.find_attr_in_ast(tree, class_name, attr_name)

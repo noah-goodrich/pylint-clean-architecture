@@ -1,17 +1,27 @@
 """LibCST Transformers for code fixes."""
 
 from collections.abc import Iterator, Sequence
-from typing import Optional
+from typing import Optional, Union, cast
 
 import libcst as cst
+
+from clean_architecture_linter.domain.transformation_contexts import (
+    EmptyContext,
+    FilePathContext,
+    FreezeDataclassContext,
+    GovernanceCommentContext,
+    ImportContext,
+    ParameterTypeContext,
+    ReturnTypeContext,
+)
 
 
 class AddImportTransformer(cst.CSTTransformer):
     """Transformer to add imports to a module."""
 
-    def __init__(self, context: dict) -> None:
-        self.module = context.get("module")
-        self.imports = context.get("imports", [])  # List[str]
+    def __init__(self, context: ImportContext) -> None:
+        self.module: str = context["module"]
+        self.imports: list[str] = context["imports"]
         self.added = False
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
@@ -20,11 +30,12 @@ class AddImportTransformer(cst.CSTTransformer):
 
             # Support dotted module paths like "a.b.c"
             module_expr: cst.BaseExpression
-            if isinstance(self.module, str) and "." in self.module:
+            if "." in self.module:
                 parts = self.module.split(".")
                 module_expr = cst.Name(parts[0])
                 for part in parts[1:]:
-                    module_expr = cst.Attribute(value=module_expr, attr=cst.Name(part))
+                    module_expr = cst.Attribute(
+                        value=module_expr, attr=cst.Name(part))
             else:
                 module_expr = cst.Name(self.module)
 
@@ -40,7 +51,8 @@ class AddImportTransformer(cst.CSTTransformer):
                 if isinstance(stmt, (cst.Import, cst.ImportFrom)):
                     insert_idx = i + 1
 
-            new_body.insert(insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
+            new_body.insert(
+                insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
             self.added = True
             return updated_node.with_changes(body=new_body)
         return updated_node
@@ -49,8 +61,8 @@ class AddImportTransformer(cst.CSTTransformer):
 class FreezeDataclassTransformer(cst.CSTTransformer):
     """Transformer to add frozen=True to dataclass decorators and add @dataclass if missing."""
 
-    def __init__(self, context: dict) -> None:
-        self.class_name = context.get("class_name")
+    def __init__(self, context: FreezeDataclassContext) -> None:
+        self.class_name: str = context["class_name"]
         self.has_dataclass_import = False
         self.needs_dataclass_import = False
 
@@ -69,9 +81,9 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
         match: bool = False
         if self.class_name:
             if original_node.name.value == self.class_name:
-                match: bool = True
+                match = True
         else:
-            match: bool = True
+            match = True
 
         if match:
             result = self._apply_frozen(updated_node)
@@ -96,7 +108,8 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
                 new_decorators.append(decorator.with_changes(
                     decorator=cst.Call(
                         func=cst.Name("dataclass"),
-                        args=[cst.Arg(keyword=cst.Name("frozen"), value=cst.Name("True"), equal=compact_eq)],
+                        args=[cst.Arg(keyword=cst.Name("frozen"),
+                                      value=cst.Name("True"), equal=compact_eq)],
                         whitespace_before_args=cst.SimpleWhitespace("")
                     )
                 ))
@@ -108,9 +121,11 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
             ):
                 # Update existing @dataclass(...) to include frozen=True
                 args = list(decorator.decorator.args)
-                has_frozen = any(arg.keyword and arg.keyword.value == "frozen" for arg in args)
+                has_frozen = any(
+                    arg.keyword and arg.keyword.value == "frozen" for arg in args)
                 if not has_frozen:
-                    args.append(cst.Arg(keyword=cst.Name("frozen"), value=cst.Name("True"), equal=compact_eq))
+                    args.append(cst.Arg(keyword=cst.Name("frozen"),
+                                value=cst.Name("True"), equal=compact_eq))
                     new_decorators.append(decorator.with_changes(
                         decorator=decorator.decorator.with_changes(args=args)
                     ))
@@ -125,7 +140,8 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
             new_decorators.insert(0, cst.Decorator(
                 decorator=cst.Call(
                     func=cst.Name("dataclass"),
-                    args=[cst.Arg(keyword=cst.Name("frozen"), value=cst.Name("True"), equal=compact_eq)],
+                    args=[cst.Arg(keyword=cst.Name("frozen"),
+                                  value=cst.Name("True"), equal=compact_eq)],
                     whitespace_before_args=cst.SimpleWhitespace("")
                 )
             ))
@@ -163,34 +179,36 @@ class FreezeDataclassTransformer(cst.CSTTransformer):
                         insert_idx = i + 1
                         break
 
-        new_body.insert(insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
+        new_body.insert(
+            insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
         return updated_node.with_changes(body=new_body)
 
 
 class DomainImmutabilityTransformer(FreezeDataclassTransformer):
     """Transformer to enforce immutability in Domain layer classes."""
 
-    def __init__(self, context: dict) -> None:
-        super().__init__({"class_name": None})
-        self.file_path = context.get("file_path", "")
+    def __init__(self, context: FilePathContext) -> None:
+        super().__init__({"class_name": ""})
+        self.file_path: str = context.get("file_path", "")
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-         # Simplified: Assuming ApplyFixesUseCase filtered the file_path to be in Domain
-         return super().leave_ClassDef(original_node, updated_node)
+        # Simplified: Assuming ApplyFixesUseCase filtered the file_path to be in Domain
+        return super().leave_ClassDef(original_node, updated_node)
 
 
 class AddReturnTypeTransformer(cst.CSTTransformer):
     """Transformer to add return type annotations to functions."""
 
-    def __init__(self, context: dict) -> None:
-        self.function_name = context.get("function_name")
-        self.return_type = context.get("return_type")
+    def __init__(self, context: ReturnTypeContext) -> None:
+        self.function_name: str = context["function_name"]
+        self.return_type: str = context["return_type"]
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         if original_node.name.value == self.function_name:
             if not original_node.returns:
                 return updated_node.with_changes(
-                    returns=cst.Annotation(annotation=cst.Name(self.return_type))
+                    returns=cst.Annotation(
+                        annotation=cst.Name(self.return_type))
                 )
         return updated_node
 
@@ -198,10 +216,10 @@ class AddReturnTypeTransformer(cst.CSTTransformer):
 class AddParameterTypeTransformer(cst.CSTTransformer):
     """Transformer to add parameter type annotations."""
 
-    def __init__(self, context: dict) -> None:
-        self.function_name = context.get("function_name")
-        self.param_name = context.get("param_name")
-        self.param_type = context.get("param_type")
+    def __init__(self, context: ParameterTypeContext) -> None:
+        self.function_name: str = context["function_name"]
+        self.param_name: str = context["param_name"]
+        self.param_type: str = context["param_type"]
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         if original_node.name.value == self.function_name:
@@ -214,17 +232,19 @@ class AddParameterTypeTransformer(cst.CSTTransformer):
                     new_param = param.with_changes(
                         annotation=cst.Annotation(
                             annotation=cst.Name(self.param_type),
-                            whitespace_before_indicator=cst.SimpleWhitespace("")
+                            whitespace_before_indicator=cst.SimpleWhitespace(
+                                "")
                         )
                     )
                     new_params_list.append(new_param)
-                    modified: bool = True
+                    modified = True
                 else:
                     new_params_list.append(param)
 
             if modified:
-                 new_params = updated_node.params.with_changes(params=new_params_list)
-                 return updated_node.with_changes(params=new_params)
+                new_params = updated_node.params.with_changes(
+                    params=new_params_list)
+                return updated_node.with_changes(params=new_params)
 
         return updated_node
 
@@ -232,26 +252,26 @@ class AddParameterTypeTransformer(cst.CSTTransformer):
 class LifecycleReturnTypeTransformer(cst.CSTTransformer):
     """Transformer to add None return type to lifecycle methods."""
 
-    def __init__(self, context: dict) -> None:
+    def __init__(self, context: EmptyContext) -> None:
         pass
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         name = original_node.name.value
         if name in ("__init__", "setUp", "tearDown") or name.startswith("test_"):
-             if not original_node.returns:
-                 return updated_node.with_changes(
-                     returns=cst.Annotation(
-                         annotation=cst.Name("None"),
-                         whitespace_before_indicator=cst.SimpleWhitespace(" ")
-                     )
-                 )
+            if not original_node.returns:
+                return updated_node.with_changes(
+                    returns=cst.Annotation(
+                        annotation=cst.Name("None"),
+                        whitespace_before_indicator=cst.SimpleWhitespace(" ")
+                    )
+                )
         return updated_node
 
 
 class DeterministicTypeHintsTransformer(cst.CSTTransformer):
     """Enforce type hints on literals (e.g. x = "foo" -> x: str = "foo")."""
 
-    def __init__(self, context: dict) -> None:
+    def __init__(self, context: EmptyContext) -> None:
         pass
 
     def leave_Assign(self, original_node: cst.Assign, updated_node: cst.Assign) -> cst.Assign:
@@ -266,11 +286,11 @@ class DeterministicTypeHintsTransformer(cst.CSTTransformer):
 
             annot: Optional[str] = None
             if isinstance(val, cst.SimpleString):
-                annot: str = "str"
+                annot = "str"
             elif isinstance(val, cst.Integer):
-                annot: str = "int"
+                annot = "int"
             elif isinstance(val, cst.Name) and val.value in ("True", "False"):
-                annot: str = "bool"
+                annot = "bool"
 
             if annot and isinstance(target.target, cst.Name):
                 # Convert Assign to AnnAssign
@@ -292,10 +312,11 @@ class DeterministicTypeHintsTransformer(cst.CSTTransformer):
 class TypeIntegrityTransformer(cst.CSTTransformer):
     """Auto-import common typing missing imports."""
 
-    def __init__(self, context: dict) -> None:
+    def __init__(self, context: EmptyContext) -> None:
         self.used_types: set[str] = set()
         self.existing_typing_imports: set[str] = set()
-        self.typing_aliases = {"List", "Dict", "Optional", "Any", "Union", "Iterable", "Callable"}
+        self.typing_aliases = {"List", "Dict", "Optional",
+                               "Any", "Union", "Iterable", "Callable"}
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
         if isinstance(node.module, cst.Name) and node.module.value == "typing":
@@ -312,14 +333,15 @@ class TypeIntegrityTransformer(cst.CSTTransformer):
                 self.used_types.add(node.annotation.value)
         # Check Subscript (List[str])
         if isinstance(node.annotation, cst.Subscript):
-             if isinstance(node.annotation.value, cst.Name):
-                 if node.annotation.value.value in self.typing_aliases:
-                     self.used_types.add(node.annotation.value.value)
+            if isinstance(node.annotation.value, cst.Name):
+                if node.annotation.value.value in self.typing_aliases:
+                    self.used_types.add(node.annotation.value.value)
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
         missing = self.used_types - self.existing_typing_imports
         if missing:
-            _ = [cst.ImportAlias(name=cst.Name(n)) for n in sorted(missing)]  # Prepared for import merging
+            _ = [cst.ImportAlias(name=cst.Name(n)) for n in sorted(
+                missing)]  # Prepared for import merging
             # Check if we should merge with existing 'from typing import ...'
             # For simplicity, add new import statement (libcst ensures valid python, but might duplicate lines)
             # A smart implementation would find existing import and append.
@@ -327,7 +349,8 @@ class TypeIntegrityTransformer(cst.CSTTransformer):
 
             import_stmt = cst.ImportFrom(
                 module=cst.Name("typing"),
-                names=[cst.ImportAlias(name=cst.Name(n)) for n in sorted(missing)],
+                names=[cst.ImportAlias(name=cst.Name(n))
+                       for n in sorted(missing)],
                 whitespace_after_import=cst.SimpleWhitespace(" ")
             )
 
@@ -336,7 +359,8 @@ class TypeIntegrityTransformer(cst.CSTTransformer):
             for i, stmt in enumerate(new_body):
                 if isinstance(stmt, (cst.Import, cst.ImportFrom)):
                     insert_idx = i + 1
-            new_body.insert(insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
+            new_body.insert(
+                insert_idx, cst.SimpleStatementLine(body=[import_stmt]))
             return updated_node.with_changes(body=new_body)
 
         return updated_node
@@ -356,14 +380,15 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
     # Context: [Relevant details] (optional)
     """
 
-    def __init__(self, context: dict) -> None:
-        self.rule_code = context.get("rule_code", "")
-        self.rule_name = context.get("rule_name", "")
-        self.problem = context.get("problem", "")
-        self.recommendation = context.get("recommendation", "")
-        self.context_info = context.get("context_info", "")
-        self.target_line = context.get("target_line", 0)
-        self.source_lines = context.get("source_lines", [])
+    def __init__(self, context: GovernanceCommentContext) -> None:
+        self.rule_code: str = context["rule_code"]
+        self.rule_name: str = context["rule_name"]
+        self.problem: str = context["problem"]
+        self.recommendation: str = context["recommendation"]
+        self.context_info: str = context["context_info"]
+        self.target_line: int = context["target_line"]
+        # Injected by gateway after construction
+        self.source_lines: list[str] = []
         self.applied = False
 
     def _build_comment_lines(self) -> list[str]:
@@ -386,16 +411,24 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
         # Otherwise, estimate based on source code
         try:
             # Try to get position from metadata
-            if hasattr(node, "metadata") and node.metadata:
-                position = node.metadata.get(cst.metadata.PositionProvider, None)
+            metadata = getattr(node, "metadata", None)
+            position_provider = getattr(cst, "metadata", None)
+            if metadata and position_provider is not None:
+                position = metadata.get(
+                    getattr(position_provider, "PositionProvider", None), None)
                 if position:
-                    return position.start.line
+                    return int(position.start.line)
         except Exception:
             pass
 
         # Fallback: search source lines for node content
         # This is approximate but works for most cases
-        node_str = cst.Module(body=[node]).code if isinstance(node, cst.BaseStatement) else ""
+        body_typed = cast(
+            Sequence[Union[cst.SimpleStatementLine, cst.BaseCompoundStatement]],
+            [node],
+        )
+        node_str = cst.Module(body=body_typed).code if isinstance(
+            node, cst.BaseStatement) else ""
         if node_str:
             for i, line in enumerate(self.source_lines, 1):
                 if node_str.strip() in line or any(part in line for part in node_str.split()[:3]):
@@ -438,7 +471,8 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
         for line in comment_lines:
             if not line.startswith("#"):
                 line = "# " + line
-            out.append(cst.EmptyLine(comment=cst.Comment(value=line), indent=cst.SimpleWhitespace("")))
+            out.append(cst.EmptyLine(
+                comment=cst.Comment(value=line), indent=False))
         return out
 
     def _find_insert_index(self, body: Sequence[cst.BaseStatement]) -> int:
@@ -457,15 +491,17 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
         """Insert comment block before body[insert_index]. Handles empty body and append-at-end."""
         if not body:
             self.applied = True
-            return list(comment_empty_lines)
+            return cast(list[cst.BaseStatement], comment_empty_lines)
         new_body: list[cst.BaseStatement] = []
         for i, stmt in enumerate(body):
             if i == insert_index:
-                new_body.extend(comment_empty_lines)
+                new_body.extend(
+                    cast(Sequence[cst.BaseStatement], comment_empty_lines))
                 self.applied = True
             new_body.append(stmt)
         if not self.applied:
-            new_body = list(body) + comment_empty_lines
+            new_body = list(body) + \
+                cast(list[cst.BaseStatement], comment_empty_lines)
             self.applied = True
         return new_body
 
@@ -485,5 +521,10 @@ class GovernanceCommentTransformer(cst.CSTTransformer):
         comment_lines = self._build_comment_lines()
         comment_empty_lines = self._make_comment_empty_lines(comment_lines)
         insert_index = self._find_insert_index(updated_node.body)
-        new_body = self._assemble_body(updated_node.body, comment_empty_lines, insert_index)
-        return updated_node.with_changes(body=new_body)
+        new_body = self._assemble_body(
+            updated_node.body, comment_empty_lines, insert_index)
+        body_for_module = cast(
+            Sequence[Union[cst.SimpleStatementLine, cst.BaseCompoundStatement]],
+            new_body,
+        )
+        return updated_node.with_changes(body=body_for_module)

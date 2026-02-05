@@ -1,6 +1,15 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Optional, TypedDict, Union
+
+from clean_architecture_linter.domain.transformation_contexts import (
+    FreezeDataclassContext,
+    GovernanceCommentContext,
+    ImportContext,
+    ParameterTypeContext,
+    PlanParams,
+    ReturnTypeContext,
+)
 
 
 class TransformationType(Enum):
@@ -16,44 +25,53 @@ class TransformationType(Enum):
 class TransformationPlan:
     """
     Pure data structure describing a code transformation.
-    
+
     This is a domain entity that rules return instead of LibCST transformers.
     The infrastructure layer (fixer gateway) interprets this plan and applies
     the actual LibCST transformation.
     """
     transformation_type: TransformationType
-    params: dict[str, Any] = field(default_factory=dict)
+    params: PlanParams
 
     @classmethod
     def freeze_dataclass(cls, class_name: str) -> "TransformationPlan":
         """Create plan to convert a class to frozen dataclass."""
+        p: FreezeDataclassContext = {"class_name": class_name}
         return cls(
             transformation_type=TransformationType.FREEZE_DATACLASS,
-            params={"class_name": class_name}
+            params=p,
         )
 
     @classmethod
     def add_import(cls, module: str, imports: list[str]) -> "TransformationPlan":
         """Create plan to add an import statement."""
+        p: ImportContext = {"module": module, "imports": imports}
         return cls(
             transformation_type=TransformationType.ADD_IMPORT,
-            params={"module": module, "imports": imports}
+            params=p,
         )
 
     @classmethod
     def add_return_type(cls, function_name: str, return_type: str) -> "TransformationPlan":
         """Create plan to add return type annotation."""
+        p: ReturnTypeContext = {
+            "function_name": function_name, "return_type": return_type}
         return cls(
             transformation_type=TransformationType.ADD_RETURN_TYPE,
-            params={"function_name": function_name, "return_type": return_type}
+            params=p,
         )
 
     @classmethod
     def add_parameter_type(cls, function_name: str, param_name: str, param_type: str) -> "TransformationPlan":
         """Create plan to add parameter type annotation."""
+        p: ParameterTypeContext = {
+            "function_name": function_name,
+            "param_name": param_name,
+            "param_type": param_type,
+        }
         return cls(
             transformation_type=TransformationType.ADD_PARAMETER_TYPE,
-            params={"function_name": function_name, "param_name": param_name, "param_type": param_type}
+            params=p,
         )
 
     @classmethod
@@ -67,16 +85,17 @@ class TransformationPlan:
         target_line: int,
     ) -> "TransformationPlan":
         """Create plan to add governance comment above a line."""
+        p: GovernanceCommentContext = {
+            "rule_code": rule_code,
+            "rule_name": rule_name,
+            "problem": problem,
+            "recommendation": recommendation,
+            "context_info": context_info,
+            "target_line": target_line,
+        }
         return cls(
             transformation_type=TransformationType.ADD_GOVERNANCE_COMMENT,
-            params={
-                "rule_code": rule_code,
-                "rule_name": rule_name,
-                "problem": problem,
-                "recommendation": recommendation,
-                "context_info": context_info,
-                "target_line": target_line,
-            }
+            params=p,
         )
 
 
@@ -116,7 +135,8 @@ class AuditResult:
     import_linter_results: list[LinterResult] = field(default_factory=list)
     ruff_results: list[LinterResult] = field(default_factory=list)
     ruff_enabled: bool = True
-    blocked_by: Optional[str] = None  # "import_linter", "ruff", "mypy", "excelsior", or None
+    # "import_linter", "ruff", "mypy", "excelsior", or None
+    blocked_by: Optional[str] = None
 
     def has_violations(self) -> bool:
         """Check if any violations were found."""
@@ -132,6 +152,21 @@ class AuditResult:
         return self.blocked_by is not None
 
 
+class ViolationWithFixInfoDict(TypedDict, total=False):
+    """Serialization shape for ViolationWithFixInfo."""
+    manual_instructions: Optional[str]
+    comment_only: bool
+
+
+class ViolationWithFixInfoDictRequired(TypedDict):
+    """Required fields for ViolationWithFixInfo serialization."""
+    code: str
+    message: str
+    location: str
+    locations: list[str]
+    fixable: bool
+
+
 @dataclass(frozen=True)
 class ViolationWithFixInfo:
     """Domain representation of a violation with fixability information."""
@@ -143,17 +178,19 @@ class ViolationWithFixInfo:
     manual_instructions: Optional[str] = None
     comment_only: bool = False
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> ViolationWithFixInfoDictRequired | ViolationWithFixInfoDict:
         """Convert to dictionary for serialization."""
-        return {
+        out: ViolationWithFixInfoDictRequired | ViolationWithFixInfoDict = {
             "code": self.code,
             "message": self.message,
             "location": self.location,
             "locations": self.locations,
             "fixable": self.fixable,
-            "manual_instructions": self.manual_instructions,
-            "comment_only": self.comment_only,
         }
+        out["manual_instructions"] = self.manual_instructions
+        if self.comment_only:
+            out["comment_only"] = self.comment_only
+        return out
 
 
 @dataclass(frozen=True)
@@ -182,7 +219,7 @@ class AuditTrailViolations:
     contracts: list[ViolationWithFixInfo]
     code_quality: list[ViolationWithFixInfo]
 
-    def to_dict(self) -> dict[str, list[dict[str, Any]]]:
+    def to_dict(self) -> dict[str, list[ViolationWithFixInfoDictRequired | ViolationWithFixInfoDict]]:
         """Convert to dictionary for serialization."""
         return {
             "type_integrity": [v.to_dict() for v in self.type_integrity],
@@ -200,7 +237,14 @@ class AuditTrail:
     summary: AuditTrailSummary
     violations: AuditTrailViolations
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(
+        self,
+    ) -> dict[
+        str,
+        str
+        | dict[str, int]
+        | dict[str, list[ViolationWithFixInfoDictRequired | ViolationWithFixInfoDict]],
+    ]:
         """Convert to dictionary for serialization."""
         return {
             "version": self.version,

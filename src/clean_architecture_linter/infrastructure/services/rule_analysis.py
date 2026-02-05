@@ -1,12 +1,12 @@
 """Service for analyzing rule fixability across adapters."""
 
-from typing import Any
+from clean_architecture_linter.domain.protocols import LinterAdapterProtocol
 
 
 class RuleFixabilityService:
     """Service for determining rule fixability across adapters."""
 
-    def is_rule_fixable(self, adapter: Any, code: str) -> bool:
+    def is_rule_fixable(self, adapter: LinterAdapterProtocol, code: str) -> bool:
         """
         Check if adapter can auto-fix this rule code.
 
@@ -19,9 +19,10 @@ class RuleFixabilityService:
         """
         if not hasattr(adapter, "supports_autofix") or not adapter.supports_autofix():
             return False
-        fixable = getattr(adapter, "get_fixable_rules", lambda: [])()
+        fixable: list[str] = getattr(
+            adapter, "get_fixable_rules", lambda: [])()
         if adapter.__class__.__name__ == "RuffAdapter":
-            unfixable = getattr(
+            unfixable: set[str] = getattr(
                 adapter, "get_unfixable_or_unsafe_ruff_codes", lambda: set()
             )()
             if code in unfixable:

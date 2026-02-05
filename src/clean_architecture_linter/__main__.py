@@ -4,7 +4,7 @@ from clean_architecture_linter.infrastructure.di.container import ExcelsiorConta
 from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
     LibCSTFixerGateway,
 )
-from clean_architecture_linter.interface.cli import CLIDependencies, create_app
+from clean_architecture_linter.interface.cli import CLIAppFactory, CLIDependencies
 
 
 def main() -> None:
@@ -13,6 +13,7 @@ def main() -> None:
     container.register_singleton("LibCSTFixerGateway", LibCSTFixerGateway())
 
     deps = CLIDependencies(
+        config_loader=container.get_config_loader(),
         telemetry=container.get_telemetry_port(),
         mypy_adapter=container.get_mypy_adapter(),
         excelsior_adapter=container.get_excelsior_adapter(),
@@ -23,8 +24,12 @@ def main() -> None:
         scaffolder=container.get_scaffolder(),
         astroid_gateway=container.get_astroid_gateway(),
         filesystem=container.get_filesystem_gateway(),
+        artifact_storage=container.get_artifact_storage(),
         fixer_gateway=container.get_fixer_gateway(),
+        guidance_service=container.get_guidance_service(),
+        stub_creator=container.get_stub_creator(),
+        violation_bridge=container.get_violation_bridge(),
     )
 
-    app = create_app(deps)
+    app = CLIAppFactory.create_app(deps)
     app()

@@ -52,9 +52,15 @@ class TestGovernanceCommentsIntegration:
 
         use_case = ApplyFixesUseCase(
             fixer_gateway,
-            filesystem=filesystem,
+            filesystem,
+            linter_adapter=MagicMock(),
+            telemetry=MagicMock(),
             astroid_gateway=astroid_gateway,
+            ruff_adapter=MagicMock(),
             check_audit_use_case=check_audit,
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
             create_backups=False,
             validate_with_tests=False,
         )
@@ -100,9 +106,15 @@ class TestGovernanceCommentsIntegration:
 
         use_case = ApplyFixesUseCase(
             fixer_gateway,
-            filesystem=filesystem,
+            filesystem,
+            linter_adapter=MagicMock(),
+            telemetry=MagicMock(),
             astroid_gateway=astroid_gateway,
+            ruff_adapter=MagicMock(),
             check_audit_use_case=check_audit,
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
             create_backups=False,
             validate_with_tests=False,
         )
@@ -117,32 +129,34 @@ class TestGovernanceCommentsIntegration:
         assert modified >= 0
 
     def test_create_governance_rule_returns_rule_for_violation(self) -> None:
-        """Test create_governance_rule returns correct rule for W9006 and others."""
+        """Test GovernanceRuleFactory.create_rule returns correct rule for W9006 and others."""
         from clean_architecture_linter.domain.rules.governance_comments import (
-            create_governance_rule,
+            GovernanceRuleFactory,
             LawOfDemeterRule,
             GenericGovernanceCommentRule,
         )
 
+        factory = GovernanceRuleFactory()
+
         # W9006 returns LawOfDemeterRule
-        rule = create_governance_rule("W9006")
+        rule = factory.create_rule("W9006")
         assert rule is not None
         assert isinstance(rule, LawOfDemeterRule)
         assert rule.code == "W9006"
 
         # clean-arch-demeter returns LawOfDemeterRule
-        rule2 = create_governance_rule("clean-arch-demeter")
+        rule2 = factory.create_rule("clean-arch-demeter")
         assert rule2 is not None
         assert isinstance(rule2, LawOfDemeterRule)
 
         # W9201 returns GenericGovernanceCommentRule
-        rule3 = create_governance_rule("W9201")
+        rule3 = factory.create_rule("W9201")
         assert rule3 is not None
         assert isinstance(rule3, GenericGovernanceCommentRule)
         assert rule3.code == "W9201"
 
         # Unknown comment-only code returns GenericGovernanceCommentRule
-        rule4 = create_governance_rule("W9001")
+        rule4 = factory.create_rule("W9001")
         assert rule4 is not None
         assert isinstance(rule4, GenericGovernanceCommentRule)
 
@@ -169,9 +183,15 @@ class TestGovernanceCommentsIntegration:
 
         use_case = ApplyFixesUseCase(
             MagicMock(),
-            filesystem=FileSystemGateway(),
+            FileSystemGateway(),
+            linter_adapter=MagicMock(),
+            telemetry=MagicMock(),
             astroid_gateway=None,  # No gateway
+            ruff_adapter=MagicMock(),
             check_audit_use_case=check_audit,
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
         )
 
         # Should return 0 when no astroid gateway
@@ -211,9 +231,15 @@ class TestGovernanceCommentsIntegration:
 
         use_case = ApplyFixesUseCase(
             fixer_gateway,
-            filesystem=filesystem,
+            filesystem,
+            linter_adapter=MagicMock(),
+            telemetry=MagicMock(),
             astroid_gateway=astroid_gateway,
+            ruff_adapter=MagicMock(),
             check_audit_use_case=check_audit,
+            config_loader=MagicMock(),
+            excelsior_adapter=MagicMock(),
+            violation_bridge=MagicMock(),
             create_backups=False,
             validate_with_tests=False,
         )

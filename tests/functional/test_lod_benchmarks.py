@@ -3,7 +3,7 @@ from unittest import mock
 
 import astroid
 import pytest
-from pylint.testutils import CheckerTestCase
+from pylint.testutils import CheckerTestCase, UnittestLinter
 
 from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
 from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
@@ -65,6 +65,23 @@ def get_violation_samples():
 
 class TestLoDExhaustive(CheckerTestCase):
     CHECKER_CLASS = CouplingChecker
+
+    def setup_method(self) -> None:
+        self.linter = UnittestLinter()
+        container = ExcelsiorContainer.get_instance()
+        ast_gateway = container.get("AstroidGateway")
+        python_gateway = container.get("PythonGateway")
+        stub_resolver = container.get("StubAuthority")
+        config_loader = container.get_config_loader()
+        registry = container.get_guidance_service().get_registry()
+        self.checker = self.CHECKER_CLASS(
+            self.linter,
+            ast_gateway=ast_gateway,
+            python_gateway=python_gateway,
+            stub_resolver=stub_resolver,
+            config_loader=config_loader,
+            registry=registry,
+        )
 
     def _assert_lod_compliance(self, node, expected_violation, name):
         """Common logic to run the checker and assert results."""

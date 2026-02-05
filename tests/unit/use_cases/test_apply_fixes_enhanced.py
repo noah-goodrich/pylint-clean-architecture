@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
 from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
+from tests.conftest import apply_fixes_required_deps
 
 # Patch target so apply_fixes._run_pytest() uses mock, not real pytest
 _SUBPROCESS_RUN = "clean_architecture_linter.use_cases.apply_fixes.subprocess.run"
@@ -33,7 +34,9 @@ class TestApplyFixesEnhanced:
         mock_rule.fix.return_value = mock_transformer
 
         use_case = ApplyFixesUseCase(
-            fixer_gateway, filesystem, create_backups=True, validate_with_tests=False
+            fixer_gateway, filesystem,
+            **apply_fixes_required_deps(),
+            create_backups=True, validate_with_tests=False,
         )
         with patch(_SUBPROCESS_RUN):
             use_case.execute([mock_rule], str(test_file))
@@ -49,7 +52,11 @@ class TestApplyFixesEnhanced:
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, require_confirmation=True)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem,
+            **apply_fixes_required_deps(),
+            require_confirmation=True,
+        )
 
         with patch('sys.stdin.isatty', return_value=True), patch(
             'builtins.input', return_value='n'
@@ -78,7 +85,9 @@ class TestApplyFixesEnhanced:
         mock_rule.fix.return_value = mock_transformer
 
         use_case = ApplyFixesUseCase(
-            fixer_gateway, filesystem, require_confirmation=True, validate_with_tests=False
+            fixer_gateway, filesystem,
+            **apply_fixes_required_deps(),
+            require_confirmation=True, validate_with_tests=False,
         )
 
         with patch(_SUBPROCESS_RUN), patch("sys.stdin.isatty", return_value=True), patch(
@@ -98,7 +107,11 @@ class TestApplyFixesEnhanced:
         fixer_gateway.apply_fixes.return_value = True
         filesystem = FileSystemGateway()
 
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, validate_with_tests=True)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem,
+            **apply_fixes_required_deps(),
+            validate_with_tests=True,
+        )
 
         with patch(_SUBPROCESS_RUN) as mock_run:
             mock_run.return_value = MagicMock(
@@ -122,6 +135,7 @@ class TestApplyFixesEnhanced:
         use_case = ApplyFixesUseCase(
             fixer_gateway,
             filesystem,
+            **apply_fixes_required_deps(),
             validate_with_tests=True,
             create_backups=True,
         )
@@ -168,6 +182,7 @@ class TestApplyFixesEnhanced:
         use_case = ApplyFixesUseCase(
             fixer_gateway,
             filesystem,
+            **apply_fixes_required_deps(),
             validate_with_tests=False,
         )
 
@@ -188,6 +203,7 @@ class TestApplyFixesEnhanced:
         use_case = ApplyFixesUseCase(
             fixer_gateway,
             filesystem,
+            **apply_fixes_required_deps(),
             create_backups=True,
             cleanup_backups=True,
             validate_with_tests=False,
@@ -219,7 +235,9 @@ class TestApplyFixesEnhanced:
         ]
 
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem)
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps()
+        )
         manual_suggestions = use_case.get_manual_fixes(str(test_file))
 
         assert len(manual_suggestions) == 1
@@ -234,7 +252,12 @@ class TestAutoFixCapabilityDetection:
         """Test Ruff is detected as supporting auto-fix."""
         from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
-        adapter = RuffAdapter()
+        adapter = RuffAdapter(
+            config_loader=MagicMock(),
+            telemetry=MagicMock(),
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
         assert adapter.supports_autofix() is True
         assert "C901" in adapter.get_fixable_rules()
 
@@ -242,14 +265,21 @@ class TestAutoFixCapabilityDetection:
         """Test Mypy does not support auto-fix."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
 
-        adapter = MypyAdapter()
+        adapter = MypyAdapter(
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
         assert adapter.supports_autofix() is False
 
     def test_pylint_limited_autofix(self) -> None:
         """Test Pylint (excelsior) has limited auto-fix support."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import ExcelsiorAdapter
 
-        adapter = ExcelsiorAdapter()
+        adapter = ExcelsiorAdapter(
+            config_loader=MagicMock(),
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
         # Our custom fixes via LibCST
         assert adapter.supports_autofix() is True
 
@@ -260,7 +290,7 @@ class TestAutoFixCapabilityDetection:
         """Test Import-Linter does not support auto-fix."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import ImportLinterAdapter
 
-        adapter = ImportLinterAdapter()
+        adapter = ImportLinterAdapter(guidance_service=MagicMock())
         assert adapter.supports_autofix() is False
 
 
@@ -271,7 +301,12 @@ class TestManualFixInstructions:
         """Test Mypy provides manual fix instructions."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
 
-        adapter = MypyAdapter()
+        guidance = MagicMock()
+        guidance.get_manual_instructions.return_value = "Add type hints for parameters and return type."
+        adapter = MypyAdapter(
+            raw_log_port=MagicMock(),
+            guidance_service=guidance,
+        )
         instructions = adapter.get_manual_fix_instructions("type-arg")
 
         assert "type" in instructions.lower()
@@ -281,7 +316,12 @@ class TestManualFixInstructions:
         """Test Ruff provides manual instructions for non-fixable rules."""
         from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
 
-        adapter = RuffAdapter()
+        adapter = RuffAdapter(
+            config_loader=MagicMock(),
+            telemetry=MagicMock(),
+            raw_log_port=MagicMock(),
+            guidance_service=MagicMock(),
+        )
         # Some rules like ARG (unused arguments) might need manual review
         instructions = adapter.get_manual_fix_instructions("ARG001")
 
@@ -291,7 +331,11 @@ class TestManualFixInstructions:
         """Test Import-Linter provides manual fix instructions."""
         from clean_architecture_linter.infrastructure.adapters.linter_adapters import ImportLinterAdapter
 
-        adapter = ImportLinterAdapter()
+        guidance = MagicMock()
+        guidance.get_manual_instructions.return_value = (
+            "Remove or refactor the import that breaks the dependency contract."
+        )
+        adapter = ImportLinterAdapter(guidance_service=guidance)
         instructions = adapter.get_manual_fix_instructions(
             "contract-violation")
 
