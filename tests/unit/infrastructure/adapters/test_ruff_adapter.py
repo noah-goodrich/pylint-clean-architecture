@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.domain.entities import LinterResult
-from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
+from excelsior_architect.domain.entities import LinterResult
+from excelsior_architect.infrastructure.adapters.ruff_adapter import RuffAdapter
 
 
 class TestRuffAdapter(unittest.TestCase):

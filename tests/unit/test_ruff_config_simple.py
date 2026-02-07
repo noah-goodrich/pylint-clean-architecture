@@ -2,7 +2,7 @@
 
 import unittest
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
+from excelsior_architect.domain.config import ConfigurationLoader
 
 
 class TestRuffConfigMethods(unittest.TestCase):

@@ -1,8 +1,8 @@
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
-from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
-from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
-from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
+from excelsior_architect.infrastructure.gateways.python_gateway import PythonGateway
+from excelsior_architect.infrastructure.services.stub_authority import StubAuthority
+from excelsior_architect.use_cases.checks.patterns import CouplingChecker
 from tests.linter_test_utils import run_checker
 
 ast_gateway = AstroidGateway()

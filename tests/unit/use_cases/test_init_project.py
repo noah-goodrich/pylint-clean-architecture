@@ -1,7 +1,7 @@
 """Unit tests for InitProjectUseCase."""
 from unittest.mock import MagicMock
 
-from clean_architecture_linter.use_cases.init_project import InitProjectUseCase
+from excelsior_architect.use_cases.init_project import InitProjectUseCase
 
 
 def test_execute_calls_scaffolder_init_project():

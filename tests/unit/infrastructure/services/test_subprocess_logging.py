@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from clean_architecture_linter.infrastructure.services.subprocess_logging import (
+from excelsior_architect.infrastructure.services.subprocess_logging import (
     SubprocessLoggingService,
 )
 
@@ -39,7 +39,8 @@ class TestSubprocessLoggingService:
         svc = SubprocessLoggingService(log_dir=log_dir)
         svc.log_raw("pylint", "first run", "")
         svc.log_raw("pylint", "second run", "")
-        content = open(os.path.join(log_dir, "raw_pylint.log"), encoding="utf-8").read()
+        content = open(os.path.join(log_dir, "raw_pylint.log"),
+                       encoding="utf-8").read()
         assert "first run" in content
         assert "second run" in content
         assert content.count("====") >= 2

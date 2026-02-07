@@ -7,13 +7,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from clean_architecture_linter.infrastructure.gateways.artifact_storage_gateway import (
+from excelsior_architect.infrastructure.gateways.artifact_storage_gateway import (
     LocalArtifactStorage,
 )
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import (
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import (
     FileSystemGateway,
 )
-from clean_architecture_linter.use_cases.plan_fix import PlanFixUseCase
+from excelsior_architect.use_cases.plan_fix import PlanFixUseCase
 
 
 class TestPlanFixUseCase:

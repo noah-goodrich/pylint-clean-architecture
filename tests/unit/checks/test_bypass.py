@@ -5,7 +5,7 @@ import unittest
 from io import BytesIO
 from unittest.mock import MagicMock
 
-from clean_architecture_linter.use_cases.checks.bypass import BypassChecker
+from excelsior_architect.use_cases.checks.bypass import BypassChecker
 
 
 class TestBypassChecker(unittest.TestCase):

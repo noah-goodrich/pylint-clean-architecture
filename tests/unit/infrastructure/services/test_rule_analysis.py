@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 
-from clean_architecture_linter.infrastructure.services.rule_analysis import RuleFixabilityService
+from excelsior_architect.infrastructure.services.rule_analysis import RuleFixabilityService
 
 
 class TestRuleFixabilityService:

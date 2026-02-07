@@ -42,6 +42,10 @@ test-fast:
 test-slow:
 	PYTHONPATH=src pytest -m slow -v --tb=short
 
+# Run slow tests without coverage (avoids cov plugin so addopts --cov is not applied).
+test-slow-no-cov:
+	PYTHONPATH=src pytest -m slow -v --tb=short -p no:cov -o addopts="-m slow -v --tb=short"
+
 # Run all tests including slow (e.g. before release). -m overrides default 'not slow'.
 test-all:
 	PYTHONPATH=src pytest -m "slow or not slow"
@@ -54,12 +58,12 @@ coverage-impact:
 	@echo "=== Coverage Impact Analysis: Filesystem-Modifying Code ==="
 	@mkdir -p .excelsior
 	PYTHONPATH=src pytest --cov=src \
-		--cov=src/clean_architecture_linter/use_cases/apply_fixes \
-		--cov=src/clean_architecture_linter/infrastructure/services/scaffolder \
-		--cov=src/clean_architecture_linter/infrastructure/gateways/filesystem_gateway \
-		--cov=src/clean_architecture_linter/infrastructure/gateways/libcst_fixer_gateway \
-		--cov=src/clean_architecture_linter/infrastructure/services/audit_trail \
-		--cov=src/clean_architecture_linter/infrastructure/gateways/transformers \
+		--cov=src/excelsior_architect/use_cases/apply_fixes \
+		--cov=src/excelsior_architect/infrastructure/services/scaffolder \
+		--cov=src/excelsior_architect/infrastructure/gateways/filesystem_gateway \
+		--cov=src/excelsior_architect/infrastructure/gateways/libcst_fixer_gateway \
+		--cov=src/excelsior_architect/infrastructure/services/audit_trail \
+		--cov=src/excelsior_architect/infrastructure/gateways/transformers \
 		--coverage-impact \
 		--coverage-impact-top=50 \
 		--coverage-impact-json=.excelsior/coverage_impact.json \

@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.infrastructure.services.rule_analysis import RuleFixabilityService
+from excelsior_architect.domain.entities import AuditResult, LinterResult
+from excelsior_architect.infrastructure.services.rule_analysis import RuleFixabilityService
 
 
 @patch("stellar_ui_kit.TerminalReporter", MagicMock())
@@ -11,35 +11,36 @@ class TestTerminalAuditReporter:
     """Test TerminalAuditReporter.report_audit and helpers."""
 
     def test_report_audit_blocked_by_ruff_prints_message_and_reports_ruff(self) -> None:
-        """When blocked by Ruff, prints block message and shows Ruff table."""
-        from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+        """When blocked by Ruff, reports block message via telemetry and shows Ruff table."""
+        from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
         rule_svc = RuleFixabilityService()
+        telemetry = MagicMock()
         rep = TerminalAuditReporter(
             rule_svc,
             config_loader=MagicMock(),
             guidance_service=MagicMock(),
             raw_log_port=MagicMock(),
-            telemetry=MagicMock(),
+            telemetry=telemetry,
         )
         rep.reporter = MagicMock()
 
         audit = AuditResult(
-            blocked_by="ruff",
+            blocking_gate="ruff",
             ruff_results=[LinterResult("E501", "Line too long", ["f.py:1"])],
             ruff_enabled=True,
         )
-        with patch("builtins.print") as mock_print:
-            rep.report_audit(audit)
+        rep.report_audit(audit)
 
-        printed = " ".join(str(c) for c in mock_print.call_args_list)
-        assert "AUDIT BLOCKED" in printed
-        assert "RUFF" in printed
+        step_calls = " ".join(str(c[0][0])
+                              for c in telemetry.step.call_args_list)
+        assert "AUDIT BLOCKED" in step_calls
+        assert "RUFF" in step_calls
         rep.reporter.generate_report.assert_called_once()
 
     def test_report_audit_blocked_by_mypy_prints_message_and_reports_mypy(self) -> None:
         """When blocked by Mypy, prints block message and shows Mypy table."""
-        from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+        from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
         rule_svc = RuleFixabilityService()
         rep = TerminalAuditReporter(
@@ -52,7 +53,7 @@ class TestTerminalAuditReporter:
         rep.reporter = MagicMock()
 
         audit = AuditResult(
-            blocked_by="mypy",
+            blocking_gate="mypy",
             mypy_results=[LinterResult("error", "Missing type", ["f.py:1"])],
         )
         with patch("builtins.print"):
@@ -73,13 +74,13 @@ class TestTerminalAuditReporter:
             ), patch(
                 "stellar_ui_kit.ColumnDefinition",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.MypyAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.MypyAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
+                "excelsior_architect.infrastructure.adapters.ruff_adapter.RuffAdapter",
             ):
-                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+                from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(
                     rule_svc,
@@ -109,13 +110,13 @@ class TestTerminalAuditReporter:
             ), patch(
                 "stellar_ui_kit.ColumnDefinition",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.MypyAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.MypyAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
+                "excelsior_architect.infrastructure.adapters.ruff_adapter.RuffAdapter",
             ):
-                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+                from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(
                     rule_svc,
@@ -146,13 +147,13 @@ class TestTerminalAuditReporter:
             ), patch(
                 "stellar_ui_kit.ColumnDefinition",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.MypyAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.MypyAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
+                "excelsior_architect.infrastructure.adapters.ruff_adapter.RuffAdapter",
             ):
-                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+                from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(
                     rule_svc,
@@ -183,14 +184,14 @@ class TestTerminalAuditReporter:
             ), patch(
                 "stellar_ui_kit.ColumnDefinition",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.MypyAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.MypyAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
+                "excelsior_architect.infrastructure.adapters.linter_adapters.ExcelsiorAdapter",
             ), patch(
-                "clean_architecture_linter.infrastructure.adapters.ruff_adapter.RuffAdapter",
+                "excelsior_architect.infrastructure.adapters.ruff_adapter.RuffAdapter",
                 return_value=MagicMock(),
             ):
-                from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+                from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
                 rep = TerminalAuditReporter(
                     rule_svc,
@@ -214,15 +215,15 @@ class TestTerminalAuditReporter:
             "stellar_ui_kit.TerminalReporter",
             MagicMock(),
         ):
-            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+            from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
             rep = TerminalAuditReporter(
-            rule_svc,
-            config_loader=MagicMock(),
-            guidance_service=MagicMock(),
-            raw_log_port=MagicMock(),
-            telemetry=MagicMock(),
-        )
+                rule_svc,
+                config_loader=MagicMock(),
+                guidance_service=MagicMock(),
+                raw_log_port=MagicMock(),
+                telemetry=MagicMock(),
+            )
 
         adapter = MagicMock()
         adapter.is_comment_only_rule = lambda code: True
@@ -239,15 +240,15 @@ class TestTerminalAuditReporter:
             "stellar_ui_kit.TerminalReporter",
             MagicMock(),
         ):
-            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+            from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
             rep = TerminalAuditReporter(
-            rule_svc,
-            config_loader=MagicMock(),
-            guidance_service=MagicMock(),
-            raw_log_port=MagicMock(),
-            telemetry=MagicMock(),
-        )
+                rule_svc,
+                config_loader=MagicMock(),
+                guidance_service=MagicMock(),
+                raw_log_port=MagicMock(),
+                telemetry=MagicMock(),
+            )
 
         adapter = MagicMock()
         adapter.is_comment_only_rule = lambda code: False
@@ -264,15 +265,15 @@ class TestTerminalAuditReporter:
             "stellar_ui_kit.TerminalReporter",
             MagicMock(),
         ):
-            from clean_architecture_linter.infrastructure.reporters import TerminalAuditReporter
+            from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 
             rep = TerminalAuditReporter(
-            rule_svc,
-            config_loader=MagicMock(),
-            guidance_service=MagicMock(),
-            raw_log_port=MagicMock(),
-            telemetry=MagicMock(),
-        )
+                rule_svc,
+                config_loader=MagicMock(),
+                guidance_service=MagicMock(),
+                raw_log_port=MagicMock(),
+                telemetry=MagicMock(),
+            )
 
         adapter = MagicMock()
         adapter.is_comment_only_rule = lambda code: False

@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 import astroid
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.layer_registry import LayerRegistry
-from clean_architecture_linter.use_cases.checks.di import DIChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.layer_registry import LayerRegistry
+from excelsior_architect.use_cases.checks.di import DIChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
@@ -42,8 +42,8 @@ class TestDIChecker(unittest.TestCase, CheckerTestCase):
             args=("FileSystemGateway",),
         )
 
-    def test_visit_call_domain_layer_no_message(self) -> None:
-        """Domain layer call does not add message."""
+    def test_visit_call_domain_layer_instantiates_gateway_adds_message(self) -> None:
+        """Domain layer instantiating *Gateway adds W9301 (DI enforcement includes Domain)."""
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_DOMAIN
         self.ast_gateway.get_call_name.return_value = "FileSystemGateway"
 
@@ -51,7 +51,12 @@ class TestDIChecker(unittest.TestCase, CheckerTestCase):
 
         self.checker.visit_call(node)
 
-        self.checker.linter.add_message.assert_not_called()
+        self.assertAddsMessage(
+            self.checker,
+            "W9301",
+            node=node,
+            args=("FileSystemGateway",),
+        )
 
     def test_visit_call_get_call_name_none_no_message(self) -> None:
         """When get_call_name returns None, no message."""
@@ -87,7 +92,7 @@ class TestDIChecker(unittest.TestCase, CheckerTestCase):
     def test_visit_call_use_case_plain_class_no_message(self) -> None:
         """UseCase layer instantiating non-infrastructure class does not add message."""
         self.python_gateway.get_node_layer.return_value = LayerRegistry.LAYER_USE_CASE
-        self.ast_gateway.get_call_name.return_value = "SomeService"
+        self.ast_gateway.get_call_name.return_value = "SomeHelper"
         node = create_mock_node(astroid.nodes.Call)
         self.checker.visit_call(node)
         self.checker.linter.add_message.assert_not_called()

@@ -1,6 +1,6 @@
 # Architecture Instructions
 
-This project adheres to **Clean Architecture** principles enforced by the `pylint-clean-architecture` plugin.
+This project adheres to **Clean Architecture** principles enforced by the `excelsior-architect` plugin.
 
 ## Layer Boundaries
 

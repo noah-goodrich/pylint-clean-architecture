@@ -2,11 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.domain.rules.governance_comments import LawOfDemeterRule
-from clean_architecture_linter.domain.rules.immutability import DomainImmutabilityRule
-from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
-from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
+from excelsior_architect.domain.rules.governance_comments import LawOfDemeterRule
+from excelsior_architect.domain.rules.immutability import DomainImmutabilityRule
+from excelsior_architect.domain.rules.type_hints import MissingTypeHintRule
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from excelsior_architect.use_cases.apply_fixes import ApplyFixesUseCase
 
 
 class TestMultiPassRefinement:
@@ -151,13 +151,13 @@ class TestMultiPassRefinement:
         fixer_gateway = MagicMock()
         fixer_gateway.apply_fixes.return_value = True
         filesystem = FileSystemGateway()
-        from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
+        from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
         astroid_gateway = AstroidGateway()
         telemetry = MagicMock()
         check_audit = MagicMock()
 
         # Create mock audit result with W9006 violation
-        from clean_architecture_linter.domain.entities import LinterResult
+        from excelsior_architect.domain.entities import LinterResult
         lod_result = LinterResult(
             code="W9006",
             message="Law of Demeter: Chain access (obj.a.b.c) exceeds one level",
@@ -171,7 +171,7 @@ class TestMultiPassRefinement:
 
         # Pass 4 needs violation_bridge to convert results to Violations and build transformers
         mock_bridge = MagicMock()
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
         mock_bridge.convert_linter_results_to_violations.return_value = [
             Violation(
                 code="W9006",
@@ -219,7 +219,7 @@ class TestDomainImmutabilityFix:
         rule = DomainImmutabilityRule()
         import astroid
 
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
 
         # Create a class with custom __setattr__
         source = """
@@ -248,7 +248,7 @@ class User:
         rule = DomainImmutabilityRule()
         import astroid
 
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
 
         # Create a class without custom __setattr__
         source = """
@@ -306,7 +306,7 @@ class TestLoDCommentOnly:
         assert plan.params.get("target_line") == 1
 
         # Apply plan via gateway and verify code logic unchanged
-        from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
+        from excelsior_architect.infrastructure.gateways.libcst_fixer_gateway import (
             LibCSTFixerGateway,
         )
         import libcst as cst

@@ -18,7 +18,7 @@ def run_pylint_on_snippet(file_path, snippet, extra_args=None) -> CompletedProce
     cmd = [
         "pylint",
         str(file_path),
-        "--load-plugins=clean_architecture_linter",
+        "--load-plugins=excelsior_architect",
         "--disable=all",
         "--enable=W9003,W9004,W9005,W9006,W9007,W9009",
         "--score=n",

@@ -5,12 +5,12 @@ All tests patch subprocess at the use case module so no real pytest is invoked.
 
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
-from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from excelsior_architect.use_cases.apply_fixes import ApplyFixesUseCase
 from tests.conftest import apply_fixes_required_deps
 
 # Patch target so apply_fixes._run_pytest() uses mock, not real pytest
-_SUBPROCESS_RUN = "clean_architecture_linter.use_cases.apply_fixes.subprocess.run"
+_SUBPROCESS_RUN = "excelsior_architect.use_cases.apply_fixes.subprocess.run"
 
 
 class TestApplyFixesEnhanced:
@@ -18,6 +18,8 @@ class TestApplyFixesEnhanced:
 
     def test_backup_created_before_fix(self, tmp_path) -> None:
         """Test that .bak file is created before applying fixes."""
+        from excelsior_architect.domain.entities import TransformationPlan, TransformationType
+
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
@@ -26,12 +28,17 @@ class TestApplyFixesEnhanced:
         filesystem = FileSystemGateway()
 
         mock_rule = MagicMock()
+        mock_rule.code = "W9999"
         mock_violation = MagicMock()
         mock_violation.fixable = True
         mock_violation.location = str(test_file)
-        mock_transformer = MagicMock()
+        mock_plan = TransformationPlan(
+            transformation_type=TransformationType.ADD_GOVERNANCE_COMMENT,
+            params={"rule_code": "W9999", "line": 1,
+                    "column": 0, "reason": "test"}
+        )
         mock_rule.check.return_value = [mock_violation]
-        mock_rule.fix.return_value = mock_transformer
+        mock_rule.fix.return_value = mock_plan
 
         use_case = ApplyFixesUseCase(
             fixer_gateway, filesystem,
@@ -69,6 +76,8 @@ class TestApplyFixesEnhanced:
 
     def test_confirmation_yes_applies_fix(self, tmp_path) -> None:
         """Test that 'yes' confirmation proceeds with fix."""
+        from excelsior_architect.domain.entities import TransformationPlan, TransformationType
+
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
@@ -77,12 +86,17 @@ class TestApplyFixesEnhanced:
         filesystem = FileSystemGateway()
 
         mock_rule = MagicMock()
+        mock_rule.code = "W9999"
         mock_violation = MagicMock()
         mock_violation.fixable = True
         mock_violation.location = str(test_file)
-        mock_transformer = MagicMock()
+        mock_plan = TransformationPlan(
+            transformation_type=TransformationType.ADD_GOVERNANCE_COMMENT,
+            params={"rule_code": "W9999", "line": 1,
+                    "column": 0, "reason": "test"}
+        )
         mock_rule.check.return_value = [mock_violation]
-        mock_rule.fix.return_value = mock_transformer
+        mock_rule.fix.return_value = mock_plan
 
         use_case = ApplyFixesUseCase(
             fixer_gateway, filesystem,
@@ -250,7 +264,7 @@ class TestAutoFixCapabilityDetection:
 
     def test_ruff_supports_autofix(self) -> None:
         """Test Ruff is detected as supporting auto-fix."""
-        from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
+        from excelsior_architect.infrastructure.adapters.ruff_adapter import RuffAdapter
 
         adapter = RuffAdapter(
             config_loader=MagicMock(),
@@ -263,7 +277,7 @@ class TestAutoFixCapabilityDetection:
 
     def test_mypy_no_autofix(self) -> None:
         """Test Mypy does not support auto-fix."""
-        from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
+        from excelsior_architect.infrastructure.adapters.linter_adapters import MypyAdapter
 
         adapter = MypyAdapter(
             raw_log_port=MagicMock(),
@@ -273,7 +287,7 @@ class TestAutoFixCapabilityDetection:
 
     def test_pylint_limited_autofix(self) -> None:
         """Test Pylint (excelsior) has limited auto-fix support."""
-        from clean_architecture_linter.infrastructure.adapters.linter_adapters import ExcelsiorAdapter
+        from excelsior_architect.infrastructure.adapters.linter_adapters import ExcelsiorAdapter
 
         adapter = ExcelsiorAdapter(
             config_loader=MagicMock(),
@@ -288,7 +302,7 @@ class TestAutoFixCapabilityDetection:
 
     def test_import_linter_no_autofix(self) -> None:
         """Test Import-Linter does not support auto-fix."""
-        from clean_architecture_linter.infrastructure.adapters.linter_adapters import ImportLinterAdapter
+        from excelsior_architect.infrastructure.adapters.linter_adapters import ImportLinterAdapter
 
         adapter = ImportLinterAdapter(guidance_service=MagicMock())
         assert adapter.supports_autofix() is False
@@ -299,7 +313,7 @@ class TestManualFixInstructions:
 
     def test_mypy_manual_instructions(self) -> None:
         """Test Mypy provides manual fix instructions."""
-        from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
+        from excelsior_architect.infrastructure.adapters.linter_adapters import MypyAdapter
 
         guidance = MagicMock()
         guidance.get_manual_instructions.return_value = "Add type hints for parameters and return type."
@@ -314,7 +328,7 @@ class TestManualFixInstructions:
 
     def test_ruff_manual_instructions_for_non_fixable(self) -> None:
         """Test Ruff provides manual instructions for non-fixable rules."""
-        from clean_architecture_linter.infrastructure.adapters.ruff_adapter import RuffAdapter
+        from excelsior_architect.infrastructure.adapters.ruff_adapter import RuffAdapter
 
         adapter = RuffAdapter(
             config_loader=MagicMock(),
@@ -329,7 +343,7 @@ class TestManualFixInstructions:
 
     def test_import_linter_manual_instructions(self) -> None:
         """Test Import-Linter provides manual fix instructions."""
-        from clean_architecture_linter.infrastructure.adapters.linter_adapters import ImportLinterAdapter
+        from excelsior_architect.infrastructure.adapters.linter_adapters import ImportLinterAdapter
 
         guidance = MagicMock()
         guidance.get_manual_instructions.return_value = (

@@ -132,7 +132,7 @@ and governance/architectural fixes will not be applied until you clear the block
 
 ## Reference: Ruff rule groups
 
-Defined in `clean_architecture_linter.infrastructure.adapters.ruff_adapter`:
+Defined in `excelsior_architect.infrastructure.adapters.ruff_adapter`:
 
 - **RUFF_IMPORT_TYPING_SELECT** = `["I", "UP", "B"]`
   Used in check Pass 2 and fix Pass 1.

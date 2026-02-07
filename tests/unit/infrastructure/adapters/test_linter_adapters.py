@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.adapters.linter_adapters import MypyAdapter
+from excelsior_architect.infrastructure.adapters.linter_adapters import MypyAdapter
 
 
 class TestMypyAdapter(unittest.TestCase):
@@ -83,8 +83,8 @@ class TestMypyAdapter(unittest.TestCase):
 
 class TestExcelsiorAdapter(unittest.TestCase):
     def setUp(self) -> None:
-        from clean_architecture_linter.domain.config import ConfigurationLoader
-        from clean_architecture_linter.infrastructure.adapters.linter_adapters import ExcelsiorAdapter
+        from excelsior_architect.domain.config import ConfigurationLoader
+        from excelsior_architect.infrastructure.adapters.linter_adapters import ExcelsiorAdapter
         self.adapter = ExcelsiorAdapter(
             config_loader=ConfigurationLoader({}, {}),
             raw_log_port=MagicMock(),
@@ -104,11 +104,11 @@ class TestExcelsiorAdapter(unittest.TestCase):
         # Parser must emit one LinterResult per block with real duplicate locations (from == lines).
         output = (
             "src/ignored.py:1: R0801: Similar lines in 2 files\n"
-            "==clean_architecture_linter.infrastructure.adapters.mypy_adapter:[99:116]\n"
-            "==clean_architecture_linter.infrastructure.adapters.ruff_adapter:[229:247]\n"
+            "==excelsior_architect.infrastructure.adapters.mypy_adapter:[99:116]\n"
+            "==excelsior_architect.infrastructure.adapters.ruff_adapter:[229:247]\n"
             "src/ignored.py:1: R0801: Similar lines in 2 files\n"
-            "==clean_architecture_linter.infrastructure.reporters:[86:95]\n"
-            "==clean_architecture_linter.infrastructure.services.audit_trail:[88:97]\n"
+            "==excelsior_architect.infrastructure.reporters:[86:95]\n"
+            "==excelsior_architect.infrastructure.services.audit_trail:[88:97]\n"
         )
         results = self.adapter._parse_output(output)
         r0801 = [r for r in results if r.code == "R0801"]
@@ -117,15 +117,15 @@ class TestExcelsiorAdapter(unittest.TestCase):
         self.assertEqual(
             r0801[0].locations,
             [
-                "src/clean_architecture_linter/infrastructure/adapters/mypy_adapter.py:99",
-                "src/clean_architecture_linter/infrastructure/adapters/ruff_adapter.py:229",
+                "src/excelsior_architect/infrastructure/adapters/mypy_adapter.py:99",
+                "src/excelsior_architect/infrastructure/adapters/ruff_adapter.py:229",
             ],
         )
         self.assertEqual(
             r0801[1].locations,
             [
-                "src/clean_architecture_linter/infrastructure/reporters.py:86",
-                "src/clean_architecture_linter/infrastructure/services/audit_trail.py:88",
+                "src/excelsior_architect/infrastructure/reporters.py:86",
+                "src/excelsior_architect/infrastructure/services/audit_trail.py:88",
             ],
         )
         self.assertEqual(r0801[0].message, "Similar lines in 2 files")

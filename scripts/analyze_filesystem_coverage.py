@@ -60,8 +60,8 @@ def main() -> int:
         )
 
         # Shorten file path
-        if "clean_architecture_linter" in file_path:
-            file_path = file_path.split("clean_architecture_linter/")[-1]
+        if "excelsior_architect" in file_path:
+            file_path = file_path.split("excelsior_architect/")[-1]
 
         print(
             f"{priority:<10.2f} {score:<8.2f} {coverage:<10.1f}% {impact:<8.1f} "

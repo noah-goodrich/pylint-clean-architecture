@@ -2,8 +2,8 @@
 
 import unittest
 
-from clean_architecture_linter.domain.constants import EXCELSIOR_PREFIX
-from clean_architecture_linter.domain.rule_msgs import RuleMsgBuilder
+from excelsior_architect.domain.constants import EXCELSIOR_PREFIX
+from excelsior_architect.domain.rule_msgs import RuleMsgBuilder
 
 
 def _registry(*entries: tuple[str, dict[str, object]]) -> dict[str, object]:

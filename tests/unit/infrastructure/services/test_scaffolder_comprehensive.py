@@ -11,8 +11,8 @@ These tests focus on methods identified as high-priority in TEST_PRIORITIES.md:
 import json
 from unittest.mock import MagicMock, mock_open, patch
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.infrastructure.services.scaffolder import Scaffolder
 
 
 class TestFileCreation:
@@ -24,7 +24,7 @@ class TestFileCreation:
         telemetry = MagicMock()
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
-        with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
+        with patch('excelsior_architect.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {
                 "layer_map": {
                     "domain": "Domain",
@@ -46,10 +46,10 @@ class TestFileCreation:
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('pathlib.Path.exists', return_value=False), \
-             patch('pathlib.Path.mkdir'), \
-             patch('pathlib.Path.open', mock_open()), \
-             patch.object(scaffolder, '_perform_tool_audit'), \
-             patch.object(scaffolder, '_configure_ruff_wizard'):
+                patch('pathlib.Path.mkdir'), \
+                patch('pathlib.Path.open', mock_open()), \
+                patch.object(scaffolder, '_perform_tool_audit'), \
+                patch.object(scaffolder, '_configure_ruff_wizard'):
             scaffolder.init_project(template=None, check_layers=False)
 
         telemetry.step.assert_any_call("Created directory: .agent")
@@ -61,10 +61,10 @@ class TestFileCreation:
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('pathlib.Path.exists', return_value=False), \
-             patch('pathlib.Path.mkdir'), \
-             patch('pathlib.Path.open', mock_open()), \
-             patch.object(scaffolder, '_perform_tool_audit'), \
-             patch.object(scaffolder, '_configure_ruff_wizard'):
+                patch('pathlib.Path.mkdir'), \
+                patch('pathlib.Path.open', mock_open()), \
+                patch.object(scaffolder, '_perform_tool_audit'), \
+                patch.object(scaffolder, '_configure_ruff_wizard'):
             scaffolder.init_project(template=None, check_layers=False)
 
         telemetry.step.assert_any_call("Generated: .agent/pre-flight.md")
@@ -76,10 +76,10 @@ class TestFileCreation:
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('pathlib.Path.exists', return_value=False), \
-             patch('pathlib.Path.mkdir'), \
-             patch('pathlib.Path.open', mock_open()), \
-             patch.object(scaffolder, '_perform_tool_audit'), \
-             patch.object(scaffolder, '_configure_ruff_wizard'):
+                patch('pathlib.Path.mkdir'), \
+                patch('pathlib.Path.open', mock_open()), \
+                patch.object(scaffolder, '_perform_tool_audit'), \
+                patch.object(scaffolder, '_configure_ruff_wizard'):
             scaffolder.init_project(template=None, check_layers=False)
 
         telemetry.step.assert_any_call("Generated: ARCHITECTURE_ONBOARDING.md")
@@ -150,7 +150,8 @@ class TestPyprojectModification:
             scaffolder._perform_tool_audit(template=None)
 
         telemetry.step.assert_called()
-        assert any("ruff" in str(call) for call in telemetry.step.call_args_list)
+        assert any("ruff" in str(call)
+                   for call in telemetry.step.call_args_list)
 
     def test_perform_tool_audit_applies_template(self, tmp_path, monkeypatch) -> None:
         """Test _perform_tool_audit applies template updates."""
@@ -162,7 +163,7 @@ class TestPyprojectModification:
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.print'), \
-             patch.object(scaffolder, '_apply_template_updates') as mock_apply:
+                patch.object(scaffolder, '_apply_template_updates') as mock_apply:
             scaffolder._perform_tool_audit(template="fastapi")
 
         mock_apply.assert_called_once()
@@ -185,7 +186,8 @@ class TestMakefileInjection:
 
         content = makefile.read_text()
         assert "handshake:" in content
-        telemetry.step.assert_called_with("Injected Stellar Handshake Protocol into Makefile.")
+        telemetry.step.assert_called_with(
+            "Injected Stellar Handshake Protocol into Makefile.")
 
     def test_update_makefile_skips_when_already_present(self, tmp_path, monkeypatch) -> None:
         """Test _update_makefile skips injection when handshake already exists."""
@@ -198,7 +200,8 @@ class TestMakefileInjection:
 
         scaffolder._update_makefile()
 
-        telemetry.step.assert_called_with("Makefile already contains handshake protocol.")
+        telemetry.step.assert_called_with(
+            "Makefile already contains handshake protocol.")
         # Should not inject again
         content = makefile.read_text()
         assert content.count("handshake:") == 1
@@ -292,7 +295,7 @@ class TestRuffWizard:
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('sys.version_info', (3, 10, 0)), \
-             patch('importlib.util.find_spec', return_value=None):
+                patch('importlib.util.find_spec', return_value=None):
             result = scaffolder._ruff_wizard_can_use_toml()
 
         assert result is False
@@ -330,7 +333,7 @@ class TestRuffWizard:
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
         with patch('builtins.input', return_value='n'), \
-             patch('builtins.print'):
+                patch('builtins.print'):
             result = scaffolder._ruff_wizard_prompt_overwrite()
 
         assert result is False

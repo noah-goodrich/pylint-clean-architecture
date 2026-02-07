@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import astroid
 
-from clean_architecture_linter.use_cases.checks.testing import (
+from excelsior_architect.use_cases.checks.testing import (
     CleanArchTestingChecker as _TestingCheckerCls,
 )
 from tests.unit.checker_test_utils import CheckerTestCase

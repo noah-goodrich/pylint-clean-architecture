@@ -2,13 +2,13 @@
 
 from unittest.mock import Mock
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.domain.constants import (
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.entities import AuditResult, LinterResult
+from excelsior_architect.domain.constants import (
     RUFF_CODE_QUALITY_SELECT,
     RUFF_IMPORT_TYPING_SELECT,
 )
-from clean_architecture_linter.use_cases.check_audit import CheckAuditUseCase
+from excelsior_architect.use_cases.check_audit import CheckAuditUseCase
 
 
 class TestCheckAuditUseCase:
@@ -59,8 +59,8 @@ class TestCheckAuditUseCase:
         mypy_adapter.gather_results.assert_called_once_with("src")
         excelsior_adapter.gather_results.assert_called_once_with("src")
 
-    def test_execute_runs_only_mypy_when_linter_is_mypy(self) -> None:
-        """Test that only mypy is called when linter='mypy'."""
+    def test_execute_sets_blocking_gate_mypy_when_mypy_has_violations(self) -> None:
+        """Test that all linters run; blocking_gate is mypy when mypy has violations."""
         telemetry = Mock()
         config_loader = Mock(spec=ConfigurationLoader)
         config_loader.ruff_enabled = True
@@ -70,8 +70,9 @@ class TestCheckAuditUseCase:
             LinterResult("M001", "Type error", [])]
 
         excelsior_adapter = Mock()
+        excelsior_adapter.gather_results.return_value = []
         il_adapter = Mock()
-        il_adapter.gather_results.return_value = []  # Pass 1 passes
+        il_adapter.gather_results.return_value = []
         ruff_adapter = Mock()
         ruff_adapter.gather_results.return_value = []
 
@@ -86,18 +87,23 @@ class TestCheckAuditUseCase:
 
         result = use_case.execute("src")
 
-        # Assert - Should be blocked by Mypy, Excelsior should not run
+        # All linters run; blocking_gate is first in priority order (mypy has violations)
         assert len(result.mypy_results) == 1
-        assert result.blocked_by == "mypy"
+        assert result.blocking_gate == "mypy"
         il_adapter.gather_results.assert_called_once_with("src")
-        ruff_adapter.gather_results.assert_called_once_with(
+        ruff_adapter.gather_results.assert_any_call(
             "src", select_only=RUFF_IMPORT_TYPING_SELECT
         )
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_CODE_QUALITY_SELECT
+        )
         mypy_adapter.gather_results.assert_called_once_with("src")
-        excelsior_adapter.gather_results.assert_not_called()
+        excelsior_adapter.gather_results.assert_called_once_with("src")
 
-    def test_execute_blocks_on_import_linter_violations(self) -> None:
-        """Test that import-linter blocks: when it has violations, later passes do not run."""
+    def test_execute_sets_blocking_gate_import_linter_when_il_has_violations(
+        self,
+    ) -> None:
+        """Test that all linters run; blocking_gate is import_linter when IL has violations."""
         telemetry = Mock()
         config_loader = Mock(spec=ConfigurationLoader)
         config_loader.ruff_enabled = True
@@ -107,8 +113,11 @@ class TestCheckAuditUseCase:
             LinterResult("CONTRACT", "Layer contract broken", [])]
 
         ruff_adapter = Mock()
+        ruff_adapter.gather_results.return_value = []
         mypy_adapter = Mock()
+        mypy_adapter.gather_results.return_value = []
         excelsior_adapter = Mock()
+        excelsior_adapter.gather_results.return_value = []
 
         use_case = CheckAuditUseCase(
             mypy_adapter=mypy_adapter,
@@ -122,11 +131,16 @@ class TestCheckAuditUseCase:
         result = use_case.execute("src")
 
         assert len(result.import_linter_results) == 1
-        assert result.blocked_by == "import_linter"
+        assert result.blocking_gate == "import_linter"
         il_adapter.gather_results.assert_called_once_with("src")
-        ruff_adapter.gather_results.assert_not_called()
-        mypy_adapter.gather_results.assert_not_called()
-        excelsior_adapter.gather_results.assert_not_called()
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_IMPORT_TYPING_SELECT
+        )
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_CODE_QUALITY_SELECT
+        )
+        mypy_adapter.gather_results.assert_called_once_with("src")
+        excelsior_adapter.gather_results.assert_called_once_with("src")
 
     def test_execute_skips_ruff_when_disabled(self) -> None:
         """Test that ruff is skipped when ruff_enabled is False."""
@@ -223,8 +237,10 @@ class TestCheckAuditUseCase:
         # Check that telemetry.step was called multiple times (5 passes)
         assert telemetry.step.call_count >= 5
 
-    def test_execute_excelsior_blocks_when_violations(self) -> None:
-        """Test that Excelsior blocks: when it has violations, Pass 5 (Ruff code quality) does not run."""
+    def test_execute_sets_blocking_gate_excelsior_when_excelsior_has_violations(
+        self,
+    ) -> None:
+        """Test that all linters run; blocking_gate is excelsior when Excelsior has violations."""
         telemetry = Mock()
         config_loader = Mock(spec=ConfigurationLoader)
         config_loader.ruff_enabled = True
@@ -250,12 +266,14 @@ class TestCheckAuditUseCase:
 
         result = use_case.execute("src")
 
-        # Assert - Blocked by Excelsior; Pass 5 (Ruff code quality) never runs
         assert len(result.excelsior_results) == 1
-        assert result.blocked_by == "excelsior"
+        assert result.blocking_gate == "excelsior"
         il_adapter.gather_results.assert_called_once_with("src")
-        ruff_adapter.gather_results.assert_called_once_with(
+        ruff_adapter.gather_results.assert_any_call(
             "src", select_only=RUFF_IMPORT_TYPING_SELECT
+        )
+        ruff_adapter.gather_results.assert_any_call(
+            "src", select_only=RUFF_CODE_QUALITY_SELECT
         )
         mypy_adapter.gather_results.assert_called_once_with("src")
         excelsior_adapter.gather_results.assert_called_once_with("src")
@@ -275,7 +293,8 @@ class TestCheckAuditUseCase:
         ruff_adapter = Mock()
         ruff_adapter.gather_results.side_effect = [
             [],  # Pass 2: Ruff import/typing - no violations
-            [LinterResult("E501", "Line too long", ["f.py:1"])],  # Pass 5: code quality
+            # Pass 5: code quality
+            [LinterResult("E501", "Line too long", ["f.py:1"])],
         ]
 
         use_case = CheckAuditUseCase(
@@ -289,7 +308,7 @@ class TestCheckAuditUseCase:
 
         result = use_case.execute("src")
 
-        assert result.blocked_by == "ruff"
+        assert result.blocking_gate == "ruff"
         assert len(result.ruff_results) == 1
         assert result.ruff_results[0].code == "E501"
         assert ruff_adapter.gather_results.call_count == 2

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
+from excelsior_architect.infrastructure.typeshed_integration import TypeshedService
 
 
 class TestTypeshedService(unittest.TestCase):
@@ -10,7 +10,7 @@ class TestTypeshedService(unittest.TestCase):
         TypeshedService._instance = None
         self.service = TypeshedService()
 
-    @patch("clean_architecture_linter.infrastructure.typeshed_integration.finder")
+    @patch("excelsior_architect.infrastructure.typeshed_integration.finder")
     def test_is_stdlib_module_found_stdlib_path(self, mock_finder) -> None:
         # Scenario 1: Path contains 'stdlib' and 'site-packages'
         mock_stub = MagicMock()
@@ -20,7 +20,7 @@ class TestTypeshedService(unittest.TestCase):
         self.assertTrue(self.service.is_stdlib_module("re"))
         mock_finder.get_stub_file.assert_called_with("re")
 
-    @patch("clean_architecture_linter.infrastructure.typeshed_integration.finder")
+    @patch("excelsior_architect.infrastructure.typeshed_integration.finder")
     def test_is_stdlib_module_bundled_typeshed(self, mock_finder) -> None:
         # Scenario 2: Bundled typeshed structure
         mock_stub = MagicMock()
@@ -29,7 +29,7 @@ class TestTypeshedService(unittest.TestCase):
 
         self.assertTrue(self.service.is_stdlib_module("os"))
 
-    @patch("clean_architecture_linter.infrastructure.typeshed_integration.finder")
+    @patch("excelsior_architect.infrastructure.typeshed_integration.finder")
     def test_is_stdlib_module_bundled_stubs(self, mock_finder) -> None:
         # Scenario 3: Bundled 3rd party stubs (should be False)
         mock_stub = MagicMock()
@@ -38,7 +38,7 @@ class TestTypeshedService(unittest.TestCase):
 
         self.assertFalse(self.service.is_stdlib_module("yaml"))
 
-    @patch("clean_architecture_linter.infrastructure.typeshed_integration.finder")
+    @patch("excelsior_architect.infrastructure.typeshed_integration.finder")
     def test_is_stdlib_module_system_typeshed(self, mock_finder) -> None:
         # Scenario 4: System typeshed path
         mock_stub = MagicMock()
@@ -47,14 +47,15 @@ class TestTypeshedService(unittest.TestCase):
 
         self.assertTrue(self.service.is_stdlib_module("json"))
 
-    @patch("clean_architecture_linter.infrastructure.typeshed_integration.finder")
+    @patch("excelsior_architect.infrastructure.typeshed_integration.finder")
     def test_is_stdlib_module_not_found(self, mock_finder) -> None:
         mock_finder.get_stub_file.return_value = None
         self.assertFalse(self.service.is_stdlib_module("unknown_module"))
 
-    @patch("clean_architecture_linter.infrastructure.typeshed_integration.finder")
+    @patch("excelsior_architect.infrastructure.typeshed_integration.finder")
     def test_is_stdlib_module_error(self, mock_finder) -> None:
-        mock_finder.get_stub_file.side_effect = ImportError("typeshed not installed")
+        mock_finder.get_stub_file.side_effect = ImportError(
+            "typeshed not installed")
         self.assertFalse(self.service.is_stdlib_module("re"))
 
     def test_is_stdlib_qname(self) -> None:
@@ -64,4 +65,4 @@ class TestTypeshedService(unittest.TestCase):
             mock_is_mod.assert_called_with("os")
 
     def test_is_stdlib_qname_empty(self) -> None:
-         self.assertFalse(self.service.is_stdlib_qname(""))
+        self.assertFalse(self.service.is_stdlib_qname(""))

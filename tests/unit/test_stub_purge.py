@@ -13,9 +13,9 @@ import pytest
 
 # Paths relative to src
 PATTERNS_PATH = Path(__file__).resolve().parent.parent.parent \
-    / "src/clean_architecture_linter/use_cases/checks/patterns.py"
+    / "src/excelsior_architect/use_cases/checks/patterns.py"
 GATEWAY_PATH = Path(__file__).resolve().parent.parent.parent \
-    / "src/clean_architecture_linter/infrastructure/gateways/astroid_gateway.py"
+    / "src/excelsior_architect/infrastructure/gateways/astroid_gateway.py"
 
 
 def _read(path: Path) -> str:

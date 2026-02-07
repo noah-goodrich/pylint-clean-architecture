@@ -18,7 +18,7 @@ def _run_pylint(file_path: Path, cwd: Path, enable: str = "clean-arch-dependency
     cmd = [
         "pylint",
         str(file_path),
-        "--load-plugins=clean_architecture_linter",
+        "--load-plugins=excelsior_architect",
         "--disable=all",
         f"--enable={enable}",
         "--msg-template={path}:{line}: {msg_id} ({symbol})",

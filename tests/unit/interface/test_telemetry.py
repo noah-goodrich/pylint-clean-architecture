@@ -1,6 +1,6 @@
 """Unit tests for ProjectTelemetry."""
 from unittest.mock import MagicMock
-from clean_architecture_linter.interface.telemetry import ProjectTelemetry
+from excelsior_architect.interface.telemetry import ProjectTelemetry
 
 
 def test_handshake_prints_banner():

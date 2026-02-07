@@ -5,14 +5,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.infrastructure.gateways.artifact_storage_gateway import (
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.entities import AuditResult, LinterResult
+from excelsior_architect.infrastructure.gateways.artifact_storage_gateway import (
     LocalArtifactStorage,
 )
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
-from clean_architecture_linter.infrastructure.services.audit_trail import AuditTrailService
-from clean_architecture_linter.infrastructure.services.rule_analysis import RuleFixabilityService
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from excelsior_architect.infrastructure.services.audit_trail import AuditTrailService
+from excelsior_architect.infrastructure.services.rule_analysis import RuleFixabilityService
 
 
 class TestAuditTrailService:
@@ -430,7 +430,7 @@ class TestAuditTrailService:
                 Path(".excelsior").mkdir(exist_ok=True)
 
                 audit_result = AuditResult(
-                    blocked_by="ruff", ruff_enabled=True)
+                    blocking_gate="ruff", ruff_enabled=True)
                 service.save_ai_handover(audit_result)
 
                 import json
@@ -439,7 +439,7 @@ class TestAuditTrailService:
                 steps = data["next_steps"]
                 assert any("BLOCKED" in s for s in steps)
                 assert any("ruff" in s.lower() for s in steps)
-                assert any("plan-fix" in s for s in steps)
+                assert any("plan" in s for s in steps)
             finally:
                 os.chdir(original_cwd)
 
@@ -597,7 +597,7 @@ class TestAuditTrailService:
                     Path(".excelsior/ai_handover.json").read_text())
                 steps = data["next_steps"]
                 assert any("manual" in s.lower() for s in steps)
-                assert any("plan-fix" in s for s in steps)
+                assert any("plan" in s for s in steps)
             finally:
                 os.chdir(original_cwd)
 

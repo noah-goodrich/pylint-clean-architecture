@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
+from excelsior_architect.infrastructure.adapters.import_linter_adapter import ImportLinterAdapter
 
 
 def test_gather_results_success_broken_contract() -> None:
@@ -40,8 +40,8 @@ def test_parse_output_no_matches_for_ignored_import() -> None:
     adapter = ImportLinterAdapter(guidance_service=MagicMock())
 
     mock_output = """
-No matches for ignored import clean_architecture_linter.interface.cli ->
-clean_architecture_linter.infrastructure.adapters.linter_adapters.
+No matches for ignored import excelsior_architect.interface.cli ->
+excelsior_architect.infrastructure.adapters.linter_adapters.
 """
     results = adapter._parse_output(mock_output)
 
@@ -50,12 +50,14 @@ clean_architecture_linter.infrastructure.adapters.linter_adapters.
     assert "interface.cli" in results[0].message
     assert "linter_adapters" in results[0].message
 
+
 def test_gather_results_fallback() -> None:
     adapter = ImportLinterAdapter(guidance_service=MagicMock())
 
     with patch("subprocess.run") as mock_run:
         # First call raises FileNotFoundError
-        mock_run.side_effect = [FileNotFoundError, MagicMock(stdout = "", returncode = 0)]
+        mock_run.side_effect = [FileNotFoundError,
+                                MagicMock(stdout="", returncode=0)]
 
         results = adapter.gather_results("src")
 
@@ -63,6 +65,7 @@ def test_gather_results_fallback() -> None:
         assert mock_run.call_count == 2
         # Should return empty list (success)
         assert results == []
+
 
 def test_gather_results_exception() -> None:
     adapter = ImportLinterAdapter(guidance_service=MagicMock())

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import astroid
 
-from clean_architecture_linter.use_cases.checks.entropy import EntropyChecker
+from excelsior_architect.use_cases.checks.entropy import EntropyChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
 
@@ -77,7 +77,7 @@ class TestEntropyChecker(unittest.TestCase, CheckerTestCase):
         args = calls[0][1].get("args") or (
             calls[0][0][3] if len(calls[0][0]) > 3 else None)
         self.assertEqual(args[0], "W9006")
-        self.assertGreaterEqual(args[1], 2)
+        self.assertGreaterEqual(int(args[1]), 2)
         self.assertIn("/project/src/file_0.py", args[2])
         self.assertIn("/project/src/file_1.py", args[2])
 
@@ -92,4 +92,4 @@ class TestEntropyChecker(unittest.TestCase, CheckerTestCase):
         self.checker.visit_module(node_b)
         self.checker.close()
         self.assertAddsMessage(self.checker, "W9030", args=(
-            "W9010", 2, "/project/a.py, /project/b.py"))
+            "W9010", "2", "/project/a.py, /project/b.py"))

@@ -1,6 +1,6 @@
 # Rule metadata: single source of truth
 
-Rule metadata (codes, symbols, display names, message templates, fixable, comment_only) has a **single source**: `src/clean_architecture_linter/infrastructure/resources/rule_registry.yaml`.
+Rule metadata (codes, symbols, display names, message templates, fixable, comment_only) has a **single source**: `src/excelsior_architect/infrastructure/resources/rule_registry.yaml`.
 
 - **Adding a rule:** Add or update the YAML first (primary key by code, e.g. `excelsior.W9010`); then wire the checker and any adapters. Do not add parallel lists, sets, or dicts (fixable, comment_only, display names) in Python; all consumers load from the registry via GuidanceService.
 - **Lookup:** GuidanceService resolves by code or symbol (implementation detail); one YAML entry per rule, keyed by code. See `docs/ARCHITECTURAL_ENTROPY.md` for the general pattern and `docs/RULE_CONSOLIDATION_PROPOSAL.md` for the rules-specific design.

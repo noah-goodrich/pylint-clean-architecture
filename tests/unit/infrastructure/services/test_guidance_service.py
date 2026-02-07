@@ -3,7 +3,7 @@
 import unittest
 from pathlib import Path
 
-from clean_architecture_linter.infrastructure.services.guidance_service import (
+from excelsior_architect.infrastructure.services.guidance_service import (
     GuidanceService,
 )
 
@@ -48,7 +48,7 @@ class TestGuidanceService(unittest.TestCase):
     def test_init_with_custom_registry_path(self) -> None:
         """Custom registry_path is used when provided."""
         # Use packaged registry path explicitly to hit branch
-        from clean_architecture_linter.infrastructure.services import guidance_service
+        from excelsior_architect.infrastructure.services import guidance_service
         _base = Path(guidance_service.__file__).resolve().parent.parent
         custom = str(_base / "resources" / "rule_registry.yaml")
         svc = GuidanceService(registry_path=custom)

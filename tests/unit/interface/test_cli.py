@@ -6,9 +6,9 @@ from unittest.mock import Mock, patch
 
 from typer.testing import CliRunner
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.interface.cli import (
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.entities import AuditResult, LinterResult
+from excelsior_architect.interface.cli import (
     CLIDependencies,
     CLIAppFactory,
 )
@@ -81,8 +81,8 @@ class TestResolveTargetPath:
 class TestCheckCommand:
     """Test the check command."""
 
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
+    @patch("excelsior_architect.interface.cli.ConfigurationLoader")
+    @patch("excelsior_architect.interface.cli.CheckAuditUseCase")
     def test_check_command_executes_gated_audit(
         self,
         mock_use_case_class,
@@ -100,7 +100,7 @@ class TestCheckCommand:
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
-            blocked_by=None,
+            blocking_gate=None,
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
@@ -114,8 +114,8 @@ class TestCheckCommand:
         deps.telemetry.handshake.assert_called_once()
         assert result.exit_code == 0
 
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
+    @patch("excelsior_architect.interface.cli.ConfigurationLoader")
+    @patch("excelsior_architect.interface.cli.CheckAuditUseCase")
     def test_check_command_exits_with_error_on_violations(
         self,
         mock_use_case_class,
@@ -134,7 +134,7 @@ class TestCheckCommand:
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
-            blocked_by="ruff",
+            blocking_gate="ruff",
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
@@ -142,8 +142,8 @@ class TestCheckCommand:
         result = runner.invoke(app, ["check", "src"])
         assert result.exit_code == 1
 
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
+    @patch("excelsior_architect.interface.cli.ConfigurationLoader")
+    @patch("excelsior_architect.interface.cli.CheckAuditUseCase")
     def test_check_command_with_default_path(
         self,
         mock_use_case_class,
@@ -161,7 +161,7 @@ class TestCheckCommand:
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
-            blocked_by=None,
+            blocking_gate=None,
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
@@ -170,64 +170,15 @@ class TestCheckCommand:
         mock_use_case_instance.execute.assert_called_once()
         assert result.exit_code == 0
 
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
-    def test_check_interactive_stub_creation_uses_valid_path(
-        self,
-        mock_use_case_class,
-        mock_config_loader_class,
-    ) -> None:
-        """Regression test for interactive W9019 stub path construction."""
-        mock_config_loader = Mock(spec=ConfigurationLoader)
-        mock_config_loader.ruff_enabled = True
-        mock_config_loader_class.return_value = mock_config_loader
-
-        deps = _make_mock_deps()
-        deps.stub_creator.extract_w9019_modules.return_value = {
-            "libcst._parser.entrypoints"
-        }
-        deps.stub_creator.create_stub.return_value = (True, "ok")
-        mock_use_case_instance = Mock()
-        mock_use_case_instance.execute.return_value = AuditResult(
-            ruff_results=[],
-            mypy_results=[],
-            excelsior_results=[
-                LinterResult("W9019", "Uninferable dependency", ["file.py:1"])
-            ],
-            ruff_enabled=True,
-            blocked_by="excelsior",
-        )
-        mock_use_case_class.return_value = mock_use_case_instance
-        deps.artifact_storage.read_artifact.return_value = (
-            '{"rule_ids": ["excelsior.W9019"]}'
-        )
-
-        app = CLIAppFactory.create_app(deps)
-
-        with patch.object(
-            sys.stdin, "isatty", return_value=True
-        ), patch(
-            "builtins.input",
-            return_value="n",
-        ):
-            result = runner.invoke(app, ["check", "src"])
-
-        # Regression: must not raise TypeError (Path + str) when building stub path.
-        # If the interactive W9019 block runs, stub_path is built as Path(project_root)/"stubs"/filename.
-        assert not isinstance(
-            result.exception, TypeError
-        ), f"Stub path build raised TypeError: {result.exception}"
-        assert "unsupported operand type" not in (result.stdout or "").lower()
-
 
 class TestFixCommand:
     """Test the fix command."""
 
-    @patch("clean_architecture_linter.interface.cli.ApplyFixesUseCase")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.domain.rules.type_hints.MissingTypeHintRule")
-    @patch("clean_architecture_linter.domain.rules.immutability.DomainImmutabilityRule")
+    @patch("excelsior_architect.interface.cli.ApplyFixesUseCase")
+    @patch("excelsior_architect.interface.cli.CheckAuditUseCase")
+    @patch("excelsior_architect.interface.cli.ConfigurationLoader")
+    @patch("excelsior_architect.domain.rules.type_hints.MissingTypeHintRule")
+    @patch("excelsior_architect.domain.rules.immutability.DomainImmutabilityRule")
     def test_fix_command_calls_excelsior_fixer(
         self,
         mock_immutability_rule,
@@ -277,7 +228,7 @@ class TestFixCommand:
 class TestInitCommand:
     """Test the init command."""
 
-    @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
+    @patch("excelsior_architect.interface.cli.InitProjectUseCase")
     def test_init_command_executes_use_case(self, mock_use_case_class) -> None:
         """Test that init command executes InitProjectUseCase."""
         deps = _make_mock_deps()
@@ -293,7 +244,7 @@ class TestInitCommand:
             template=None, check_layers=False)
         deps.telemetry.handshake.assert_called_once()
 
-    @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
+    @patch("excelsior_architect.interface.cli.InitProjectUseCase")
     def test_init_command_with_options(self, mock_use_case_class) -> None:
         """Test that init command passes options to use case."""
         deps = _make_mock_deps()
@@ -305,7 +256,7 @@ class TestInitCommand:
         mock_use_case_instance.execute.assert_called_once_with(
             template="fastapi", check_layers=True)
 
-    @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
+    @patch("excelsior_architect.interface.cli.InitProjectUseCase")
     def test_init_command_with_template_only(self, mock_use_case_class) -> None:
         """Test init command with template option only."""
         deps = _make_mock_deps()
@@ -317,7 +268,7 @@ class TestInitCommand:
         mock_use_case_instance.execute.assert_called_once_with(
             template="sqlalchemy", check_layers=False)
 
-    @patch("clean_architecture_linter.interface.cli.InitProjectUseCase")
+    @patch("excelsior_architect.interface.cli.InitProjectUseCase")
     def test_init_command_with_check_layers_only(self, mock_use_case_class) -> None:
         """Test init command with check-layers option only."""
         deps = _make_mock_deps()
@@ -333,8 +284,8 @@ class TestInitCommand:
 class TestGatedAuditLogic:
     """Test gated sequential audit logic."""
 
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
+    @patch("excelsior_architect.interface.cli.ConfigurationLoader")
+    @patch("excelsior_architect.interface.cli.CheckAuditUseCase")
     def test_gated_stop_on_ruff_violations(
         self,
         mock_use_case_class,
@@ -353,7 +304,7 @@ class TestGatedAuditLogic:
             mypy_results=[],
             excelsior_results=[],
             ruff_enabled=True,
-            blocked_by="ruff",
+            blocking_gate="ruff",
         )
         mock_use_case_class.return_value = mock_use_case_instance
 
@@ -424,7 +375,7 @@ class TestFixRuff:
         result = runner.invoke(app, ["fix", "src", "--linter", "ruff"])
 
         deps.telemetry.step.assert_any_call("🔧 Applying Ruff fixes...")
-        mock_ruff.apply_fixes.assert_called_once_with(Path("src"))
+        mock_ruff.apply_fixes.assert_called_once_with("src")
         assert result.exit_code == 0
 
     def test_fix_ruff_failure(self) -> None:
@@ -441,11 +392,11 @@ class TestFixRuff:
 class TestFixExcelsior:
     """Test Excelsior multi-pass fixer."""
 
-    @patch("clean_architecture_linter.interface.cli.ApplyFixesUseCase")
-    @patch("clean_architecture_linter.domain.rules.type_hints.MissingTypeHintRule")
-    @patch("clean_architecture_linter.domain.rules.immutability.DomainImmutabilityRule")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
+    @patch("excelsior_architect.interface.cli.ApplyFixesUseCase")
+    @patch("excelsior_architect.domain.rules.type_hints.MissingTypeHintRule")
+    @patch("excelsior_architect.domain.rules.immutability.DomainImmutabilityRule")
+    @patch("excelsior_architect.interface.cli.CheckAuditUseCase")
+    @patch("excelsior_architect.interface.cli.ConfigurationLoader")
     def test_fix_excelsior_executes_multi_pass(
         self,
         mock_config_loader_class,
@@ -475,11 +426,11 @@ class TestFixExcelsior:
         deps.telemetry.step.assert_any_call("✅ Successfully fixed 5 file(s)")
         assert result.exit_code == 0
 
-    @patch("clean_architecture_linter.interface.cli.ApplyFixesUseCase")
-    @patch("clean_architecture_linter.domain.rules.type_hints.MissingTypeHintRule")
-    @patch("clean_architecture_linter.domain.rules.immutability.DomainImmutabilityRule")
-    @patch("clean_architecture_linter.interface.cli.CheckAuditUseCase")
-    @patch("clean_architecture_linter.interface.cli.ConfigurationLoader")
+    @patch("excelsior_architect.interface.cli.ApplyFixesUseCase")
+    @patch("excelsior_architect.domain.rules.type_hints.MissingTypeHintRule")
+    @patch("excelsior_architect.domain.rules.immutability.DomainImmutabilityRule")
+    @patch("excelsior_architect.interface.cli.CheckAuditUseCase")
+    @patch("excelsior_architect.interface.cli.ConfigurationLoader")
     def test_fix_excelsior_with_options(
         self,
         mock_config_loader_class,

@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 import astroid
 import libcst as cst
 
-from clean_architecture_linter.domain.rules import Violation
-from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
-from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
-from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
+from excelsior_architect.domain.rules import Violation
+from excelsior_architect.domain.rules.type_hints import MissingTypeHintRule
+from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
+from excelsior_architect.infrastructure.gateways.libcst_fixer_gateway import (
     LibCSTFixerGateway,
 )
 
@@ -300,7 +300,7 @@ class TestMissingTypeHintRuleCanFixType:
         rule = MissingTypeHintRule(gateway)
 
         fixable, reason = rule._can_fix_type(
-            "clean_architecture_linter.infrastructure.services.stub_authority.StubAuthority"
+            "excelsior_architect.infrastructure.services.stub_authority.StubAuthority"
         )
         assert fixable is True
         assert reason is None
@@ -333,7 +333,7 @@ def get_value():
         func_def = module.body[0]
 
         # Create a fixable violation
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
         violation = Violation(
             code="W9015",
             message="Missing return type",
@@ -367,10 +367,10 @@ def get_value():
 
         # Force inference to return a project-qualified type
         rule._infer_return_type = MagicMock(
-            return_value="clean_architecture_linter.infrastructure.services.stub_authority.StubAuthority"
+            return_value="excelsior_architect.infrastructure.services.stub_authority.StubAuthority"
         )
 
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
         violation = Violation(
             code="W9015",
             message="Missing return type",
@@ -389,7 +389,7 @@ def get_value():
             cst_module = cst_module.visit(gateway._plan_to_transformer(plan))
 
         assert (
-            "from clean_architecture_linter.infrastructure.services.stub_authority "
+            "from excelsior_architect.infrastructure.services.stub_authority "
             "import StubAuthority"
         ) in cst_module.code
         assert "def get_value() -> StubAuthority:" in cst_module.code
@@ -406,7 +406,7 @@ def get_value():
         module = astroid.parse(code)
         func_def = module.body[0]
 
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
         violation = Violation(
             code="W9015",
             message="Missing return type",
@@ -432,7 +432,7 @@ def process(name="default"):
         func_def = module.body[0]
         arg = func_def.args.args[0]
 
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
         violation = Violation(
             code="W9015",
             message="Missing parameter type",
@@ -488,7 +488,7 @@ class TestMissingTypeHintRuleGetFixInstructions:
         gateway = AstroidGateway()
         rule = MissingTypeHintRule(gateway)
 
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
         violation = Violation(
             code="W9015",
             message="Missing type hint",
@@ -507,7 +507,7 @@ class TestMissingTypeHintRuleGetFixInstructions:
         gateway = AstroidGateway()
         rule = MissingTypeHintRule(gateway)
 
-        from clean_architecture_linter.domain.rules import Violation
+        from excelsior_architect.domain.rules import Violation
         violation = Violation(
             code="W9015",
             message="Missing type hint",

@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
-from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from excelsior_architect.use_cases.apply_fixes import ApplyFixesUseCase
 from tests.conftest import apply_fixes_required_deps
 
 
@@ -224,7 +224,7 @@ class TestMissingCoverageLines:
 
     def test_execute_pass4_skipped_when_w9015_present(self) -> None:
         """Pass 4 is skipped when W9015 (missing type hints) is in excelsior_results."""
-        from clean_architecture_linter.domain.entities import LinterResult
+        from excelsior_architect.domain.entities import LinterResult
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
@@ -265,7 +265,7 @@ class TestMissingCoverageLines:
 
     def test_apply_plans_to_file_rollback_path(self, tmp_path) -> None:
         """Test rollback path in _apply_plans_to_file."""
-        from clean_architecture_linter.domain.entities import TransformationPlan
+        from excelsior_architect.domain.entities import TransformationPlan
 
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
@@ -290,7 +290,7 @@ class TestMissingCoverageLines:
 
     def test_apply_plans_to_file_success_path(self, tmp_path) -> None:
         """Test success path in _apply_plans_to_file."""
-        from clean_architecture_linter.domain.entities import TransformationPlan
+        from excelsior_architect.domain.entities import TransformationPlan
 
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")

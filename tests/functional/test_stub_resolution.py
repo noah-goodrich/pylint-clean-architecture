@@ -10,8 +10,8 @@ from unittest import mock
 import astroid
 import pytest
 
-from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
-from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
+from excelsior_architect.infrastructure.di.container import ExcelsiorContainer
+from excelsior_architect.use_cases.checks.patterns import CouplingChecker
 
 
 def _run_coupling_checker_on_code(code: str, path: str) -> list:
@@ -39,7 +39,7 @@ def _run_coupling_checker_on_code(code: str, path: str) -> list:
         msgs.append((args, kwargs))
 
     linter.add_message = _add
-    from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
+    from excelsior_architect.infrastructure.services.stub_authority import StubAuthority
     config_loader = container.get_config_loader()
     checker = CouplingChecker(
         linter,
@@ -75,7 +75,7 @@ class TestViolationLocationStubResolution:
     def test_violation_location_split_no_lod_violation(self, tmp_path) -> None:
         code = """
 from __future__ import annotations
-from clean_architecture_linter.domain.rules import Violation
+from excelsior_architect.domain.rules import Violation
 
 def parse_location(v: Violation) -> list[str]:
     return v.location.split(":")
@@ -83,7 +83,8 @@ def parse_location(v: Violation) -> list[str]:
         path = str(tmp_path / "example.py")
         (tmp_path / "example.py").write_text(code)
         msgs = _run_coupling_checker_on_code(code, path)
-        assert len(msgs) == 0, "Expected no LoD for violation.location.split; got %s" % (msgs,)
+        assert len(
+            msgs) == 0, "Expected no LoD for violation.location.split; got %s" % (msgs,)
 
 
 class TestClassDefLocalsGetStubResolution:
@@ -100,7 +101,8 @@ def get_local_nodes(node: ClassDef, key: str) -> list:
         path = str(tmp_path / "example.py")
         (tmp_path / "example.py").write_text(code)
         msgs = _run_coupling_checker_on_code(code, path)
-        assert len(msgs) == 0, "Expected no LoD for node.locals.get; got %s" % (msgs,)
+        assert len(
+            msgs) == 0, "Expected no LoD for node.locals.get; got %s" % (msgs,)
 
 
 class TestStubResolutionOnExistingBenchmarks:
@@ -108,9 +110,11 @@ class TestStubResolutionOnExistingBenchmarks:
 
     def test_lod_astroid_api_passes(self) -> None:
         """lod-astroid-api.py: ClassDef.locals.get and FunctionDef.name.startswith must not violate."""
-        p = Path(__file__).resolve().parent / "source-data" / "lod-astroid-api.py"
+        p = Path(__file__).resolve().parent / \
+            "source-data" / "lod-astroid-api.py"
         if not p.exists():
             pytest.skip("lod-astroid-api.py not found")
         code = p.read_text()
         msgs = _run_coupling_checker_on_code(code, str(p))
-        assert len(msgs) == 0, "lod-astroid-api.py must have no LoD; got %s" % (msgs,)
+        assert len(
+            msgs) == 0, "lod-astroid-api.py must have no LoD; got %s" % (msgs,)

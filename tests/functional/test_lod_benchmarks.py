@@ -5,8 +5,8 @@ import astroid
 import pytest
 from pylint.testutils import CheckerTestCase, UnittestLinter
 
-from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
-from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
+from excelsior_architect.infrastructure.di.container import ExcelsiorContainer
+from excelsior_architect.use_cases.checks.patterns import CouplingChecker
 
 # JUSTIFICATION: Test harness dispatches on AST node class names; LoD rules are not relevant here.
 # pylint: disable=clean-arch-demeter
@@ -93,7 +93,7 @@ class TestLoDExhaustive(CheckerTestCase):
         # Only mock Domain layer for the specific category that needs it
         mock_layer = "Domain" if "domain-entities" in name else None
 
-        patch_target: str = "clean_architecture_linter.domain.config.ConfigurationLoader.get_layer_for_module"
+        patch_target: str = "excelsior_architect.domain.config.ConfigurationLoader.get_layer_for_module"
         with mock.patch(patch_target, return_value=mock_layer):
             # Ensure the checker is reset for each node
             if hasattr(self.linter, "release_messages"):

@@ -17,7 +17,7 @@ def test_mypy_adapter_reports_error_when_output_unparseable(tmp_path: Path) -> N
 
     Regression test for: "Source file found twice under different module names" silent failure.
     """
-    from clean_architecture_linter.infrastructure.adapters.mypy_adapter import MypyAdapter
+    from excelsior_architect.infrastructure.adapters.mypy_adapter import MypyAdapter
 
     # Mock subprocess.run to return mypy's "found twice" error
     mock_result = MagicMock()
@@ -47,8 +47,8 @@ def test_raw_logs_generated_when_mypy_adapter_runs(tmp_path: Path) -> None:
     log_dir = str(tmp_path / "logs")
     os.makedirs(log_dir, exist_ok=True)
 
-    from clean_architecture_linter.infrastructure.adapters.mypy_adapter import MypyAdapter
-    from clean_architecture_linter.infrastructure.services.subprocess_logging import (
+    from excelsior_architect.infrastructure.adapters.mypy_adapter import MypyAdapter
+    from excelsior_architect.infrastructure.services.subprocess_logging import (
         SubprocessLoggingService,
     )
 
@@ -74,7 +74,7 @@ def test_raw_logs_generated_after_full_audit() -> None:
     env["PYTHONPATH"] = str(src)
 
     subprocess.run(
-        [sys.executable, "-m", "clean_architecture_linter", "check", str(src)],
+        [sys.executable, "-m", "excelsior_architect", "check", str(src)],
         cwd=str(root),
         capture_output=True,
         text=True,

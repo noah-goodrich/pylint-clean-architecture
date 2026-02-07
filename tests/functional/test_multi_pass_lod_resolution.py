@@ -4,11 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from clean_architecture_linter.domain.rules.governance_comments import LawOfDemeterRule
-from clean_architecture_linter.domain.rules.type_hints import MissingTypeHintRule
-from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
-from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
+from excelsior_architect.domain.rules.governance_comments import LawOfDemeterRule
+from excelsior_architect.domain.rules.type_hints import MissingTypeHintRule
+from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from excelsior_architect.use_cases.apply_fixes import ApplyFixesUseCase
 
 
 class FakeFixerGateway:
@@ -159,7 +159,7 @@ def main():
         assert plan is not None
 
         # Apply plan via gateway (rule returns TransformationPlan, not CST transformer)
-        from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
+        from excelsior_architect.infrastructure.gateways.libcst_fixer_gateway import (
             LibCSTFixerGateway,
         )
         gateway = LibCSTFixerGateway()

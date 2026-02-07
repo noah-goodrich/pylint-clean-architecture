@@ -4,7 +4,7 @@ import unittest
 from collections import namedtuple
 from unittest.mock import MagicMock
 
-from clean_architecture_linter.interface.reporter import CleanArchitectureSummaryReporter
+from excelsior_architect.interface.reporter import CleanArchitectureSummaryReporter
 
 Message = namedtuple("Message", ["msg_id", "symbol", "path"])
 

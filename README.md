@@ -1,13 +1,13 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/noah-goodrich/pylint-clean-architecture/main/assets/hero-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/noah-goodrich/pylint-clean-architecture/main/assets/hero-light.png">
-  <img alt="Stellar Engineering Command Banner" src="https://raw.githubusercontent.com/noah-goodrich/pylint-clean-architecture/main/assets/hero-light.png" width="100%">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/noah-goodrich/excelsior-architect/main/assets/hero-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/noah-goodrich/excelsior-architect/main/assets/hero-light.png">
+  <img alt="Stellar Engineering Command Banner" src="https://raw.githubusercontent.com/noah-goodrich/excelsior-architect/main/assets/hero-light.png" width="100%">
 </picture>
 
-![PyPI](https://img.shields.io/pypi/v/pylint-clean-architecture?color=C41E3A&labelColor=333333)
-![Build Status](https://img.shields.io/github/actions/workflow/status/noah-goodrich/pylint-clean-architecture/ci.yml?branch=main&color=007BFF&labelColor=333333&label=Build%20Status)
-![Python Versions](https://img.shields.io/pypi/pyversions/pylint-clean-architecture?color=F9A602&labelColor=333333)
-![License](https://img.shields.io/github/license/noah-goodrich/pylint-clean-architecture?color=F9A602&labelColor=333333)
+![PyPI](https://img.shields.io/pypi/v/excelsior-architect?color=C41E3A&labelColor=333333)
+![Build Status](https://img.shields.io/github/actions/workflow/status/noah-goodrich/excelsior-architect/ci.yml?branch=main&color=007BFF&labelColor=333333&label=Build%20Status)
+![Python Versions](https://img.shields.io/pypi/pyversions/excelsior-architect?color=F9A602&labelColor=333333)
+![License](https://img.shields.io/github/license/noah-goodrich/excelsior-architect?color=F9A602&labelColor=333333)
 
 # 🛡️ Excelsior v2: Architectural Autopilot
 
@@ -28,7 +28,7 @@ Enforcing architectural boundaries, dependency rules, and design patterns to ens
 ## Docking Procedures
 
 ```bash
-pip install pylint-clean-architecture
+pip install excelsior-architect
 ```
 
 ## Flight Manual
@@ -37,7 +37,7 @@ Add the plugin to your `pyproject.toml` or Pylint configuration:
 
 ```toml
 [tool.pylint.main]
-load-plugins = ["clean_architecture_linter"]
+load-plugins = ["excelsior_architect"]
 ```
 
 Run Pylint as usual:
@@ -102,7 +102,7 @@ silent_layers = ["Domain", "UseCase"]
 allowed_io_interfaces = ["TelemetryPort", "LoggerPort"]
 
 # 4. Shared Kernel (Allow cross-cutting concerns anywhere)
-shared_kernel_modules = ["logging_utils", "clean_architecture_linter.interface.telemetry"]
+shared_kernel_modules = ["logging_utils", "excelsior_architect.interface.telemetry"]
 
 # 5. Custom Layer Mapping (Map directory regex patterns to layers)
 [tool.clean-arch.layer_map]

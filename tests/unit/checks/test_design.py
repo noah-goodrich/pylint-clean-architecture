@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.use_cases.checks.design import DesignChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.use_cases.checks.design import DesignChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
@@ -13,7 +13,8 @@ class TestDesignChecker(unittest.TestCase, CheckerTestCase):
         self.linter = MagicMock()
         self.ast_gateway = MagicMock()
         self.config_loader = ConfigurationLoader({}, {})
-        self.checker = DesignChecker(self.linter, self.ast_gateway, self.config_loader, registry={})
+        self.checker = DesignChecker(
+            self.linter, self.ast_gateway, self.config_loader, registry={})
 
     def test_banned_any_in_signature(self) -> None:
         # def foo(x: Any) -> None: ...

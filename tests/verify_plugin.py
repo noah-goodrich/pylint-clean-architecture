@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 # Create a temporary directory for tests
-TEST_DIR = Path("/development/pylint-clean-architecture/tests/temp")
+TEST_DIR = Path("/development/excelsior-architect/tests/temp")
 TEST_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create a dummy pyproject.toml for config
@@ -90,7 +90,7 @@ def handler(x):
 def run_test():
     print("Running plugin verification...")
     # Ensure package is in path
-    os.environ["PYTHONPATH"] = "/development/pylint-clean-architecture/src"
+    os.environ["PYTHONPATH"] = "/development/excelsior-architect/src"
 
     for rel_path, content, _expected in CASES:
         file_path = TEST_DIR / rel_path
@@ -110,7 +110,7 @@ def run_test():
 
     # Run Pylint
     # We switch CWD to TEST_DIR so ConfigLoader finds pyproject.toml
-    cmd = ["pylint", "--load-plugins", "clean_architecture_linter", "test_pkg"]
+    cmd = ["pylint", "--load-plugins", "excelsior_architect", "test_pkg"]
 
     result = subprocess.run(cmd, cwd=TEST_DIR, capture_output=True, text=True)
 
@@ -123,7 +123,8 @@ def run_test():
     for rel_path, _content, expected in CASES:
         if expected:
             if expected not in result.stdout:
-                failures.append(f"Expected {expected} in {rel_path}, but not found.")
+                failures.append(
+                    f"Expected {expected} in {rel_path}, but not found.")
             else:
                 print(f"✅ Found {expected} in {rel_path}")
         else:

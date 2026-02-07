@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import mock_open, patch
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.layer_registry import LayerRegistry, LayerRegistryConfig
-from clean_architecture_linter.infrastructure.config_file_loader import ConfigFileLoader
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.layer_registry import LayerRegistry, LayerRegistryConfig
+from excelsior_architect.infrastructure.config_file_loader import ConfigFileLoader
 
 
 class TestConfigurationLoader(unittest.TestCase):
@@ -179,7 +179,8 @@ class MyClass:
 
     def test_allowed_lod_modules(self) -> None:
         """Test allowed_lod_modules property."""
-        loader = ConfigurationLoader({"allowed_lod_modules": ["typing", "collections"]}, {})
+        loader = ConfigurationLoader(
+            {"allowed_lod_modules": ["typing", "collections"]}, {})
 
         result = loader.allowed_lod_modules
         assert "typing" in result
@@ -187,7 +188,8 @@ class MyClass:
 
     def test_allowed_lod_methods(self) -> None:
         """Test allowed_lod_methods property."""
-        loader = ConfigurationLoader({"allowed_lod_methods": ["keys", "values"]}, {})
+        loader = ConfigurationLoader(
+            {"allowed_lod_methods": ["keys", "values"]}, {})
 
         result = loader.allowed_lod_methods
         assert "keys" in result
@@ -202,7 +204,8 @@ class MyClass:
 
     def test_infrastructure_modules(self) -> None:
         """Test infrastructure_modules property."""
-        loader = ConfigurationLoader({"infrastructure_modules": ["adapters"]}, {})
+        loader = ConfigurationLoader(
+            {"infrastructure_modules": ["adapters"]}, {})
 
         result = loader.infrastructure_modules
         assert "adapters" in result
@@ -224,7 +227,8 @@ class MyClass:
 
     def test_allowed_io_interfaces(self) -> None:
         """Test allowed_io_interfaces property."""
-        loader = ConfigurationLoader({"allowed_io_interfaces": ["FileSystem"]}, {})
+        loader = ConfigurationLoader(
+            {"allowed_io_interfaces": ["FileSystem"]}, {})
 
         result = loader.allowed_io_interfaces
         assert "FileSystem" in result

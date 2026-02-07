@@ -3,8 +3,8 @@ from unittest import mock
 import astroid
 from pylint.testutils import CheckerTestCase, UnittestLinter
 
-from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
-from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
+from excelsior_architect.infrastructure.di.container import ExcelsiorContainer
+from excelsior_architect.use_cases.checks.patterns import CouplingChecker
 
 
 class TestLoDExhaustive(CheckerTestCase):
@@ -31,7 +31,7 @@ class TestLoDExhaustive(CheckerTestCase):
         """Verify 0 messages for SAFE_ZONE."""
         # Mock LayerRegistry to return 'Domain' for the current file to satisfy Category 5
         with mock.patch(
-            "clean_architecture_linter.domain.config.ConfigurationLoader.get_layer_for_module",
+            "excelsior_architect.domain.config.ConfigurationLoader.get_layer_for_module",
             return_value="Domain",
         ):
             with open("tests/benchmarks/lod-samples.py") as f:

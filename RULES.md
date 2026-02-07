@@ -1,6 +1,6 @@
 # 🛡️ Excelsior v2: Architectural Autopilot Rules
 
-This catalog details all the rules enforced by `pylint-clean-architecture` (Excelsior), along with examples of "Bad" code and the corresponding "Clean Fix".
+This catalog details all the rules enforced by `excelsior-architect` (Excelsior), along with examples of "Bad" code and the corresponding "Clean Fix".
 
 ## Boundary Rules (W90xx)
 

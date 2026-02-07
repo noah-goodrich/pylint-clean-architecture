@@ -9,8 +9,8 @@ from unittest import mock
 
 import astroid
 
-from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
-from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker
+from excelsior_architect.infrastructure.di.container import ExcelsiorContainer
+from excelsior_architect.use_cases.checks.patterns import CouplingChecker
 
 _SNOWFLAKE_CODE = '''
 import snowflake.connector
@@ -62,7 +62,7 @@ def _run_checker_on_file(file_path: str, code: str) -> list:
         msgs.append((msg_id, args, kwargs))
 
     linter.add_message = _add
-    from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
+    from excelsior_architect.infrastructure.services.stub_authority import StubAuthority
     checker = CouplingChecker(
         linter,
         ast_gateway=ast_gateway,
@@ -104,7 +104,7 @@ class TestSnowflakeUnstableW9019:
         # and we are running tests in the repo, it will find snowflake/connector.pyi.
 
         # We can mock StubAuthority.get_stub_path to simulate missing stubs
-        from clean_architecture_linter.infrastructure.services.stub_authority import StubAuthority
+        from excelsior_architect.infrastructure.services.stub_authority import StubAuthority
         with mock.patch.object(StubAuthority, 'get_stub_path', return_value=None):
             msgs = _run_checker_on_file(file_path, _SNOWFLAKE_CODE)
             assert _has_w9019(msgs), (

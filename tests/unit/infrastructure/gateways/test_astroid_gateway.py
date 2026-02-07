@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import astroid
 import astroid.nodes
 
-from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
+from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
 
 
 def create_strict_mock(spec_cls, **attrs) -> MagicMock:
@@ -384,7 +384,7 @@ x = cast(str, some_value)
         module = astroid.parse("x = 1\n", path=str(Path(__file__).resolve()))
         context = module.body[0]
         res = self.gateway._find_attribute_type_in_class(
-            "clean_architecture_linter.domain.rules.Violation", "location", context
+            "excelsior_architect.domain.rules.Violation", "location", context
         )
         assert res == "builtins.str"
 

@@ -128,7 +128,7 @@ That way we don’t depend on having foreseen every kind of entropy; we depend o
 
 For **Excelsior rule metadata** (codes, symbols, display names, message templates, fixable, comment_only), the **canonical source** is:
 
-- **`src/clean_architecture_linter/infrastructure/resources/rule_registry.yaml`**
+- **`src/excelsior_architect/infrastructure/resources/rule_registry.yaml`**
 
 One entry per rule, keyed by code (e.g. `excelsior.W9010`). GuidanceService resolves by code or symbol so callers can use either; no duplicate symbol-keyed entries in the YAML. All consumers (adapters, violation bridge, governance comments, checkers) read from the registry. Adding a rule = add/update YAML first, then wire in code. See `.cursorrules` and `docs/RULE_CONSOLIDATION_PROPOSAL.md` for the consolidation design.
 
@@ -136,4 +136,4 @@ One entry per rule, keyed by code (e.g. `excelsior.W9010`). GuidanceService reso
 
 ## 7. Excelsior rules (this project)
 
-Rule metadata single source: `src/clean_architecture_linter/infrastructure/resources/rule_registry.yaml`. One entry per rule by code; GuidanceService resolves by code or symbol. See `.cursorrules` and `docs/RULE_CONSOLIDATION_PROPOSAL.md`.
+Rule metadata single source: `src/excelsior_architect/infrastructure/resources/rule_registry.yaml`. One entry per rule by code; GuidanceService resolves by code or symbol. See `.cursorrules` and `docs/RULE_CONSOLIDATION_PROPOSAL.md`.

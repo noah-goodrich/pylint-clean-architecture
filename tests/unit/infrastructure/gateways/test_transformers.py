@@ -3,7 +3,7 @@
 
 import libcst as cst
 
-from clean_architecture_linter.infrastructure.gateways.transformers import (
+from excelsior_architect.infrastructure.gateways.transformers import (
     AddImportTransformer,
     AddParameterTypeTransformer,
     AddReturnTypeTransformer,

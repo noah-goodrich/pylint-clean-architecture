@@ -11,7 +11,9 @@ from unittest.mock import MagicMock
 
 def create_mock_node(cls, **attrs) -> MagicMock:
     """Create a mock node with specific attributes."""
-    node = MagicMock()
+    import astroid
+    
+    node = MagicMock(spec=cls)
     # node.name fallback?
     for k, v in attrs.items():
         setattr(node, k, v)
@@ -31,6 +33,15 @@ def create_mock_node(cls, **attrs) -> MagicMock:
         node.lineno = 1
     if not hasattr(node, 'col_offset'):
         node.col_offset = 0
+    
+    # Add type-specific attributes for rules that check hasattr
+    if cls == astroid.nodes.Call and 'func' not in attrs:
+        node.func = MagicMock()
+    if cls == astroid.nodes.Attribute and 'expr' not in attrs:
+        node.expr = MagicMock()
+    if cls == astroid.nodes.AssignAttr and 'attrname' not in attrs:
+        node.attrname = 'test_attr'
+        node.expr = MagicMock()
 
     return node
 

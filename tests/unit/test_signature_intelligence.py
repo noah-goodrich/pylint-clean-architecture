@@ -1,6 +1,6 @@
 import astroid
 
-from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
+from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
 
 gateway = AstroidGateway()
 get_return_type_qname = gateway.get_node_return_type_qname

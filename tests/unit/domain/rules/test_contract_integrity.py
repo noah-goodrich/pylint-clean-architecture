@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.domain.layer_registry import LayerRegistry
-from clean_architecture_linter.domain.rules.contract_integrity import ContractIntegrityRule
+from excelsior_architect.domain.layer_registry import LayerRegistry
+from excelsior_architect.domain.rules.contract_integrity import ContractIntegrityRule
 
 
 def _mock_class_def(name: str, bases: list | None = None) -> MagicMock:
@@ -76,7 +76,7 @@ class TestContractIntegrityRuleCheck(unittest.TestCase):
         domain_proto = MagicMock(spec=astroid.nodes.ClassDef)
         proto_save = MagicMock(spec=astroid.nodes.FunctionDef)
         proto_save.name = "save"
-        domain_proto.methods.return_value = [proto_save]
+        domain_proto.mymethods.return_value = [proto_save]
         mock_root = MagicMock()
         mock_root.name = "domain.interfaces"
         domain_proto.root.return_value = mock_root
@@ -95,7 +95,7 @@ class TestContractIntegrityRuleCheck(unittest.TestCase):
         method_delete.lineno = 8
         method_delete.col_offset = 4
         method_delete.root.return_value = MagicMock(file="")
-        node.methods.return_value = [method_save, method_delete]
+        node.mymethods.return_value = [method_save, method_delete]
 
         result = self.rule.check(node)
 

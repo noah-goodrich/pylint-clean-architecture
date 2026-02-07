@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.layer_registry import LayerRegistry
-from clean_architecture_linter.use_cases.checks.contracts import ContractChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.layer_registry import LayerRegistry
+from excelsior_architect.use_cases.checks.contracts import ContractChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
 
@@ -68,7 +68,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node.bases = [MagicMock()]
 
         domain_proto = create_strict_mock(astroid.nodes.ClassDef)
-        domain_proto.methods.return_value = [
+        domain_proto.mymethods.return_value = [
             create_strict_mock(astroid.nodes.FunctionDef, name="save")]
         mock_root = MagicMock()
         mock_root.name = "domain.interfaces"
@@ -86,7 +86,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
             astroid.nodes.FunctionDef, name="save")
         method_delete = create_strict_mock(
             astroid.nodes.FunctionDef, name="delete")
-        node.methods.return_value = [method_save, method_delete]
+        node.mymethods.return_value = [method_save, method_delete]
 
         self.checker.visit_classdef(node)
         self.assertAddsMessage(self.checker, "W9201",
@@ -118,7 +118,7 @@ class TestContractCheckerExhaustive(unittest.TestCase, CheckerTestCase):
         node.is_generator.return_value = False
         node.parent = create_strict_mock(astroid.nodes.ClassDef)
         node.root.return_value = MagicMock(
-            file="src/clean_architecture_linter/stubs/astroid/nodes.pyi")
+            file="src/excelsior_architect/stubs/astroid/nodes.pyi")
         node.body = [create_strict_mock(astroid.nodes.Pass)]
 
         self.python_gateway.is_protocol_node.return_value = False

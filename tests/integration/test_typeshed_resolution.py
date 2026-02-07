@@ -1,9 +1,9 @@
 
 import astroid
 
-import clean_architecture_linter
-from clean_architecture_linter.infrastructure.gateways.astroid_gateway import AstroidGateway
-from clean_architecture_linter.infrastructure.typeshed_integration import TypeshedService
+import excelsior_architect
+from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
+from excelsior_architect.infrastructure.typeshed_integration import TypeshedService
 
 
 class TestTypeshedResolution:
@@ -11,14 +11,14 @@ class TestTypeshedResolution:
     def test_typeshed_service_identifies_stdlib(self) -> None:
         import inspect
         print(f"DEBUG: AstroidGateway file: {inspect.getfile(AstroidGateway)}")
-        print(f"DEBUG: Loaded linter from {clean_architecture_linter.__file__}")
+        print(f"DEBUG: Loaded linter from {excelsior_architect.__file__}")
         service = TypeshedService()
         assert service.is_stdlib_module("os")
         assert service.is_stdlib_module("sys")
         assert service.is_stdlib_module("argparse")
         # Assert non-stdlib
         assert not service.is_stdlib_module("requests")
-        assert not service.is_stdlib_module("clean_architecture_linter")
+        assert not service.is_stdlib_module("excelsior_architect")
 
     def test_gateway_infers_os_walk_variables_as_safe(self) -> None:
         code: str = """
@@ -47,19 +47,18 @@ def test_walk():
         assert qname in ["builtins.str", "builtins.object"]
 
     def test_gateway_infers_argparse_as_safe(self) -> None:
-         # argparse is dynamic, so often Uninferable, but it is stdlib.
-         code: str = """
+        # argparse is dynamic, so often Uninferable, but it is stdlib.
+        code: str = """
 import argparse
 parser = argparse.ArgumentParser()
 args = parser.parse_args()
 x = args.foo
 """
-         module = astroid.parse(code)
-         x_assign = module.body[3]
-         _ = x_assign.value  # args.foo
+        module = astroid.parse(code)
+        x_assign = module.body[3]
+        _ = x_assign.value  # args.foo
 
-         # Logic for generic stdlib object safety might need to be extended if not covered by iterator check
-         # For now, let's just see what it does.
-         # Our current impl only covers Loop Variables explicitly.
-         pass
-
+        # Logic for generic stdlib object safety might need to be extended if not covered by iterator check
+        # For now, let's just see what it does.
+        # Our current impl only covers Loop Variables explicitly.
+        pass

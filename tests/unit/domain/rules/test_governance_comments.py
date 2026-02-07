@@ -2,9 +2,9 @@
 
 import astroid
 
-from clean_architecture_linter.domain.entities import TransformationType
-from clean_architecture_linter.domain.rules import Violation
-from clean_architecture_linter.domain.rules.governance_comments import (
+from excelsior_architect.domain.entities import TransformationType
+from excelsior_architect.domain.rules import Violation
+from excelsior_architect.domain.rules.governance_comments import (
     GenericGovernanceCommentRule,
     LawOfDemeterRule,
 )

@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.layer_registry import LayerRegistry
-from clean_architecture_linter.use_cases.checks.design import DesignChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.layer_registry import LayerRegistry
+from excelsior_architect.use_cases.checks.design import DesignChecker
 from tests.unit.checker_test_utils import CheckerTestCase
 
 

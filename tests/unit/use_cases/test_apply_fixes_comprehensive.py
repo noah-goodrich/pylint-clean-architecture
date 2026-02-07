@@ -15,8 +15,8 @@ These tests use mocks to avoid subprocess calls and are NOT marked as slow.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import FileSystemGateway
-from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from excelsior_architect.use_cases.apply_fixes import ApplyFixesUseCase
 from tests.conftest import apply_fixes_required_deps
 
 
@@ -30,7 +30,8 @@ class TestBackupOperations:
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         backup_path = use_case._create_backup(str(test_file))
 
@@ -49,7 +50,8 @@ class TestBackupOperations:
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         use_case._restore_backup(str(test_file), str(backup_file))
 
@@ -187,7 +189,8 @@ class TestConfirmationFlow:
         """Test _confirm_fix returns True in non-interactive mode."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         with patch('sys.stdin.isatty', return_value=False):
             result = use_case._confirm_fix("test.py", [MagicMock()])
@@ -198,7 +201,8 @@ class TestConfirmationFlow:
         """Test _confirm_fix prompts user in interactive mode."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         with patch('sys.stdin.isatty', return_value=True), patch(
             'builtins.input', return_value='yes'
@@ -249,7 +253,8 @@ class TestPytestValidation:
         """Test _run_pytest returns 0 when all tests pass."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(
@@ -262,7 +267,8 @@ class TestPytestValidation:
         """Test _run_pytest returns 0 when no tests collected (returncode 5)."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(
@@ -275,7 +281,8 @@ class TestPytestValidation:
         """Test _run_pytest parses failure count from output."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         with patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(
@@ -291,7 +298,8 @@ class TestPytestValidation:
         """Test _run_pytest returns 0 on timeout."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         with patch('subprocess.run') as mock_run:
             import subprocess
@@ -304,7 +312,8 @@ class TestPytestValidation:
         """Test _run_pytest returns 0 when pytest not found."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         with patch('subprocess.run') as mock_run:
             mock_run.side_effect = FileNotFoundError()
@@ -415,14 +424,15 @@ class TestCollectPlansFromRules:
 
     def test_collect_plans_from_rules_returns_plans(self, tmp_path) -> None:
         """_collect_plans_from_rules collects plans from rules."""
-        from clean_architecture_linter.domain.entities import TransformationPlan
+        from excelsior_architect.domain.entities import TransformationPlan
 
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         mock_rule = MagicMock()
         mock_violation = MagicMock()
@@ -441,14 +451,15 @@ class TestCollectPlansFromRules:
 
     def test_collect_plans_from_rules_flattens_plan_lists(self, tmp_path) -> None:
         """Rule.fix may return a list of plans; they should be flattened."""
-        from clean_architecture_linter.domain.entities import TransformationPlan
+        from excelsior_architect.domain.entities import TransformationPlan
 
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         mock_rule = MagicMock()
         mock_violation = MagicMock()
@@ -474,7 +485,8 @@ class TestCollectPlansFromRules:
 
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         mock_rule = MagicMock()
         mock_violation = MagicMock()
@@ -693,7 +705,8 @@ class TestRuleHelpers:
         """Test _get_w9015_rules filters W9015 rules from list."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         mock_w9015 = MagicMock()
         mock_w9015.code = "W9015"
@@ -709,7 +722,8 @@ class TestRuleHelpers:
         """Test _get_architecture_rules excludes W9015 rules."""
         fixer_gateway = MagicMock()
         filesystem = FileSystemGateway()
-        use_case = ApplyFixesUseCase(fixer_gateway, filesystem, **apply_fixes_required_deps())
+        use_case = ApplyFixesUseCase(
+            fixer_gateway, filesystem, **apply_fixes_required_deps())
 
         mock_w9015 = MagicMock()
         mock_w9015.code = "W9015"
@@ -723,6 +737,8 @@ class TestRuleHelpers:
 
     def test_apply_rule_fixes_processes_all_files(self, tmp_path) -> None:
         """Test _apply_rule_fixes processes all files in target path."""
+        from excelsior_architect.domain.entities import TransformationPlan, TransformationType
+
         test_file = tmp_path / "example.py"
         test_file.write_text("x = 1\n")
 
@@ -737,11 +753,16 @@ class TestRuleHelpers:
         )
 
         mock_rule = MagicMock()
+        mock_rule.code = "W9999"
         mock_violation = MagicMock()
         mock_violation.fixable = True
-        mock_transformer = MagicMock()
+        mock_plan = TransformationPlan(
+            transformation_type=TransformationType.ADD_GOVERNANCE_COMMENT,
+            params={"rule_code": "W9999", "line": 1,
+                    "column": 0, "reason": "test"}
+        )
         mock_rule.check.return_value = [mock_violation]
-        mock_rule.fix.return_value = mock_transformer
+        mock_rule.fix.return_value = mock_plan
 
         with patch.object(use_case, '_handle_successful_fix', return_value=(1, False)):
             result = use_case._apply_rule_fixes([mock_rule], str(tmp_path))

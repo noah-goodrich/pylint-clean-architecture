@@ -285,7 +285,7 @@ Checkers and the fix pipeline call only what a rule implements: if it’s Checka
 
 ### Where they live
 
-- **Checkable**, **Fixable**, **StatefulRule**, and **BaseRule** are defined in `src/clean_architecture_linter/domain/rules/__init__.py`.
+- **Checkable**, **Fixable**, **StatefulRule**, and **BaseRule** are defined in `src/excelsior_architect/domain/rules/__init__.py`.
 - **StatefulRule** currently describes the testing-coupling API (record_functiondef, record_call, record_mock_only, check_private_method, leave_functiondef). Other stateful rules (e.g. ModuleStructureRule, LawOfDemeterRule in demeter.py) have different method sets and do not yet inherit a protocol; they can get their own protocols or variants later.
 
 ### Explicit protocol inheritance

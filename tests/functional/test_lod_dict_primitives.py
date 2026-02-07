@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from clean_architecture_linter.infrastructure.adapters.excelsior_adapter import ExcelsiorAdapter
+from excelsior_architect.infrastructure.adapters.excelsior_adapter import ExcelsiorAdapter
 
 
 class TestLoDDictPrimitives:

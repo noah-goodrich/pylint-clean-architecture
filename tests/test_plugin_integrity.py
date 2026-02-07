@@ -11,13 +11,14 @@ def run_pylint(file_path) -> NoneType:
     env = os.environ.copy()
     root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     src_path = os.path.join(root_path, "src")
-    env["PYTHONPATH"] = src_path + os.pathsep + root_path + os.pathsep + env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = src_path + os.pathsep + \
+        root_path + os.pathsep + env.get("PYTHONPATH", "")
 
     cmd = [
         sys.executable,
         "-m",
         "pylint",
-        "--load-plugins=clean_architecture_linter",
+        "--load-plugins=excelsior_architect",
         "--disable=all",
         "--enable=W9201,W9601,W9501",
         file_path,

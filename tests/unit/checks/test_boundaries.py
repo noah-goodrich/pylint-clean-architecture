@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.use_cases.checks.boundaries import ResourceChecker, VisibilityChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.use_cases.checks.boundaries import ResourceChecker, VisibilityChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
@@ -15,7 +15,8 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
         self.config_loader = ConfigurationLoader({}, {})
 
     def test_visibility_protected_access(self) -> None:
-        checker = VisibilityChecker(self.linter, self.config_loader, registry={})
+        checker = VisibilityChecker(
+            self.linter, self.config_loader, registry={})
         # visibility_enforcement defaults to True in config, no need to set
 
         node = create_mock_node(
@@ -28,7 +29,8 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
         self.assertAddsMessage(checker, "W9003", node, args=("_internal",))
 
     def test_resource_access_forbidden(self) -> None:
-        checker = ResourceChecker(self.linter, self.python_gateway, self.config_loader, registry={})
+        checker = ResourceChecker(
+            self.linter, self.python_gateway, self.config_loader, registry={})
 
         # Configure layer to be Domain
         self.python_gateway.get_node_layer.return_value = "Domain"
@@ -43,7 +45,8 @@ class TestBoundaries(unittest.TestCase, CheckerTestCase):
                                args=("import requests", "Domain"))
 
     def test_resource_access_allowed_stdlib(self) -> None:
-        checker = ResourceChecker(self.linter, self.python_gateway, self.config_loader, registry={})
+        checker = ResourceChecker(
+            self.linter, self.python_gateway, self.config_loader, registry={})
         self.python_gateway.get_node_layer.return_value = "Domain"
 
         node = create_mock_node(astroid.nodes.Import)

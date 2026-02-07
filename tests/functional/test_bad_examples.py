@@ -8,7 +8,7 @@ from pathlib import Path
 from subprocess import CompletedProcess
 
 # Plugin Discovery
-PLUGIN_DIR = Path("/development/pylint-clean-architecture/src").resolve()
+PLUGIN_DIR = Path("/development/excelsior-architect/src").resolve()
 
 
 def run_pylint(file_path) -> CompletedProcess:
@@ -18,7 +18,7 @@ def run_pylint(file_path) -> CompletedProcess:
     cmd = [
         "pylint",
         str(file_path),
-        "--load-plugins=clean_architecture_linter",
+        "--load-plugins=excelsior_architect",
         "--disable=all",
         "--enable=W9003,W9004,W9005,W9006,W9007,W9009",
         "--score=n",

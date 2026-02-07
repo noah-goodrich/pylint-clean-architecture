@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, PropertyMock
 
 import astroid.nodes
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.domain.layer_registry import LayerRegistry
-from clean_architecture_linter.use_cases.checks.dependencies import DependencyChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.domain.layer_registry import LayerRegistry
+from excelsior_architect.use_cases.checks.dependencies import DependencyChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 
@@ -71,7 +71,7 @@ class TestDependencyChecker(unittest.TestCase, CheckerTestCase):
             return_value=set())
 
         node = create_mock_node(astroid.nodes.ImportFrom)
-        node.modname = "clean_architecture_linter.infrastructure.adapters.linter_adapters"
+        node.modname = "excelsior_architect.infrastructure.adapters.linter_adapters"
 
         self.checker.visit_importfrom(node)
 

@@ -1,6 +1,6 @@
 import pytest
 
-from clean_architecture_linter.infrastructure.di.container import ExcelsiorContainer
+from excelsior_architect.infrastructure.di.container import ExcelsiorContainer
 
 
 class TestExcelsiorContainer:

@@ -3,8 +3,8 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from clean_architecture_linter.domain.entities import TransformationPlan
-from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import LibCSTFixerGateway
+from excelsior_architect.domain.entities import TransformationPlan
+from excelsior_architect.infrastructure.gateways.libcst_fixer_gateway import LibCSTFixerGateway
 
 
 class TestLibCSTFixerGateway:

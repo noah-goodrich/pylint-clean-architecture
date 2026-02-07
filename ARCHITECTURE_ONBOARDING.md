@@ -20,5 +20,5 @@ Follow this 3-Phase Refactor Plan to achieve compliance without stopping develop
 
 ---
 **Configuration Note**:
-This project uses `pylint-clean-architecture` in **Architecture-Only Mode** (style checks disabled)
+This project uses `excelsior-architect` in **Architecture-Only Mode** (style checks disabled)
 because other tools (ruff/black/flake8) are detected.

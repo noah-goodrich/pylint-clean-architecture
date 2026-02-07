@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import astroid.nodes
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.use_cases.checks.patterns import CouplingChecker, PatternChecker
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.use_cases.checks.patterns import CouplingChecker, PatternChecker
 from tests.unit.checker_test_utils import CheckerTestCase, create_mock_node
 
 

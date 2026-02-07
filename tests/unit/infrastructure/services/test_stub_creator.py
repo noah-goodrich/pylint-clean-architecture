@@ -4,10 +4,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.services.stub_creator import (
+from excelsior_architect.infrastructure.services.stub_creator import (
     StubCreatorService,
 )
-from clean_architecture_linter.infrastructure.services.stub_authority import (
+from excelsior_architect.infrastructure.services.stub_authority import (
     StubAuthority,
 )
 

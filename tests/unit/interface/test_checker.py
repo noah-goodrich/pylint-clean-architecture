@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.infrastructure.checker import register
+from excelsior_architect.infrastructure.checker import register
 
 
 class TestCheckerRegister:
@@ -12,7 +12,7 @@ class TestCheckerRegister:
         """register() prints EXCELSIOR banner."""
         linter = MagicMock()
         with patch(
-            "clean_architecture_linter.infrastructure.checker.ExcelsiorContainer.get_instance"
+            "excelsior_architect.infrastructure.checker.ExcelsiorContainer.get_instance"
         ) as get_instance:
             container = MagicMock()
             container.get.side_effect = lambda name: MagicMock()

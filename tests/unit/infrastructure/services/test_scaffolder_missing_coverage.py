@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.infrastructure.services.scaffolder import Scaffolder
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.infrastructure.services.scaffolder import Scaffolder
 
 
 class TestScaffolderMissingCoverage:
@@ -19,7 +19,7 @@ class TestScaffolderMissingCoverage:
         layers_file = tmp_path / "layers.yaml"
         layers_file.write_text("domain: Domain\n")
 
-        with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
+        with patch('excelsior_architect.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {}
             mock_config.return_value.get_layers_file_path.return_value = str(
                 layers_file)
@@ -36,7 +36,7 @@ class TestScaffolderMissingCoverage:
         telemetry = MagicMock()
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
-        with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
+        with patch('excelsior_architect.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {
                 "layer_map": {
                     "domain": "Domain",
@@ -55,7 +55,7 @@ class TestScaffolderMissingCoverage:
         telemetry = MagicMock()
         scaffolder = Scaffolder(telemetry, ConfigurationLoader({}, {}))
 
-        with patch('clean_architecture_linter.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
+        with patch('excelsior_architect.infrastructure.services.scaffolder.ConfigurationLoader') as mock_config:
             mock_config.return_value.config = {
                 "layer_map": {
                     "domain_dir!": "Domain",  # Contains special chars

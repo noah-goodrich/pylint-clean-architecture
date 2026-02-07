@@ -3,8 +3,8 @@ import shutil
 import tempfile
 import unittest
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
-from clean_architecture_linter.infrastructure.config_file_loader import ConfigFileLoader
+from excelsior_architect.domain.config import ConfigurationLoader
+from excelsior_architect.infrastructure.config_file_loader import ConfigFileLoader
 
 
 class TestGenericConfiguration(unittest.TestCase):

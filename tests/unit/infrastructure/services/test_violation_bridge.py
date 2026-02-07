@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 import astroid
 
-from clean_architecture_linter.domain.entities import LinterResult
-from clean_architecture_linter.infrastructure.services.violation_bridge import (
+from excelsior_architect.domain.entities import LinterResult
+from excelsior_architect.infrastructure.services.violation_bridge import (
     ViolationBridgeService,
 )
 
@@ -64,7 +64,8 @@ class TestViolationBridgeService:
         assert bridge._is_comment_only_rule("W9006") is True
         assert bridge._is_comment_only_rule("clean-arch-demeter") is True
         assert bridge._is_comment_only_rule("W9001") is True
-        assert bridge._is_comment_only_rule("W9015") is False  # Type hint, not comment-only
+        assert bridge._is_comment_only_rule(
+            "W9015") is False  # Type hint, not comment-only
 
     def test_handles_multiple_locations(self, tmp_path) -> None:
         """Test handling multiple locations for same violation."""
@@ -204,7 +205,8 @@ class TestViolationBridgeService:
 
         astroid_gateway = MagicMock()
         # Make parse_file raise an exception
-        astroid_gateway.parse_file = MagicMock(side_effect=Exception("Parse error"))
+        astroid_gateway.parse_file = MagicMock(
+            side_effect=Exception("Parse error"))
 
         bridge = ViolationBridgeService(astroid_gateway, _make_guidance_mock())
 

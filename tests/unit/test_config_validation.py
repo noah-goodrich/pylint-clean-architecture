@@ -1,6 +1,6 @@
 import logging
 
-from clean_architecture_linter.domain.config import ConfigurationLoader
+from excelsior_architect.domain.config import ConfigurationLoader
 
 
 def test_config_validation_penalty(caplog) -> None:

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import astroid
 
-from clean_architecture_linter.infrastructure.gateways.python_gateway import PythonGateway
+from excelsior_architect.infrastructure.gateways.python_gateway import PythonGateway
 
 
 class TestPythonGateway(unittest.TestCase):
@@ -31,8 +31,8 @@ class TestPythonGateway(unittest.TestCase):
         """Test external packages return False."""
         # External packages should be False
         # But caution: if running in venv, detection depends on sys.stdlib_module_names
-        # pandas is likely not installed in this env, but clean_architecture_linter IS.
-        self.assertFalse(self.gateway.is_stdlib_module("clean_architecture_linter"))
+        # pandas is likely not installed in this env, but excelsior_architect IS.
+        self.assertFalse(self.gateway.is_stdlib_module("excelsior_architect"))
         self.assertFalse(self.gateway.is_stdlib_module("pandas"))
         self.assertFalse(self.gateway.is_stdlib_module("requests"))
 
@@ -83,7 +83,8 @@ class TestPythonGateway(unittest.TestCase):
     def test_is_stdlib_module_handles_astroid_errors(self, mock_ast_from_module) -> None:
         """Test error handling in path-based detection."""
         # Mock astroid error
-        mock_ast_from_module.side_effect = astroid.AstroidBuildingError("Module not found")
+        mock_ast_from_module.side_effect = astroid.AstroidBuildingError(
+            "Module not found")
 
         result = self.gateway.is_stdlib_module("nonexistent_module")
         self.assertFalse(result)
@@ -101,22 +102,29 @@ class TestPythonGateway(unittest.TestCase):
 
     def test_is_external_dependency_site_packages(self) -> None:
         """Test detection of site-packages."""
-        self.assertTrue(self.gateway.is_external_dependency("/usr/lib/python3.11/site-packages/libcst/__init__.py"))
-        self.assertTrue(self.gateway.is_external_dependency("/path/to/site-packages/requests.py"))
+        self.assertTrue(self.gateway.is_external_dependency(
+            "/usr/lib/python3.11/site-packages/libcst/__init__.py"))
+        self.assertTrue(self.gateway.is_external_dependency(
+            "/path/to/site-packages/requests.py"))
 
     def test_is_external_dependency_dist_packages(self) -> None:
         """Test detection of dist-packages (Debian/Ubuntu)."""
-        self.assertTrue(self.gateway.is_external_dependency("/usr/lib/python3/dist-packages/libcst/__init__.py"))
+        self.assertTrue(self.gateway.is_external_dependency(
+            "/usr/lib/python3/dist-packages/libcst/__init__.py"))
 
     def test_is_external_dependency_venv(self) -> None:
         """Test detection of .venv."""
-        self.assertTrue(self.gateway.is_external_dependency(".venv/lib/requests/__init__.py"))
-        self.assertTrue(self.gateway.is_external_dependency("/project/.venv/lib/python3.11/site-packages/pandas.py"))
+        self.assertTrue(self.gateway.is_external_dependency(
+            ".venv/lib/requests/__init__.py"))
+        self.assertTrue(self.gateway.is_external_dependency(
+            "/project/.venv/lib/python3.11/site-packages/pandas.py"))
 
     def test_is_external_dependency_internal_code(self) -> None:
         """Test internal code returns False."""
-        self.assertFalse(self.gateway.is_external_dependency("/development/project/src/main.py"))
-        self.assertFalse(self.gateway.is_external_dependency("src/domain/entities.py"))
+        self.assertFalse(self.gateway.is_external_dependency(
+            "/development/project/src/main.py"))
+        self.assertFalse(self.gateway.is_external_dependency(
+            "src/domain/entities.py"))
 
     def test_is_external_dependency_none(self) -> None:
         """Test None returns False."""
@@ -256,7 +264,8 @@ class MyProtocol:
 
         layer = self.gateway.get_node_layer(node, config)
         self.assertEqual(layer, "Domain")
-        config.get_layer_for_module.assert_called_once_with("src.domain.entities", "/src/domain/entities.py")
+        config.get_layer_for_module.assert_called_once_with(
+            "src.domain.entities", "/src/domain/entities.py")
 
     def test_get_node_layer_fallback(self) -> None:
         """Test layer resolution returns None when config returns None."""

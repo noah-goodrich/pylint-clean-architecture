@@ -3,14 +3,14 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from clean_architecture_linter.domain.entities import AuditResult, LinterResult
-from clean_architecture_linter.infrastructure.gateways.filesystem_gateway import (
+from excelsior_architect.domain.entities import AuditResult, LinterResult
+from excelsior_architect.infrastructure.gateways.filesystem_gateway import (
     FileSystemGateway,
 )
-from clean_architecture_linter.infrastructure.gateways.libcst_fixer_gateway import (
+from excelsior_architect.infrastructure.gateways.libcst_fixer_gateway import (
     LibCSTFixerGateway,
 )
-from clean_architecture_linter.use_cases.apply_fixes import ApplyFixesUseCase
+from excelsior_architect.use_cases.apply_fixes import ApplyFixesUseCase
 
 
 class TestGovernanceCommentsIntegration:
@@ -130,7 +130,7 @@ class TestGovernanceCommentsIntegration:
 
     def test_create_governance_rule_returns_rule_for_violation(self) -> None:
         """Test GovernanceRuleFactory.create_rule returns correct rule for W9006 and others."""
-        from clean_architecture_linter.domain.rules.governance_comments import (
+        from excelsior_architect.domain.rules.governance_comments import (
             GovernanceRuleFactory,
             LawOfDemeterRule,
             GenericGovernanceCommentRule,

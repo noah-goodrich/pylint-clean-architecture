@@ -46,14 +46,14 @@ def run_pylint(file_path, root_dir) -> NoneType:
     import subprocess
 
     # Ensure plugin is in pythonpath
-    plugin_path = Path("/development/pylint-clean-architecture/src").resolve()
+    plugin_path = Path("/development/excelsior-architect/src").resolve()
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{plugin_path}:{env.get('PYTHONPATH', '')}"
 
     cmd = [
         "pylint",
         str(file_path),
-        "--load-plugins=clean_architecture_linter",
+        "--load-plugins=excelsior_architect",
         "--disable=all",
         "--enable=W9003,W9004,W9005,W9006,W9007",
         "--score=n",

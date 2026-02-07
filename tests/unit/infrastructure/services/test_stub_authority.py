@@ -3,7 +3,7 @@
 import tempfile
 from pathlib import Path
 
-from clean_architecture_linter.infrastructure.services.stub_authority import (
+from excelsior_architect.infrastructure.services.stub_authority import (
     StubAuthority,
 )
 
