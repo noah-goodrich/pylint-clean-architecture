@@ -12,48 +12,48 @@ from excelsior_architect.domain.rules.constructor_injection import (
 
 def _mock_init_method(annotations: list[tuple[str, str]]) -> MagicMock:
     """Create mock __init__ FunctionDef with annotations.
-    
+
     Args:
         annotations: List of (arg_name, type_name) tuples
     """
     node = MagicMock(spec=astroid.nodes.FunctionDef)
     node.name = "__init__"
-    
+
     args_node = MagicMock()
     args_list = []
     ann_list = []
-    
+
     # Add self parameter
     self_arg = MagicMock()
     self_arg.name = "self"
     args_list.append(self_arg)
     ann_list.append(None)
-    
+
     # Add annotated parameters
     for arg_name, type_name in annotations:
         arg = MagicMock()
         arg.name = arg_name
         args_list.append(arg)
-        
+
         # Create annotation node
         ann = MagicMock(spec=astroid.nodes.Name)
         ann.name = type_name
         ann_list.append(ann)
-    
+
     args_node.args = args_list
     args_node.annotations = ann_list
     node.args = args_node
-    
+
     parent = MagicMock(spec=astroid.nodes.ClassDef)
     parent.name = "TestClass"
     node.parent = parent
-    
+
     node.lineno = 1
     node.col_offset = 0
     mock_root = MagicMock()
     mock_root.file = "test.py"
     node.root.return_value = mock_root
-    
+
     return node
 
 
@@ -99,7 +99,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to concrete classes with Gateway suffix."""
         node = _mock_init_method([("db", "DatabaseGateway")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].code, "W9034")
         self.assertIn("db", violations[0].message)
@@ -110,7 +110,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Repository."""
         node = _mock_init_method([("repo", "UserRepository")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].code, "W9034")
         self.assertIn("repo", violations[0].message)
@@ -120,7 +120,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Client."""
         node = _mock_init_method([("client", "APIClient")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("APIClient", violations[0].message)
 
@@ -128,7 +128,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Adapter."""
         node = _mock_init_method([("adapter", "ExternalAdapter")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("ExternalAdapter", violations[0].message)
 
@@ -136,7 +136,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Service."""
         node = _mock_init_method([("service", "EmailService")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("EmailService", violations[0].message)
 
@@ -144,7 +144,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Reporter."""
         node = _mock_init_method([("reporter", "ConsoleReporter")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("ConsoleReporter", violations[0].message)
 
@@ -152,7 +152,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Storage."""
         node = _mock_init_method([("storage", "FileStorage")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("FileStorage", violations[0].message)
 
@@ -160,7 +160,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Checker."""
         node = _mock_init_method([("checker", "RuleChecker")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("RuleChecker", violations[0].message)
 
@@ -168,7 +168,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Scaffolder."""
         node = _mock_init_method([("scaffolder", "ProjectScaffolder")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("ProjectScaffolder", violations[0].message)
 
@@ -176,7 +176,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() detects parameters typed to Renderer."""
         node = _mock_init_method([("renderer", "HTMLRenderer")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertIn("HTMLRenderer", violations[0].message)
 
@@ -184,7 +184,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """check() allows parameters typed to Protocol."""
         node = _mock_init_method([("gateway", "DatabaseGatewayProtocol")])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 0)
 
     def test_check_allows_non_concrete_types(self) -> None:
@@ -195,7 +195,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
             ("config", "Dict"),
         ])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 0)
 
     def test_check_handles_multiple_violations(self) -> None:
@@ -206,14 +206,14 @@ class TestConstructorInjectionRule(unittest.TestCase):
             ("client", "APIClient"),
         ])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 3)
 
     def test_check_skips_self_parameter(self) -> None:
         """check() skips self parameter."""
         node = _mock_init_method([])
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 0)
 
     def test_check_skips_cls_parameter(self) -> None:
@@ -222,14 +222,14 @@ class TestConstructorInjectionRule(unittest.TestCase):
         # Replace self with cls
         node.args.args[0].name = "cls"
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 0)
 
     def test_annotation_to_name_handles_name_node(self) -> None:
         """_annotation_to_name() extracts name from Name node."""
         ann = MagicMock(spec=astroid.nodes.Name)
         ann.name = "SomeType"
-        
+
         name = self.rule._annotation_to_name(ann)
         self.assertEqual(name, "SomeType")
 
@@ -237,7 +237,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """_annotation_to_name() extracts name from Attribute node."""
         ann = MagicMock(spec=astroid.nodes.Attribute)
         ann.as_string = lambda: "module.SomeType"
-        
+
         name = self.rule._annotation_to_name(ann)
         self.assertEqual(name, "module.SomeType")
 
@@ -245,17 +245,17 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """_annotation_to_name() extracts name from Subscript node (e.g., List[SomeType])."""
         value_node = MagicMock(spec=astroid.nodes.Name)
         value_node.name = "List"
-        
+
         ann = MagicMock(spec=astroid.nodes.Subscript)
         ann.value = value_node
-        
+
         name = self.rule._annotation_to_name(ann)
         self.assertEqual(name, "List")
 
     def test_annotation_to_name_handles_unknown_node(self) -> None:
         """_annotation_to_name() returns empty string for unknown nodes."""
         ann = MagicMock(spec=astroid.nodes.Const)
-        
+
         name = self.rule._annotation_to_name(ann)
         self.assertEqual(name, "")
 
@@ -263,7 +263,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """_is_protocol_annotation() detects 'Protocol' in type name."""
         ann = MagicMock(spec=astroid.nodes.Name)
         ann.name = "SomeProtocol"
-        
+
         result = self.rule._is_protocol_annotation(ann)
         self.assertTrue(result)
 
@@ -271,7 +271,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """_is_protocol_annotation() detects types ending with 'Protocol'."""
         ann = MagicMock(spec=astroid.nodes.Name)
         ann.name = "DatabaseProtocol"
-        
+
         result = self.rule._is_protocol_annotation(ann)
         self.assertTrue(result)
 
@@ -279,7 +279,7 @@ class TestConstructorInjectionRule(unittest.TestCase):
         """_is_protocol_annotation() returns False for non-Protocol types."""
         ann = MagicMock(spec=astroid.nodes.Name)
         ann.name = "DatabaseGateway"
-        
+
         result = self.rule._is_protocol_annotation(ann)
         self.assertFalse(result)
 
@@ -290,12 +290,12 @@ class TestConstructorInjectionRule(unittest.TestCase):
         parent = MagicMock(spec=astroid.nodes.ClassDef)
         parent.name = "TestClass"
         node.parent = parent
-        
+
         args_node = MagicMock()
         args_node.args = [MagicMock(), MagicMock()]  # self + one param
         args_node.annotations = [None, None]  # No annotations
         node.args = args_node
-        
+
         violations = self.rule.check(node)
         self.assertEqual(len(violations), 0)
 
@@ -306,26 +306,26 @@ class TestConstructorInjectionRule(unittest.TestCase):
         parent = MagicMock(spec=astroid.nodes.ClassDef)
         parent.name = "TestClass"
         node.parent = parent
-        
+
         args_node = MagicMock()
         self_arg = MagicMock()
         self_arg.name = "self"
         param_arg = MagicMock()
         param_arg.name = "gateway"
         args_node.args = [self_arg, param_arg]
-        
+
         # Qualified name like "infra.gateways.DatabaseGateway"
         ann = MagicMock(spec=astroid.nodes.Attribute)
         ann.as_string = lambda: "infra.gateways.DatabaseGateway"
         args_node.annotations = [None, ann]
         node.args = args_node
-        
+
         node.lineno = 1
         node.col_offset = 0
         mock_root = MagicMock()
         mock_root.file = "test.py"
         node.root.return_value = mock_root
-        
+
         violations = self.rule.check(node)
         self.assertEqual(len(violations), 1)
         self.assertIn("DatabaseGateway", violations[0].message)

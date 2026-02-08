@@ -63,7 +63,8 @@ class TestBuilderSuggestionRule(unittest.TestCase):
 
     def test_check_returns_empty_for_few_parameters(self) -> None:
         """check() returns [] when __init__ has < 6 parameters."""
-        node = _mock_function_def("__init__", 5)  # 5 params + self = 6 total, but only 5 counted
+        node = _mock_function_def(
+            "__init__", 5)  # 5 params + self = 6 total, but only 5 counted
         parent = _mock_class_def("SmallClass")
         node.parent = parent
         result = self.rule.check(node)
@@ -71,15 +72,17 @@ class TestBuilderSuggestionRule(unittest.TestCase):
 
     def test_check_detects_many_parameters(self) -> None:
         """check() detects __init__ with 6+ parameters."""
-        node = _mock_function_def("__init__", 7)  # 7 total params including self
+        node = _mock_function_def(
+            "__init__", 7)  # 7 total params including self
         parent = _mock_class_def("BigClass")
         node.parent = parent
         violations = self.rule.check(node)
-        
+
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].code, "W9041")
         self.assertIn("BigClass", violations[0].message)
-        self.assertIn("6", violations[0].message)  # Should see 6 in message (7 - 1 for self)
+        # Should see 6 in message (7 - 1 for self)
+        self.assertIn("6", violations[0].message)
         self.assertIn("Builder", violations[0].message)
 
     def test_check_handles_no_args(self) -> None:
@@ -122,44 +125,47 @@ class TestFactorySuggestionRule(unittest.TestCase):
         func = MagicMock(spec=astroid.nodes.Name)
         func.name = "FooClass"
         call.func = func
-        if_node.nodes_of_class = lambda cls: [call] if cls == astroid.nodes.Call else []
+        if_node.nodes_of_class = lambda cls: [
+            call] if cls == astroid.nodes.Call else []
         if_node.orelse = []
         if_node.lineno = 1
         if_node.col_offset = 0
         mock_root = MagicMock()
         mock_root.file = "test.py"
         if_node.root.return_value = mock_root
-        
+
         result = self.rule.check(if_node)
         self.assertEqual(result, [])
 
     def test_check_detects_multiple_classes(self) -> None:
         """check() detects if/elif instantiating different classes."""
         if_node = MagicMock(spec=astroid.nodes.If)
-        
+
         # First branch - FooClass()
         call1 = MagicMock(spec=astroid.nodes.Call)
         func1 = MagicMock(spec=astroid.nodes.Name)
         func1.name = "FooClass"
         call1.func = func1
-        
+
         # elif branch - BarClass()
         elif_node = MagicMock(spec=astroid.nodes.If)
         call2 = MagicMock(spec=astroid.nodes.Call)
         func2 = MagicMock(spec=astroid.nodes.Name)
         func2.name = "BarClass"
         call2.func = func2
-        elif_node.nodes_of_class = lambda cls: [call2] if cls == astroid.nodes.Call else []
+        elif_node.nodes_of_class = lambda cls: [
+            call2] if cls == astroid.nodes.Call else []
         elif_node.orelse = []
-        
-        if_node.nodes_of_class = lambda cls: [call1] if cls == astroid.nodes.Call else []
+
+        if_node.nodes_of_class = lambda cls: [
+            call1] if cls == astroid.nodes.Call else []
         if_node.orelse = [elif_node]
         if_node.lineno = 1
         if_node.col_offset = 0
         mock_root = MagicMock()
         mock_root.file = "test.py"
         if_node.root.return_value = mock_root
-        
+
         violations = self.rule.check(if_node)
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].code, "W9042")
@@ -171,7 +177,7 @@ class TestFactorySuggestionRule(unittest.TestCase):
         func = MagicMock(spec=astroid.nodes.Attribute)
         func.attrname = "SomeClass"
         call.func = func
-        
+
         name = self.rule._call_class_name(call)
         self.assertEqual(name, "SomeClass")
 
@@ -179,7 +185,7 @@ class TestFactorySuggestionRule(unittest.TestCase):
         """_call_class_name() handles Call with no func attribute."""
         call = MagicMock(spec=astroid.nodes.Call)
         call.func = None
-        
+
         name = self.rule._call_class_name(call)
         self.assertIsNone(name)
 
@@ -205,20 +211,20 @@ class TestStrategySuggestionRule(unittest.TestCase):
         mock_root = MagicMock()
         mock_root.file = "test.py"
         if_node.root.return_value = mock_root
-        
+
         result = self.rule.check(if_node)
         self.assertEqual(result, [])
 
     def test_check_detects_multiple_elif_branches(self) -> None:
         """check() detects if/elif chains with 2+ elif."""
         if_node = MagicMock(spec=astroid.nodes.If)
-        
+
         # First elif
         elif1 = MagicMock(spec=astroid.nodes.If)
         # Second elif
         elif2 = MagicMock(spec=astroid.nodes.If)
         elif2.orelse = []
-        
+
         elif1.orelse = [elif2]
         if_node.orelse = [elif1]
         if_node.lineno = 1
@@ -226,7 +232,7 @@ class TestStrategySuggestionRule(unittest.TestCase):
         mock_root = MagicMock()
         mock_root.file = "test.py"
         if_node.root.return_value = mock_root
-        
+
         violations = self.rule.check(if_node)
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].code, "W9043")
@@ -239,7 +245,7 @@ class TestStrategySuggestionRule(unittest.TestCase):
         # else clause (not an If node)
         else_stmt = MagicMock(spec=astroid.nodes.Expr)
         if_node.orelse = [else_stmt]
-        
+
         count = self.rule._count_elif_branches(if_node)
         self.assertEqual(count, 0)  # Only the initial if, no elif
 
@@ -272,8 +278,9 @@ class TestStateSuggestionRule(unittest.TestCase):
         compare1.left = left1
         compare1.ops = [("==", MagicMock())]
         if_node1.test = compare1
-        method1.nodes_of_class = lambda cls: [if_node1] if cls == astroid.nodes.If else []
-        
+        method1.nodes_of_class = lambda cls: [
+            if_node1] if cls == astroid.nodes.If else []
+
         # Method 2 checks self.other_attr (different attribute)
         method2 = MagicMock(spec=astroid.nodes.FunctionDef)
         method2.name = "method2"
@@ -287,23 +294,24 @@ class TestStateSuggestionRule(unittest.TestCase):
         compare2.left = left2
         compare2.ops = [("==", MagicMock())]
         if_node2.test = compare2
-        method2.nodes_of_class = lambda cls: [if_node2] if cls == astroid.nodes.If else []
-        
+        method2.nodes_of_class = lambda cls: [
+            if_node2] if cls == astroid.nodes.If else []
+
         class_node.body = [method1, method2]
-        
+
         result = self.rule.check(class_node)
         self.assertEqual(result, [])
 
     def test_check_detects_repeated_state_checks(self) -> None:
         """check() detects when 3+ methods check the same self attribute."""
         class_node = _mock_class_def("StatefulClass")
-        
+
         # Create 3 methods that all check self.status
         methods = []
         for i in range(3):
             method = MagicMock(spec=astroid.nodes.FunctionDef)
             method.name = f"method{i}"
-            
+
             if_node = MagicMock(spec=astroid.nodes.If)
             compare = MagicMock(spec=astroid.nodes.Compare)
             left = MagicMock(spec=astroid.nodes.Attribute)
@@ -314,12 +322,13 @@ class TestStateSuggestionRule(unittest.TestCase):
             compare.left = left
             compare.ops = [("==", MagicMock())]
             if_node.test = compare
-            
-            method.nodes_of_class = lambda cls, n=if_node: [n] if cls == astroid.nodes.If else []
+
+            method.nodes_of_class = lambda cls, n=if_node: [
+                n] if cls == astroid.nodes.If else []
             methods.append(method)
-        
+
         class_node.body = methods
-        
+
         violations = self.rule.check(class_node)
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].code, "W9044")
@@ -330,7 +339,7 @@ class TestStateSuggestionRule(unittest.TestCase):
     def test_attr_in_compare_handles_boolop(self) -> None:
         """_attr_in_compare() extracts attribute from BoolOp."""
         bool_op = MagicMock(spec=astroid.nodes.BoolOp)
-        
+
         compare = MagicMock(spec=astroid.nodes.Compare)
         left = MagicMock(spec=astroid.nodes.Attribute)
         left.attrname = "flag"
@@ -339,9 +348,9 @@ class TestStateSuggestionRule(unittest.TestCase):
         left.expr = expr
         compare.left = left
         compare.ops = [("==", MagicMock())]
-        
+
         bool_op.values = [compare]
-        
+
         attr = self.rule._attr_in_compare(bool_op)
         self.assertEqual(attr, "flag")
 
@@ -367,7 +376,7 @@ class TestFacadeSuggestionRule(unittest.TestCase):
         """check() returns [] when method calls < 5 distinct dependencies."""
         func = MagicMock(spec=astroid.nodes.FunctionDef)
         func.name = "simple_method"
-        
+
         # Create calls to only 3 distinct dependencies
         calls = []
         for i in range(3):
@@ -382,14 +391,14 @@ class TestFacadeSuggestionRule(unittest.TestCase):
             func_attr.expr = expr
             call.func = func_attr
             calls.append(call)
-        
+
         func.nodes_of_class = lambda cls: calls if cls == astroid.nodes.Call else []
         func.lineno = 1
         func.col_offset = 0
         mock_root = MagicMock()
         mock_root.file = "test.py"
         func.root.return_value = mock_root
-        
+
         result = self.rule.check(func)
         self.assertEqual(result, [])
 
@@ -397,7 +406,7 @@ class TestFacadeSuggestionRule(unittest.TestCase):
         """check() detects methods calling 5+ distinct dependencies."""
         func = MagicMock(spec=astroid.nodes.FunctionDef)
         func.name = "complex_method"
-        
+
         # Create calls to 6 distinct dependencies
         calls = []
         for i in range(6):
@@ -412,14 +421,14 @@ class TestFacadeSuggestionRule(unittest.TestCase):
             func_attr.expr = expr
             call.func = func_attr
             calls.append(call)
-        
+
         func.nodes_of_class = lambda cls: calls if cls == astroid.nodes.Call else []
         func.lineno = 1
         func.col_offset = 0
         mock_root = MagicMock()
         mock_root.file = "test.py"
         func.root.return_value = mock_root
-        
+
         violations = self.rule.check(func)
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].code, "W9045")
@@ -430,7 +439,7 @@ class TestFacadeSuggestionRule(unittest.TestCase):
     def test_distinct_attr_calls_handles_direct_self_calls(self) -> None:
         """_distinct_attr_calls() counts self.attr() calls."""
         func = MagicMock(spec=astroid.nodes.FunctionDef)
-        
+
         # Create call to self.service.method()
         call1 = MagicMock(spec=astroid.nodes.Call)
         func_attr = MagicMock(spec=astroid.nodes.Attribute)
@@ -439,8 +448,9 @@ class TestFacadeSuggestionRule(unittest.TestCase):
         self_node.name = "self"
         func_attr.expr = self_node
         call1.func = func_attr
-        
-        func.nodes_of_class = lambda cls: [call1] if cls == astroid.nodes.Call else []
-        
+
+        func.nodes_of_class = lambda cls: [
+            call1] if cls == astroid.nodes.Call else []
+
         count = self.rule._distinct_attr_calls(func)
         self.assertEqual(count, 1)

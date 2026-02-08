@@ -60,7 +60,8 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
                 title="Test",
                 root_cause="Test",
                 impact="Medium",
-                score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+                score=FindingScore.compute(
+                    reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
                 violation_codes=["TEST"],
                 affected_files=["test.py"],
                 violation_count=1,
@@ -75,7 +76,8 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
 
         self.use_case.execute(audit_result)
 
-        self.mock_decision_tree.recommend.assert_called_once_with(mock_findings)
+        self.mock_decision_tree.recommend.assert_called_once_with(
+            mock_findings)
 
     def test_execute_calls_scorer_with_enriched_findings(self) -> None:
         """execute() calls scorer.score with enriched findings."""
@@ -92,7 +94,8 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
                 title="Test",
                 root_cause="Test",
                 impact="Medium",
-                score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+                score=FindingScore.compute(
+                    reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
                 violation_codes=["TEST"],
                 affected_files=["test.py"],
                 violation_count=1,
@@ -103,7 +106,8 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
         ]
         enriched_findings = mock_findings  # In real case, might be different
         self.mock_clusterer.cluster.return_value = mock_findings
-        self.mock_decision_tree.recommend.return_value = (enriched_findings, [])
+        self.mock_decision_tree.recommend.return_value = (
+            enriched_findings, [])
         self.mock_scorer.score.return_value = (95, [], "high")
         self.mock_config_loader.resolve_layer.return_value = "domain"
 
@@ -128,7 +132,8 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
                 title="Test",
                 root_cause="Test",
                 impact="Medium",
-                score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+                score=FindingScore.compute(
+                    reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
                 violation_codes=["TEST"],
                 affected_files=["test.py"],
                 violation_count=1,
@@ -141,7 +146,8 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
         mock_layer_health = [MagicMock()]
 
         self.mock_clusterer.cluster.return_value = mock_findings
-        self.mock_decision_tree.recommend.return_value = (mock_findings, mock_patterns)
+        self.mock_decision_tree.recommend.return_value = (
+            mock_findings, mock_patterns)
         self.mock_scorer.score.return_value = (85, mock_layer_health, "medium")
         self.mock_config_loader.resolve_layer.return_value = "domain"
 
@@ -177,8 +183,10 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
 
         self.assertEqual(len(report.violation_details), 1)
         self.assertEqual(report.violation_details[0].code, "W9004")
-        self.assertEqual(report.violation_details[0].message, "Domain uses framework")
-        self.assertEqual(report.violation_details[0].locations, ["src/domain/user.py:10:5"])
+        self.assertEqual(
+            report.violation_details[0].message, "Domain uses framework")
+        self.assertEqual(report.violation_details[0].locations, [
+                         "src/domain/user.py:10:5"])
 
     def test_execute_builds_file_to_layer_mapping(self) -> None:
         """execute() builds file_to_layer mapping from audit results."""
@@ -209,9 +217,12 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
     def test_execute_passes_total_violations_to_scorer(self) -> None:
         """execute() passes total violation count to scorer."""
         linter_results = [
-            LinterResult(code="W9004", message="Test 1", locations=["test1.py:1:1"]),
-            LinterResult(code="W9006", message="Test 2", locations=["test2.py:2:2"]),
-            LinterResult(code="E501", message="Test 3", locations=["test3.py:3:3"]),
+            LinterResult(code="W9004", message="Test 1",
+                         locations=["test1.py:1:1"]),
+            LinterResult(code="W9006", message="Test 2",
+                         locations=["test2.py:2:2"]),
+            LinterResult(code="E501", message="Test 3",
+                         locations=["test3.py:3:3"]),
         ]
         audit_result = AuditResult(
             import_linter_results=[linter_results[0]],
@@ -247,7 +258,8 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
         self.use_case.execute(audit_result)
 
         call_args = self.mock_scorer.score.call_args
-        self.assertEqual(call_args[0][3], "architecture")  # Fourth positional argument
+        # Fourth positional argument
+        self.assertEqual(call_args[0][3], "architecture")
 
     def test_execute_handles_empty_locations(self) -> None:
         """execute() handles violations with no locations."""
@@ -352,16 +364,20 @@ class TestAnalyzeHealthUseCase(unittest.TestCase):
         """execute() combines results from all linters."""
         audit_result = AuditResult(
             import_linter_results=[
-                LinterResult(code="IL001", message="Import", locations=["file1.py:1:1"])
+                LinterResult(code="IL001", message="Import",
+                             locations=["file1.py:1:1"])
             ],
             ruff_results=[
-                LinterResult(code="E501", message="Line too long", locations=["file2.py:2:2"])
+                LinterResult(code="E501", message="Line too long",
+                             locations=["file2.py:2:2"])
             ],
             mypy_results=[
-                LinterResult(code="type-arg", message="Type arg", locations=["file3.py:3:3"])
+                LinterResult(code="type-arg", message="Type arg",
+                             locations=["file3.py:3:3"])
             ],
             excelsior_results=[
-                LinterResult(code="W9004", message="Domain I/O", locations=["file4.py:4:4"])
+                LinterResult(code="W9004", message="Domain I/O",
+                             locations=["file4.py:4:4"])
             ],
             blocking_gate=None,
         )

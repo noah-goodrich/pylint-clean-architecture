@@ -260,18 +260,19 @@ class TestExceptionHygieneRule(unittest.TestCase):
         """check() finds re-raise in deeply nested blocks."""
         type_node = MagicMock(spec=astroid.nodes.Name)
         type_node.name = "Exception"
-        
+
         # Create nested structure: if -> try -> raise
         raise_stmt = MagicMock(spec=astroid.nodes.Raise)
         try_stmt = MagicMock(spec=astroid.nodes.Try)
         try_stmt.body = [raise_stmt]
         if_stmt = MagicMock(spec=astroid.nodes.If)
         if_stmt.body = [try_stmt]
-        
+
         node = _mock_except_handler(type_node=type_node, body=[if_stmt])
 
         violations = self.rule.check(node)
 
         # Current implementation only checks one level deep
         # This test documents current behavior - may want to enhance
-        self.assertEqual(len(violations), 1)  # Does not find deeply nested raise
+        # Does not find deeply nested raise
+        self.assertEqual(len(violations), 1)

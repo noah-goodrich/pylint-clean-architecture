@@ -36,6 +36,7 @@ from excelsior_architect.use_cases.check_audit import CheckAuditUseCase
 from excelsior_architect.use_cases.init_project import InitProjectUseCase
 from excelsior_architect.use_cases.plan_fix import PlanFixUseCase
 
+
 @dataclass(frozen=True)
 class CLIDependencies:
     """Explicit dependencies for the CLI. All dependencies injected at composition root."""
@@ -154,7 +155,8 @@ class CLIAppFactory:
                 )
                 report = analyze_use_case.execute(audit_result)
                 deps.audit_trail_service.save_report(report, source="health")
-                deps.audit_trail_service.save_ai_handover(report, source="health")
+                deps.audit_trail_service.save_ai_handover(
+                    report, source="health")
                 deps.reporter.render_health_report(
                     report, format="terminal", mode="standard")
                 deps.telemetry.step("")
@@ -216,14 +218,16 @@ class CLIAppFactory:
                 ok, msg = deps.stub_creator.create_stub(
                     stub, root, use_stubgen=not no_stubgen, overwrite=overwrite_stub)
                 if ok:
-                    stub_path = Path(root) / "stubs" / (stub.replace(".", "/") + ".pyi")
+                    stub_path = Path(root) / "stubs" / \
+                        (stub.replace(".", "/") + ".pyi")
                     print(f"Created stub: {stub_path} ({msg})")
                 else:
                     print(f"Skipped: {msg}", file=sys.stderr)
                     sys.exit(1)
                 return
             if iterative:
-                _run_fix_iterative(deps, target_path, max_iterations, skip_tests)
+                _run_fix_iterative(deps, target_path,
+                                   max_iterations, skip_tests)
                 return
             if manual_only:
                 _run_fix_manual_only(deps, target_path, linter)
@@ -544,12 +548,14 @@ class CLIAppFactory:
             """Initialize configuration and optionally generate preventative guidance docs."""
             _session_start()
             if guidance_only:
-                _run_generate_guidance(output_dir="docs", append_cursorrules=cursorrules)
+                _run_generate_guidance(
+                    output_dir="docs", append_cursorrules=cursorrules)
                 return
             use_case = InitProjectUseCase(deps.scaffolder, deps.telemetry)
             use_case.execute(template=template, check_layers=check_layers)
             if not skip_guidance:
-                _run_generate_guidance(output_dir="docs", append_cursorrules=cursorrules)
+                _run_generate_guidance(
+                    output_dir="docs", append_cursorrules=cursorrules)
 
         @app.command(name="plan")
         def plan_cmd(
@@ -588,7 +594,8 @@ class CLIAppFactory:
                     if rule_ids:
                         deps.telemetry.step(
                             "Pass a rule_id to generate a fix plan. Rule IDs from your last run:")
-                        deps.telemetry.step("  " + ", ".join(rule_ids[:20]) + (" ..." if len(rule_ids) > 20 else ""))
+                        deps.telemetry.step(
+                            "  " + ", ".join(rule_ids[:20]) + (" ..." if len(rule_ids) > 20 else ""))
                         deps.telemetry.step(
                             "  Example: excelsior plan W9004")
                     else:
@@ -647,7 +654,8 @@ class CLIAppFactory:
                         f"References: {', '.join(entry['references'])}")
                 if explain_only:
                     return
-                rule_id = rule_code if rule_code.startswith("excelsior.") else f"excelsior.{rule_code}"
+                rule_id = rule_code if rule_code.startswith(
+                    "excelsior.") else f"excelsior.{rule_code}"
                 handover_key = f"{source}/ai_handover.json" if source else "ai_handover.json"
                 if not deps.artifact_storage.exists(handover_key):
                     deps.telemetry.step(
@@ -688,7 +696,8 @@ class CLIAppFactory:
 
         @app.command()
         def verify(
-            path: Path | None = typer.Argument(None, help="Path to verify (default: current directory)"),
+            path: Path | None = typer.Argument(
+                None, help="Path to verify (default: current directory)"),
             baseline: bool = typer.Option(
                 False, "--baseline", help="Save current check+health as baseline to .excelsior/verify/baseline.json",
             ),
@@ -723,7 +732,8 @@ class CLIAppFactory:
             )
             if score is None and hasattr(health_report, "summary"):
                 summary = health_report.summary
-                score = getattr(summary, "health_score", None) if hasattr(summary, "health_score") else None
+                score = getattr(summary, "health_score", None) if hasattr(
+                    summary, "health_score") else None
             current_blueprint = {
                 "total_violations": total,
                 "health_score": float(score) if score is not None else None,
@@ -754,9 +764,11 @@ class CLIAppFactory:
             delta = total - prev_total
             deps.telemetry.step("Comparing to baseline...")
             print("\n--- Verify (before vs after) ---")
-            print(f"  total_violations: {prev_total} -> {total} (delta: {delta:+d})")
+            print(
+                f"  total_violations: {prev_total} -> {total} (delta: {delta:+d})")
             if prev_score is not None and current_blueprint.get("health_score") is not None:
-                print(f"  health_score:     {prev_score} -> {current_blueprint['health_score']}")
+                print(
+                    f"  health_score:     {prev_score} -> {current_blueprint['health_score']}")
             print("--------------------------------\n")
             if delta > 0:
                 sys.exit(1)

@@ -27,7 +27,8 @@ class TestSnowflakeStreamlitRenderer(unittest.TestCase):
             with self.assertRaises(RuntimeError) as ctx:
                 self.renderer.render_health_report(self.mock_report)
             self.assertIn("Streamlit is required", str(ctx.exception))
-            self.assertIn("pip install excelsior[snowflake]", str(ctx.exception))
+            self.assertIn(
+                "pip install excelsior[snowflake]", str(ctx.exception))
 
     def test_render_health_report_raises_not_implemented_when_streamlit_installed(
         self,
@@ -37,38 +38,44 @@ class TestSnowflakeStreamlitRenderer(unittest.TestCase):
         with patch.dict("sys.modules", {"streamlit": MagicMock()}):
             with self.assertRaises(NotImplementedError) as ctx:
                 self.renderer.render_health_report(self.mock_report)
-            self.assertIn("SnowflakeStreamlitRenderer.render_health_report is a stub", str(ctx.exception))
+            self.assertIn(
+                "SnowflakeStreamlitRenderer.render_health_report is a stub", str(ctx.exception))
 
     def test_render_health_report_with_format_parameter(self) -> None:
         """render_health_report() accepts format parameter."""
         with patch.dict("sys.modules", {"streamlit": MagicMock()}):
             with self.assertRaises(NotImplementedError):
-                self.renderer.render_health_report(self.mock_report, format="json")
+                self.renderer.render_health_report(
+                    self.mock_report, format="json")
 
     def test_render_health_report_with_mode_parameter(self) -> None:
         """render_health_report() accepts mode parameter."""
         with patch.dict("sys.modules", {"streamlit": MagicMock()}):
             with self.assertRaises(NotImplementedError):
-                self.renderer.render_health_report(self.mock_report, mode="detailed")
+                self.renderer.render_health_report(
+                    self.mock_report, mode="detailed")
 
     def test_render_health_report_with_both_parameters(self) -> None:
         """render_health_report() accepts both format and mode parameters."""
         with patch.dict("sys.modules", {"streamlit": MagicMock()}):
             with self.assertRaises(NotImplementedError):
-                self.renderer.render_health_report(self.mock_report, format="json", mode="detailed")
+                self.renderer.render_health_report(
+                    self.mock_report, format="json", mode="detailed")
 
     def test_render_violations_raises_not_implemented(self) -> None:
         """render_violations() raises NotImplementedError."""
         violations = [MagicMock(spec=ViolationWithFixInfo)]
         with self.assertRaises(NotImplementedError) as ctx:
             self.renderer.render_violations(violations)
-        self.assertIn("SnowflakeStreamlitRenderer.render_violations is a stub", str(ctx.exception))
+        self.assertIn(
+            "SnowflakeStreamlitRenderer.render_violations is a stub", str(ctx.exception))
 
     def test_render_status_raises_not_implemented(self) -> None:
         """render_status() raises NotImplementedError."""
         with self.assertRaises(NotImplementedError) as ctx:
             self.renderer.render_status("Test message")
-        self.assertIn("SnowflakeStreamlitRenderer.render_status is a stub", str(ctx.exception))
+        self.assertIn(
+            "SnowflakeStreamlitRenderer.render_status is a stub", str(ctx.exception))
 
     def test_render_status_with_level_parameter(self) -> None:
         """render_status() accepts level parameter."""

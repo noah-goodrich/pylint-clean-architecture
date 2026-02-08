@@ -204,7 +204,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].affected_files, ["src/aaa.py", "src/zzz.py"])
+        self.assertEqual(findings[0].affected_files, [
+                         "src/aaa.py", "src/zzz.py"])
 
     def test_cluster_uses_registry_for_title(self) -> None:
         """cluster() uses guidance service to get display name for title."""
@@ -322,7 +323,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].learn_more, "https://docs.example.com/w9004")
+        self.assertEqual(findings[0].learn_more,
+                         "https://docs.example.com/w9004")
 
     def test_cluster_uses_default_learn_more_when_no_references(self) -> None:
         """cluster() uses default learn_more when no references in registry."""
@@ -364,7 +366,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].eli5_description, "Domain should be pure like math")
+        self.assertEqual(findings[0].eli5_description,
+                         "Domain should be pure like math")
 
     def test_cluster_handles_empty_eli5(self) -> None:
         """cluster() returns empty string for eli5 when not in registry."""
@@ -407,7 +410,8 @@ class TestViolationClusterer(unittest.TestCase):
         findings = self.clusterer.cluster(audit_result)
 
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].violation_count, 1)  # Falls back to item count
+        # Falls back to item count
+        self.assertEqual(findings[0].violation_count, 1)
 
     def test_cluster_handles_location_without_colon(self) -> None:
         """cluster() handles location strings without line/column info."""
@@ -471,7 +475,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].impact, "Prevents portability; violates dependency rule.")
+        self.assertEqual(
+            findings[0].impact, "Prevents portability; violates dependency rule.")
 
     def test_cluster_impact_for_w9006(self) -> None:
         """cluster() returns correct impact string for W9006."""
@@ -492,7 +497,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].impact, "Tight coupling; harder to test and change.")
+        self.assertEqual(findings[0].impact,
+                         "Tight coupling; harder to test and change.")
 
     def test_cluster_impact_for_w9010(self) -> None:
         """cluster() returns correct impact string for W9010."""
@@ -513,7 +519,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].impact, "Low cohesion; harder to maintain and extend.")
+        self.assertEqual(
+            findings[0].impact, "Low cohesion; harder to maintain and extend.")
 
     def test_cluster_impact_for_w9201(self) -> None:
         """cluster() returns correct impact string for W9201."""
@@ -534,7 +541,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].impact, "Contract violations; abstraction leaks.")
+        self.assertEqual(findings[0].impact,
+                         "Contract violations; abstraction leaks.")
 
     def test_cluster_impact_for_w9017(self) -> None:
         """cluster() returns correct impact string for W9017."""
@@ -576,7 +584,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].impact, "Maintenance burden; fix in one place may be missed elsewhere.")
+        self.assertEqual(
+            findings[0].impact, "Maintenance burden; fix in one place may be missed elsewhere.")
 
     def test_cluster_impact_for_unknown_code(self) -> None:
         """cluster() returns generic impact string for unknown codes."""
@@ -597,7 +606,8 @@ class TestViolationClusterer(unittest.TestCase):
         )
         findings = self.clusterer.cluster(audit_result)
 
-        self.assertEqual(findings[0].impact, "Architectural or quality concern.")
+        self.assertEqual(findings[0].impact,
+                         "Architectural or quality concern.")
 
 
 class TestDesignPatternDecisionTree(unittest.TestCase):
@@ -619,7 +629,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Domain Dependency",
             root_cause="Domain uses framework",
             impact="High",
-            score=FindingScore.compute(reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
             violation_codes=["W9004"],
             affected_files=["src/domain/user.py"],
             violation_count=1,
@@ -632,7 +643,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
         self.assertEqual(len(patterns), 1)
         self.assertEqual(patterns[0].pattern, "Adapter")
         self.assertEqual(patterns[0].category, "structural")
-        self.assertIn("Domain/use-case layer uses framework", patterns[0].trigger)
+        self.assertIn("Domain/use-case layer uses framework",
+                      patterns[0].trigger)
         self.assertEqual(enriched[0].pattern_recommendation, patterns[0])
 
     def test_recommend_facade_for_w9006(self) -> None:
@@ -642,7 +654,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Law of Demeter",
             root_cause="Chained access",
             impact="Medium",
-            score=FindingScore.compute(reach=30.0, impact=6.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=30.0, impact=6.0, confidence=0.9, effort=3.0),
             violation_codes=["W9006"],
             affected_files=["src/interface/cli.py"],
             violation_count=1,
@@ -664,7 +677,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="God File",
             root_cause="Too many responsibilities",
             impact="High",
-            score=FindingScore.compute(reach=50.0, impact=7.0, confidence=0.85, effort=5.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=7.0, confidence=0.85, effort=5.0),
             violation_codes=["W9010"],
             affected_files=["src/interface/cli.py"],
             violation_count=1,
@@ -685,7 +699,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Contract Violation",
             root_cause="Missing protocol implementation",
             impact="High",
-            score=FindingScore.compute(reach=40.0, impact=8.0, confidence=0.95, effort=3.0),
+            score=FindingScore.compute(
+                reach=40.0, impact=8.0, confidence=0.95, effort=3.0),
             violation_codes=["W9201"],
             affected_files=["src/infrastructure/repo.py"],
             violation_count=1,
@@ -697,7 +712,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
 
         self.assertEqual(len(patterns), 1)
         self.assertEqual(patterns[0].pattern, "Adapter")
-        self.assertIn("Infrastructure class does not implement domain protocol", patterns[0].trigger)
+        self.assertIn(
+            "Infrastructure class does not implement domain protocol", patterns[0].trigger)
 
     def test_recommend_none_for_unknown_code(self) -> None:
         """recommend() returns no pattern for unrecognized violation codes."""
@@ -706,7 +722,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Unknown Issue",
             root_cause="Something",
             impact="Low",
-            score=FindingScore.compute(reach=10.0, impact=3.0, confidence=0.7, effort=2.0),
+            score=FindingScore.compute(
+                reach=10.0, impact=3.0, confidence=0.7, effort=2.0),
             violation_codes=["UNKNOWN"],
             affected_files=["src/test.py"],
             violation_count=1,
@@ -726,7 +743,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Domain Dependency",
             root_cause="Domain uses framework",
             impact="High",
-            score=FindingScore.compute(reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
             violation_codes=["W9004"],
             affected_files=["src/domain/user.py", "src/domain/order.py"],
             violation_count=5,
@@ -751,7 +769,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Domain Dependency",
             root_cause="Domain uses framework",
             impact="High",
-            score=FindingScore.compute(reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
             violation_codes=["W9004"],
             affected_files=[f"src/file{i}.py" for i in range(10)],
             violation_count=10,
@@ -770,7 +789,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Domain Dependency",
             root_cause="Domain uses framework",
             impact="High",
-            score=FindingScore.compute(reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
             violation_codes=["W9004"],
             affected_files=["src/domain/user.py"],
             violation_count=1,
@@ -783,7 +803,8 @@ class TestDesignPatternDecisionTree(unittest.TestCase):
             title="Law of Demeter",
             root_cause="Chained access",
             impact="Medium",
-            score=FindingScore.compute(reach=30.0, impact=6.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=30.0, impact=6.0, confidence=0.9, effort=3.0),
             violation_codes=["W9006"],
             affected_files=["src/interface/cli.py"],
             violation_count=1,
@@ -824,7 +845,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Medium",
-            score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
             violation_codes=["TEST"],
             affected_files=["src/test.py"],
             violation_count=10,
@@ -848,7 +870,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Low",
-            score=FindingScore.compute(reach=10.0, impact=3.0, confidence=0.8, effort=2.0),
+            score=FindingScore.compute(
+                reach=10.0, impact=3.0, confidence=0.8, effort=2.0),
             violation_codes=["TEST"],
             affected_files=["src/test.py"],
             violation_count=1,
@@ -872,7 +895,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Medium",
-            score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
             violation_codes=["TEST"],
             affected_files=["src/domain/user.py", "src/interface/cli.py"],
             violation_count=2,
@@ -900,7 +924,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Medium",
-            score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
             violation_codes=["TEST"],
             affected_files=["src/domain/user.py", "src/domain/order.py"],
             violation_count=10,
@@ -920,7 +945,8 @@ class TestHealthScorer(unittest.TestCase):
         self.assertEqual(len(layer_health), 1)
         self.assertEqual(layer_health[0].file_count, 2)
         self.assertEqual(layer_health[0].violation_count, 10)
-        self.assertEqual(layer_health[0].violation_density, 5.0)  # 10 violations / 2 files
+        # 10 violations / 2 files
+        self.assertEqual(layer_health[0].violation_density, 5.0)
 
     def test_score_includes_hotspot_files(self) -> None:
         """score() includes up to 5 hotspot files per layer."""
@@ -929,7 +955,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Medium",
-            score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
             violation_codes=["TEST"],
             affected_files=[f"src/file{i}.py" for i in range(10)],
             violation_count=10,
@@ -954,7 +981,8 @@ class TestHealthScorer(unittest.TestCase):
                 title="Test",
                 root_cause="Test",
                 impact="Medium",
-                score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+                score=FindingScore.compute(
+                    reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
                 violation_codes=["TEST"],
                 affected_files=["src/domain/user.py"],
                 violation_count=1,
@@ -979,7 +1007,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="High",
-            score=FindingScore.compute(reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=8.0, confidence=0.9, effort=4.0),
             violation_codes=["W9004"],
             affected_files=["src/domain/user.py"],
             violation_count=1,
@@ -1003,7 +1032,8 @@ class TestHealthScorer(unittest.TestCase):
                 title="Test",
                 root_cause="Test",
                 impact="Critical",
-                score=FindingScore.compute(reach=100.0, impact=10.0, confidence=0.95, effort=5.0),
+                score=FindingScore.compute(
+                    reach=100.0, impact=10.0, confidence=0.95, effort=5.0),
                 violation_codes=["TEST"],
                 affected_files=[f"src/file{i}.py"],
                 violation_count=1,
@@ -1028,7 +1058,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Critical",
-            score=FindingScore.compute(reach=100.0, impact=10.0, confidence=0.95, effort=5.0),
+            score=FindingScore.compute(
+                reach=100.0, impact=10.0, confidence=0.95, effort=5.0),
             violation_codes=["TEST"],
             affected_files=["src/test.py"],
             violation_count=1,
@@ -1051,7 +1082,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Low",
-            score=FindingScore.compute(reach=10.0, impact=3.0, confidence=0.8, effort=2.0),
+            score=FindingScore.compute(
+                reach=10.0, impact=3.0, confidence=0.8, effort=2.0),
             violation_codes=["TEST"],
             affected_files=["src/test.py"],
             violation_count=35,
@@ -1074,7 +1106,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Low",
-            score=FindingScore.compute(reach=10.0, impact=3.0, confidence=0.8, effort=2.0),
+            score=FindingScore.compute(
+                reach=10.0, impact=3.0, confidence=0.8, effort=2.0),
             violation_codes=["TEST"],
             affected_files=["src/test.py"],
             violation_count=5,
@@ -1097,7 +1130,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Medium",
-            score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
             violation_codes=["TEST"],
             affected_files=["src/mystery.py"],
             violation_count=1,
@@ -1121,7 +1155,8 @@ class TestHealthScorer(unittest.TestCase):
             title="Test",
             root_cause="Test",
             impact="Medium",
-            score=FindingScore.compute(reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
+            score=FindingScore.compute(
+                reach=50.0, impact=5.0, confidence=0.9, effort=3.0),
             violation_codes=["TEST"],
             affected_files=["src/domain/subdir/user.py"],
             violation_count=1,

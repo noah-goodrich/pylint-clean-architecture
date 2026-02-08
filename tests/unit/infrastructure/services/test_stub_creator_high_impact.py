@@ -26,7 +26,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         result.code = "W9019"
         result.message = "Dependency mymodule is uninferable in src/foo.py:10"
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, {"mymodule"})
 
@@ -35,16 +35,17 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result1 = MagicMock()
         result1.code = "W9019"
         result1.message = "Dependency requests is uninferable"
-        
+
         result2 = MagicMock()
         result2.code = "W9019"
         result2.message = "Dependency sqlalchemy is uninferable"
-        
+
         result3 = MagicMock()
         result3.code = "W9019"
         result3.message = "Dependency requests is uninferable"  # Duplicate
-        
-        modules = self.service.extract_w9019_modules([result1, result2, result3])
+
+        modules = self.service.extract_w9019_modules(
+            [result1, result2, result3])
         self.assertEqual(modules, {"requests", "sqlalchemy"})
 
     def test_extract_w9019_modules_ignores_non_w9019_codes(self) -> None:
@@ -52,11 +53,11 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result1 = MagicMock()
         result1.code = "W9019"
         result1.message = "Dependency mymodule is uninferable"
-        
+
         result2 = MagicMock()
         result2.code = "W9001"
         result2.message = "Dependency other is uninferable"
-        
+
         modules = self.service.extract_w9019_modules([result1, result2])
         self.assertEqual(modules, {"mymodule"})
 
@@ -65,7 +66,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         del result.code  # Remove code attribute
         result.message = "Dependency mymodule is uninferable"
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, set())
 
@@ -74,7 +75,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         result.code = "W9019"
         result.message = None
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, set())
 
@@ -83,7 +84,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         result.code = "W9019"
         result.message = ""
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, set())
 
@@ -92,7 +93,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         result.code = "W9019"
         result.message = "Something else entirely"
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, set())
 
@@ -101,7 +102,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         result.code = "W9019"
         result.message = "Dependency my.package.module is uninferable"
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, {"my.package.module"})
 
@@ -110,7 +111,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         result.code = "W9019"
         result.message = "Dependency   mymodule   is uninferable"
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, {"mymodule"})
 
@@ -119,7 +120,7 @@ class TestStubCreatorServiceExtractW9019Modules(unittest.TestCase):
         result = MagicMock()
         result.code = "W9019"
         result.message = "DEPENDENCY mymodule IS UNINFERABLE"
-        
+
         modules = self.service.extract_w9019_modules([result])
         self.assertEqual(modules, {"mymodule"})
 
@@ -143,10 +144,10 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         self.assertTrue(success)
         self.assertEqual(msg, "minimal")
-        
+
         stub_path = self.project_root / "stubs" / "mymodule.pyi"
         self.assertTrue(stub_path.exists())
         content = stub_path.read_text()
@@ -160,9 +161,9 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         self.assertTrue(success)
-        
+
         stub_path = self.project_root / "stubs" / "my" / "nested" / "module.pyi"
         self.assertTrue(stub_path.exists())
 
@@ -174,7 +175,7 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         # Try to create again
         success, msg = self.service.create_stub(
             "existing_module",
@@ -182,7 +183,7 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
             use_stubgen=False,
             overwrite=False,
         )
-        
+
         self.assertFalse(success)
         self.assertEqual(msg, "exists")
 
@@ -192,7 +193,7 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         stub_path = self.project_root / "stubs" / "module.pyi"
         stub_path.parent.mkdir(parents=True, exist_ok=True)
         stub_path.write_text("# Old content")
-        
+
         # Overwrite
         success, msg = self.service.create_stub(
             "module",
@@ -200,7 +201,7 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
             use_stubgen=False,
             overwrite=True,
         )
-        
+
         self.assertTrue(success)
         content = stub_path.read_text()
         self.assertNotIn("Old content", content)
@@ -215,7 +216,7 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         mock_result.stderr = ""
         mock_result.stdout = ""
         mock_run.return_value = mock_result
-        
+
         # Need to actually create the file that stubgen would create
         def side_effect(*args, **kwargs):
             # Extract temp directory from command args
@@ -223,18 +224,18 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
             stub_file = out_dir / "testmodule.pyi"
             stub_file.write_text("# Generated by stubgen")
             return mock_result
-        
+
         mock_run.side_effect = side_effect
-        
+
         success, msg = self.service.create_stub(
             "testmodule",
             str(self.project_root),
             use_stubgen=True,
         )
-        
+
         self.assertTrue(success)
         self.assertEqual(msg, "stubgen")
-        
+
         # Verify stubgen was called
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]
@@ -249,17 +250,17 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         mock_result.returncode = 1
         mock_result.stderr = "stubgen error"
         mock_run.return_value = mock_result
-        
+
         success, msg = self.service.create_stub(
             "failmodule",
             str(self.project_root),
             use_stubgen=True,
         )
-        
+
         # Should still succeed with minimal stub
         self.assertTrue(success)
         self.assertEqual(msg, "minimal")
-        
+
         stub_path = self.project_root / "stubs" / "failmodule.pyi"
         self.assertTrue(stub_path.exists())
 
@@ -268,13 +269,13 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         """create_stub() handles subprocess timeout gracefully."""
         import subprocess
         mock_run.side_effect = subprocess.TimeoutExpired("cmd", 60)
-        
+
         success, msg = self.service.create_stub(
             "slowmodule",
             str(self.project_root),
             use_stubgen=True,
         )
-        
+
         # Should fall back to minimal
         self.assertTrue(success)
         self.assertEqual(msg, "minimal")
@@ -283,13 +284,13 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
     def test_create_stub_handles_stubgen_not_found(self, mock_run: MagicMock) -> None:
         """create_stub() handles missing stubgen executable."""
         mock_run.side_effect = FileNotFoundError("stubgen not found")
-        
+
         success, msg = self.service.create_stub(
             "notstubgen",
             str(self.project_root),
             use_stubgen=True,
         )
-        
+
         # Should fall back to minimal
         self.assertTrue(success)
         self.assertEqual(msg, "minimal")
@@ -298,13 +299,13 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         """create_stub() ensures mypy_path includes stubs directory."""
         pyproject = self.project_root / "pyproject.toml"
         pyproject.write_text("[build-system]\nrequires = ['setuptools']\n")
-        
+
         self.service.create_stub(
             "module",
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         content = pyproject.read_text()
         self.assertIn("[tool.mypy]", content)
         self.assertIn('mypy_path = "stubs"', content)
@@ -313,13 +314,13 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         """create_stub() adds mypy_path to existing [tool.mypy] section."""
         pyproject = self.project_root / "pyproject.toml"
         pyproject.write_text("[tool.mypy]\nstrict = true\n")
-        
+
         self.service.create_stub(
             "module",
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         content = pyproject.read_text()
         self.assertIn("mypy_path", content)
         self.assertIn("stubs", content)
@@ -330,13 +331,13 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         import os
         pyproject = self.project_root / "pyproject.toml"
         pyproject.write_text('[tool.mypy]\nmypy_path = "typings"\n')
-        
+
         self.service.create_stub(
             "module",
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         content = pyproject.read_text()
         self.assertIn("mypy_path", content)
         # Should have both typings and stubs
@@ -351,13 +352,13 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         pyproject = self.project_root / "pyproject.toml"
         original = '[tool.mypy]\nmypy_path = "stubs"\n'
         pyproject.write_text(original)
-        
+
         self.service.create_stub(
             "module",
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         content = pyproject.read_text()
         # Count occurrences of "stubs" - should only be once in mypy_path
         self.assertEqual(content.count('"stubs"'), 1)
@@ -368,16 +369,16 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         pyproject = self.project_root / "pyproject.toml"
         if pyproject.exists():
             pyproject.unlink()
-        
+
         # Should still succeed
         success, msg = self.service.create_stub(
             "module",
             str(self.project_root),
             use_stubgen=False,
         )
-        
+
         self.assertTrue(success)
-        
+
         # pyproject.toml should not be created by stub_creator
         # (it should only modify if it exists)
         # Actually, looking at the code, it does create it
@@ -393,7 +394,7 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_run.return_value = mock_result
-        
+
         def side_effect(*args, **kwargs):
             out_dir = Path(args[0][args[0].index("-o") + 1])
             # Nested module: my.nested.module
@@ -401,15 +402,15 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
             nested_path.mkdir(parents=True, exist_ok=True)
             (nested_path / "module.pyi").write_text("# Nested stub")
             return mock_result
-        
+
         mock_run.side_effect = side_effect
-        
+
         success, msg = self.service.create_stub(
             "my.nested.module",
             str(self.project_root),
             use_stubgen=True,
         )
-        
+
         self.assertTrue(success)
         stub_path = self.project_root / "stubs" / "my" / "nested" / "module.pyi"
         self.assertTrue(stub_path.exists())
@@ -420,13 +421,14 @@ class TestStubCreatorServiceCreateStub(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_run.return_value = mock_result
-        
+
         # Don't create any file - stubgen "succeeded" but produced nothing
-        
+
         stubs_dir = self.project_root / "stubs"
         final_stub = stubs_dir / "module.pyi"
-        
-        success, msg = self.service._run_stubgen("module", stubs_dir, final_stub)
-        
+
+        success, msg = self.service._run_stubgen(
+            "module", stubs_dir, final_stub)
+
         self.assertFalse(success)
         self.assertEqual(msg, "stubgen produced no .pyi")
