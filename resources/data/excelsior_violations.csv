@@ -1,0 +1,36 @@
+Tool,Code,Name,Description,Common Solution
+Excelsior,W9001,Illegal Dependency,Inner layer importing Outer layer.,Dependency Inversion: Create Protocol in Domain.
+Excelsior,W9003,Protected Member Access,Outer layer accessing _member of inner layer.,Facade: Expose a public method.
+Excelsior,W9004,Forbidden I/O,I/O detected in Domain/UseCase layer.,Adapter: Move to Infrastructure.
+Excelsior,W9005,Delegation Anti-Pattern,Brittle if/elif for command dispatching.,Command/Strategy: Use a registry/map.
+Excelsior,W9006,Law of Demeter,Chain access (a.b.c) exceeding one level.,Facade: Encapsulate the chain.
+Excelsior,W9007,Naked Return,Raw data object returned from Repository.,Mapping: Return a Domain Entity.
+Excelsior,W9009,Missing Abstraction,UseCase holds reference to raw infra types.,Protocol: Use an interface.
+Excelsior,W9010,God File Violation,File is too large or contains mixed layers.,Splitting: Segregate into focused files.
+Excelsior,W9011,Deep Structure,Module in project root instead of sub-package.,Organization: Move to core/ or layer.
+Excelsior,W9012,Defensive None Check,Core logic checking for None.,Validation: Validate at the Interface layer.
+Excelsior,W9013,Illegal I/O (Silent Core),Direct print/log in Domain/UseCase.,Telemetry Port: Inject a logger protocol.
+Excelsior,W9014,UI Concern in Domain,ANSI codes or formatting in Domain logic.,Display Port: Inject formatting protocol.
+Excelsior,W9015,Missing Type Hint,Parameter/Return missing type annotation.,Type Hinting: Add PEP 484 annotations.
+Excelsior,W9016,Banned Any,Use of typing.Any detected.,Narrowing: Use Union or Protocol.
+Excelsior,W9017,Layer Integrity,File not mapped to a layer.,Mapping: Move to defined package.
+Excelsior,W9018,Top-Level Functions,Function exists outside of a Class.,Encapsulation: Move to Service/Entity.
+Excelsior,W9019,Unstable Dependency,External library call that cannot be inferred.,Stubs: Create .pyi file in stubs/.
+Excelsior,W9020,Global State,Use of global keyword.,DI: Pass state via constructor.
+Excelsior,W9101,Fragile Test Mocks,Mock count > 4 in a test.,Fake/Stub: Use a Protocol implementation.
+Excelsior,W9102,Private Method Test,Test directly calling _method.,Integration: Test via the public API.
+Excelsior,W9201,Contract Integrity,Infra class not inheriting from Domain Protocol.,Inheritance: Ensure implements(Protocol).
+Excelsior,W9202,Concrete Method Stub,Method implementation is just pass.,Implementation: Complete the logic.
+Excelsior,W9301,DI Violation,Direct instantiation in UseCase.,Injection: Pass instance to init.
+Excelsior,W9601,Domain Immutability,Attribute assignment in Domain.,Frozen: Use @dataclass(frozen=True).
+Excelsior,W9030,Entropy (Scatter),Duplicate identifiers across multiple files.,Consolidation: Move to domain/constants.py.
+Excelsior,W9032,Method Complexity,Cyclomatic complexity > threshold.,Extraction: Split into smaller methods.
+Excelsior,W9033,Interface Segregation,Protocol has 5+ methods.,Segregation: Split into focused protocols.
+Excelsior,W9034,Constructor Injection,init typed to concrete class.,Protocol: Type to an Interface.
+Excelsior,W9035,Exception Hygiene,Bare except: block.,Narrowing: Catch specific Exception.
+Excelsior,W9041,Builder Suggestion,Class has 6+ parameters.,Implement Builder pattern.
+Excelsior,W9042,Factory Suggestion,if/elif instantiating different classes.,Implement Factory pattern.
+Excelsior,W9043,Strategy Suggestion,if/elif chain selecting behavior.,Implement Strategy pattern.
+Excelsior,W9044,State Suggestion,Multiple methods checking same attribute.,Implement State pattern.
+Excelsior,W9045,Facade Suggestion,Method calls 5+ dependencies.,Implement Facade pattern.
+Excelsior,W9501,Anti-Bypass,Bypass of architectural checks.,Resolve coupling or justify.

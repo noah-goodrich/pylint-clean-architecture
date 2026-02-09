@@ -556,6 +556,9 @@ class CLIAppFactory:
             if not skip_guidance:
                 _run_generate_guidance(
                     output_dir="docs", append_cursorrules=cursorrules)
+            from excelsior_architect.infrastructure.bootstrapper import bootstrap_sae
+            bootstrap_sae()
+            return
 
         @app.command(name="plan")
         def plan_cmd(

@@ -1,0 +1,89 @@
+version: "2.0"
+metadata:
+  title: "SAE Strategic Decision Matrix"
+  description: "Deterministic OO Pattern Mapping based on Alina Kovtun's Tree"
+
+branches:
+  creational:
+    name: "Object Creation Logic"
+    pain_points:
+      - "Constructors are growing too long"
+      - "Multiple classes instantiated in if/else blocks"
+      - "Global variables used for shared resources"
+    nodes:
+      - id: "SINGLETON"
+        pattern: "Singleton"
+        violations: ["W9020", "PLW0603"]
+        rationale: "Ensures exactly one instance for stateless shared resources (Loggers, Config)."
+        implementation: ["Ensure class is stateless", "Override __new__ for process-wide access"]
+
+      - id: "BUILDER"
+        pattern: "Builder"
+        violations: ["W9041", "PLR0913"]
+        rationale: "Manages complex construction with 6+ parameters or optional permutations."
+        implementation: ["Create class {name}Builder", "Move validation to .build()"]
+
+      - id: "FACTORY"
+        pattern: "Factory"
+        violations: ["W9042", "W9301"]
+        rationale: "Centralizes implementation selection based on configuration or context strings."
+        implementation: ["Define base Protocol", "Create {name}Factory.create(type_key: str)"]
+
+  structural:
+    name: "Boundaries and Composition"
+    pain_points:
+      - "External APIs (Snowflake, AWS) leaking into business logic"
+      - "Deep chained attribute access (a.b.c.d)"
+      - "Classes doing too many unrelated things"
+    nodes:
+      - id: "ADAPTER"
+        pattern: "Adapter"
+        violations: ["W9004", "W9013", "W9019", "W9201", "import-error"]
+        rationale: "Bridges incompatible interfaces and protects domain from vendor-specific libraries."
+        implementation:
+          - "Create Domain Protocol in src/domain/protocols.py"
+          - "Implement Infrastructure Adapter in src/infrastructure/adapters/"
+          - "Inject Protocol into the target Service"
+
+      - id: "FACADE"
+        pattern: "Facade"
+        violations: ["W9006", "W9045", "W9010", "C901"]
+        rationale: "Simplifies interaction with complex subsystems or long attribute chains."
+        implementation: ["Analyze the multi-step interaction", "Wrap the subsystem in a single entry-point class"]
+
+      - id: "DECORATOR"
+        pattern: "Decorator"
+        violations: ["W9010", "W9101"]
+        rationale: "Adds cross-cutting concerns (logging, retries, auth) without subclass explosion."
+        implementation: ["Wrap target class", "Maintain method signatures", "Pass calls through"]
+
+      - id: "PROXY"
+        pattern: "Proxy"
+        violations: ["W9010", "W9013"]
+        rationale: "Controls access or provides lazy loading for expensive infrastructure resources."
+        implementation: ["Create stand-in class", "Manage lifecycle of the underlying heavy object"]
+
+  behavioral:
+    name: "Business Logic and Workflows"
+    pain_points:
+      - "Methods containing massive if/elif/else chains"
+      - "Logic changes frequently per environment or customer"
+      - "State transitions managed manually across many methods"
+    nodes:
+      - id: "STRATEGY"
+        pattern: "Strategy"
+        violations: ["W9043", "W9015", "W9005", "SIM102", "PLR0912"]
+        rationale: "Extracts interchangeable algorithms, keeping the caller stable while logic varies."
+        implementation: ["Extract branches into separate Strategy classes", "Inject active strategy"]
+
+      - id: "STATE"
+        pattern: "State"
+        violations: ["W9044", "W9015"]
+        rationale: "Manages behavior that is strictly driven by the current object status."
+        implementation: ["Define State interface", "Implement concrete State classes for transitions"]
+
+      - id: "COMMAND"
+        pattern: "Command"
+        violations: ["W9010", "W9045", "W9005"]
+        rationale: "Turns requests into objects for queuing, undo, or complex orchestration."
+        implementation: ["Encapsulate logic in .execute()", "Move orchestration to a Commander/Invoker"]

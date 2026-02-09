@@ -261,7 +261,7 @@ def update_cache(key, value):
 class CacheService:
     def __init__(self):
         self._cache: dict[str, Any] = {}
-    
+
     def update(self, key: str, value: Any) -> None:
         self._cache[key] = value
 ```
@@ -479,7 +479,7 @@ class ReportFactory:
         "html": HTMLReport,
         "csv": CSVReport,
     }
-    
+
     def create(self, report_type: str, data: dict) -> Report:
         creator = self._creators.get(report_type)
         if not creator:
@@ -529,7 +529,7 @@ class Order:
             # approve logic
         elif self.status == "approved":
             raise InvalidStateError()
-    
+
     def cancel(self):
         if self.status == "pending":
             # cancel logic
@@ -569,7 +569,7 @@ class OrderFacade:
     def __init__(self, user_svc, inv_svc, pay_svc, ship_svc, notif_svc):
         # Bundle related services
         pass
-    
+
     def process_complete_order(self, order_id: str) -> OrderResult:
         # Simplified interface
         pass
