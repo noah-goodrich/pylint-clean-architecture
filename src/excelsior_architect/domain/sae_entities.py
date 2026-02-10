@@ -1,5 +1,23 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, TypedDict
+
+
+class CodeSnippetDict(TypedDict, total=False):
+    """Shape of a code snippet for blueprint display."""
+
+    file_path: str
+    symbol_or_line: str
+    source: str
+
+
+class RecommendedStrategy(TypedDict):
+    """Graph gateway return type: pattern recommendation with affected files and score."""
+
+    pattern: str
+    rationale: str
+    affected_files: List[str]
+    violations: List[str]
+    score: int
 
 
 @dataclass(frozen=True)
@@ -17,6 +35,7 @@ class StrategicBlueprint:
     rationale: str
     affected_files: List[str]
     steps: List[RefactoringStep] = field(default_factory=list)
+    current_snippets: List[CodeSnippetDict] = field(default_factory=list)
 
     def to_markdown(self) -> str:
         lines = [
@@ -28,6 +47,23 @@ class StrategicBlueprint:
         ]
         for f in self.affected_files:
             lines.append(f"- `{f}`")
+
+        if self.current_snippets:
+            lines.extend(["", "## Current State (code to refactor)"])
+            seen: set[tuple[str, str]] = set()
+            for snip in self.current_snippets:
+                fp = snip.get("file_path", "")
+                sym = snip.get("symbol_or_line", "")
+                key = (fp, sym)
+                if key in seen:
+                    continue
+                seen.add(key)
+                src = snip.get("source", "")
+                display_path = fp.split("/")[-1] if "/" in fp else fp
+                lines.append(f"\n**`{display_path}`** — `{sym}`")
+                lines.append("```python")
+                lines.append(src)
+                lines.append("```")
 
         lines.extend(["", "## Implementation Plan"])
         current_phase = -1

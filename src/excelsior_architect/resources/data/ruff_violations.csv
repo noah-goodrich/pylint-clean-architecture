@@ -1,0 +1,28 @@
+Plugin,Code,Name,Description,Common Solution
+Airflow,AIR001,task-id-mismatch,Variable name mismatch task_id.,Rename variable.
+Airflow,AIR002,no-schedule-arg,DAG missing schedule.,Add schedule param.
+Eradicate,ERA001,commented-out-code,Found commented code.,Remove comments.
+FastAPI,FAST001,redundant-resp-model,Redundant response_model.,Remove redundant arg.
+Annotations,ANN001,missing-type-arg,Missing type hint.,Add annotation.
+Async,ASYNC100,no-checkpoint,cancel scope lacks await.,Add checkpoint.
+Bandit,S101,assert,Use of assert detected.,Replace with if/raise.
+Bandit,S307,eval-usage,Insecure eval usage.,Use ast.literal_eval.
+Bandit,S608,hardcoded-sql,SQL injection risk.,Use parameterized queries.
+Bugbear,B006,mutable-arg-def,Mutable default detected.,Use None as default.
+Builtins,A001,builtin-var-shadow,Shadowing builtin.,Rename variable.
+Comprehensions,C400,unnecessary-gen,Generator in list().,Use list comp directly.
+DateTimeZ,DTZ001,datetime-no-tz,Missing tzinfo.,Use aware datetime.
+ErrMsg,EM101,raw-str-exception,String in Exception.,Assign to variable.
+Namespace,INP001,implicit-namespace,Missing init.py.,Add init.py.
+Print,T201,print,print found.,Replace with logging.
+Pytest,PT001,fixture-parentheses,Fixture style mismatch.,Use @pytest.fixture().
+Return,RET504,unnecessary-assign,Assign before return.,Return directly.
+Simplify,SIM102,collapsible-if,Nested if statements.,Combine with and.
+Tidy-Imports,TID252,relative-imports,Relative import found.,Use absolute import.
+PathLib,PTH100,abspath,os.path.abspath found.,Use Path.resolve().
+McCabe,C901,complex-structure,Complexity too high.,Refactor (Facade).
+Naming,N801,invalid-class-name,Class not CapWords.,Rename to PascalCase.
+Pyflakes,F401,unused-import,Import unused.,Remove import.
+Pylint,PLR0913,too-many-args,Too many arguments.,Use Builder pattern.
+Refurb,FURB101,read-whole-file,Verbose file read.,Use Path.read_text().
+Ruff,RUF012,mutable-class-default,Missing ClassVar.,Add ClassVar.

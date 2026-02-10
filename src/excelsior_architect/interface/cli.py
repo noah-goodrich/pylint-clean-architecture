@@ -4,7 +4,10 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from excelsior_architect.domain.services.graph_ingestor import GraphIngestor
 
 import typer
 
@@ -16,8 +19,10 @@ from excelsior_architect.domain.protocols import (
     AuditTrailServiceProtocol,
     FileSystemProtocol,
     FixerGatewayProtocol,
+    GraphGatewayProtocol,
     GuidanceServiceProtocol,
     LinterAdapterProtocol,
+    SAEBootstrapperProtocol,
     ScaffolderProtocol,
     StubCreatorProtocol,
     TelemetryPort,
@@ -57,6 +62,9 @@ class CLIDependencies:
     guidance_service: GuidanceServiceProtocol
     stub_creator: StubCreatorProtocol
     violation_bridge: ViolationBridgeProtocol
+    sae_bootstrapper: SAEBootstrapperProtocol
+    graph_gateway: GraphGatewayProtocol
+    graph_ingestor: "GraphIngestor"
 
 
 class CLIAppFactory:
@@ -556,9 +564,69 @@ class CLIAppFactory:
             if not skip_guidance:
                 _run_generate_guidance(
                     output_dir="docs", append_cursorrules=cursorrules)
-            from excelsior_architect.infrastructure.bootstrapper import bootstrap_sae
-            bootstrap_sae()
+            deps.telemetry.step("Hydrating strategic knowledge graph...")
+            deps.sae_bootstrapper.bootstrap()
             return
+
+        @app.command()
+        def blueprint(
+            source: str = typer.Option(
+                "check", "--source", "-s", help="Source: check or health"),
+        ) -> None:
+            """Diagnose systemic architectural hotspots and suggest OO patterns using the Knowledge Graph."""
+            # #region agent log
+            import os, time
+            _log_path = os.environ.get("EXCELSIOR_DEBUG_LOG", "/development/.cursor/debug.log")
+            _log = lambda loc, msg, data, hid: open(_log_path, "a").write(json.dumps({"timestamp": int(time.time() * 1000), "location": loc, "message": msg, "data": data, "hypothesisId": hid}) + "\n")
+            try:
+                _log("cli.py:blueprint", "callback entered", {"source": source}, "H4")
+            except Exception:
+                pass
+            # #endregion
+            _session_start()
+            handover_key = f"{source}/ai_handover.json"
+            exists_result = deps.artifact_storage.exists(handover_key)
+            # #region agent log
+            _log("cli.py:blueprint", "exists check", {"handover_key": handover_key, "exists": exists_result, "cwd": str(Path.cwd())}, "H1")
+            # #endregion
+            if not exists_result:
+                # #region agent log
+                _log("cli.py:blueprint", "early return", {"reason": "exists False"}, "H1")
+                # #endregion
+                deps.telemetry.step(
+                    f"No results at {handover_key}. Run 'excelsior check' first.")
+                return
+            from excelsior_architect.infrastructure.services.code_snippet_extractor import (
+                CodeSnippetExtractor,
+            )
+            from excelsior_architect.use_cases.generate_blueprint import GenerateBlueprintUseCase
+            target_path = CLIAppFactory.resolve_target_path(None)
+            # #region agent log
+            _log("cli.py:blueprint", "before execute", {"target_path": target_path}, "H4")
+            # #endregion
+            snippet_extractor = CodeSnippetExtractor(
+                filesystem=deps.filesystem,
+                ast_protocol=deps.astroid_gateway,
+            )
+            use_case = GenerateBlueprintUseCase(
+                storage=deps.artifact_storage,
+                graph_gateway=deps.graph_gateway,
+                ingestor=deps.graph_ingestor,
+                telemetry=deps.telemetry,
+                snippet_extractor=snippet_extractor,
+            )
+            try:
+                blueprint_path = use_case.execute(source=source, root_dir=target_path)
+            except Exception as e:  # noqa: BLE001
+                # #region agent log
+                _log("cli.py:blueprint", "execute threw", {"type": type(e).__name__, "msg": str(e)}, "H2")
+                # #endregion
+                raise
+            # #region agent log
+            _log("cli.py:blueprint", "after execute", {"blueprint_path": blueprint_path}, "H4")
+            # #endregion
+            deps.telemetry.step(f"Strategic Blueprint ready: {blueprint_path}")
+            print(f"\nReport saved to .excelsior/{blueprint_path}")
 
         @app.command(name="plan")
         def plan_cmd(

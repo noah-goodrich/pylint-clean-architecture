@@ -1,0 +1,11 @@
+Branch,ID,Pattern,Question,Rationale,Violations,Implementation
+Creational,SINGLETON,Singleton,Do you truly need exactly one instance?,Stateless shared resources.,"W9020, PLW0603","Override new, zero state"
+Creational,BUILDER,Builder,Is construction complex?,Manage 6+ parameters.,"W9041, PLR0913","Create Builder class, fluent API"
+Creational,FACTORY,Factory,Choosing impl based on context?,Decouple caller from concrete types.,"W9042, W9301","Define Protocol, Create Factory"
+Structural,ADAPTER,Adapter,Bridging incompatible interfaces?,Protect domain from vendor APIs.,"W9004, W9019, W9201","Extract Protocol, Implement Adapter"
+Structural,FACADE,Facade,Subsystem too complex?,Hide chain access (a.b.c).,"W9006, W9045, C901","Wrap subsystem in entry point"
+Structural,DECORATOR,Decorator,Optional features without subclasses?,Add cross-cutting concerns (Logging).,"W9010, W9101","Wrap target, pass calls through"
+Structural,PROXY,Proxy,Need stand-in or lazy loading?,Control access to expensive resources.,"W9010, W9013","Create stand-in manager"
+Behavioral,STRATEGY,Strategy,Swap algorithms without caller change?,Vary logic by config or customer.,"W9043, W9015, SIM102","Extract algorithms, inject strategy"
+Behavioral,STATE,State,Behavior driven by object status?,Manage transitions explicitly.,"W9044, W9015","Define State interface, concrete classes"
+Behavioral,COMMAND,Command,Need to queue or undo?,Turn requests into objects.,"W9010, W9045","Encapsulate logic in .execute()"

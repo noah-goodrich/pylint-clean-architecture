@@ -1,0 +1,24 @@
+Tool,Code,Name,Description,Common Solution
+MyPy,type-arg,Missing Type Argument,Generic without member types.,Use list[int] or dict[str, Any].
+MyPy,no-untyped-def,Missing Annotation,Function missing type hints.,Add parameter and return type hints.
+MyPy,redundant-cast,Redundant Cast,Casting to current type.,Remove the cast() call.
+MyPy,redundant-self,Redundant Self,Explicit self annotation.,Remove the type hint from self.
+MyPy,comparison-overlap,Overlapping Comparison,Comparison always True/False.,Ensure types can overlap.
+MyPy,no-untyped-call,Untyped Call,Calling unannotated function.,Annotate target function.
+MyPy,no-any-return,Any Return,Returning Any instead of type.,Narrow return value type.
+MyPy,no-any-unimported,Any from Missing Import,Import resolution failure.,Install missing stubs.
+MyPy,unreachable,Unreachable Code,Dead code detected.,Remove or fix control flow.
+MyPy,deprecated,Deprecated Feature,Using PEP 702 deprecated items.,Switch to recommended replacement.
+MyPy,redundant-expr,Redundant Expression,Expression always true.,Remove redundant check.
+MyPy,possibly-undefined,Possibly Undefined,Variable path coverage issue.,Initialize with default value.
+MyPy,truthy-bool,Implicit Truthy,Missing bool in context.,Explicitly check is not None.
+MyPy,ignore-without-code,Naked Ignore,# type: ignore without code.,Add [error-code].
+MyPy,unused-awaitable,Unused Awaitable,Async result not awaited.,Add await keyword.
+MyPy,attr-defined,Attribute Existence,Attribute not defined.,Check typos or define attr.
+MyPy,arg-type,Incompatible Argument,Argument type mismatch.,Cast or refine input type.
+MyPy,assignment,Incompatible Assignment,Assigning wrong type.,Update type annotation.
+MyPy,union-attr,Union Attribute,Attr missing in Union item.,Use isinstance() to narrow.
+MyPy,call-arg,Call Argument Count,Wrong number of args.,Match function signature.
+MyPy,import-not-found,Module Not Found,Module/stub missing.,Install package or fix name.
+MyPy,func-returns-value,Returns None,Using result of None func.,Don't assign None results.
+MyPy,abstract,Abstract Instantiate,Instantiating ABC.,Implement abstract methods first.

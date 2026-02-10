@@ -40,6 +40,9 @@ def _make_mock_deps(**overrides) -> CLIDependencies:
         "guidance_service": Mock(),
         "stub_creator": Mock(),
         "violation_bridge": Mock(),
+        "sae_bootstrapper": Mock(),
+        "graph_gateway": Mock(),
+        "graph_ingestor": Mock(),
     }
     defaults.update(overrides)
     return CLIDependencies(**defaults)

@@ -15,8 +15,8 @@ if TYPE_CHECKING:
         TransformationPlan,
         ViolationWithFixInfo,
     )
+    from excelsior_architect.domain.sae_entities import RecommendedStrategy
     from excelsior_architect.domain.rules import Violation
-
 
 class TypeshedProtocol(Protocol):
     """Protocol for Typeshed integration."""
@@ -362,3 +362,54 @@ class RawLogPort(Protocol):
     def log_raw(self, tool: str, stdout: str, stderr: str) -> None:
         """Append raw tool output to .excelsior/logs/raw_{tool}.log."""
         ...
+
+
+class CanonicalMessageRegistryProtocol(Protocol):
+    """Maps rule_id to canonical (summary) message for graph/summaries."""
+
+    def get_canonical_or_fallback(self, rule_id: str, fallback: str) -> str: ...
+
+
+class CodeSnippetExtractorProtocol(Protocol):
+    """Extracts code snippets at file:line for blueprint display."""
+
+    def extract_at(self, file_path: str, line: int, root_dir: str) -> object | None:
+        """Return CodeSnippet or None. root_dir used to resolve relative paths."""
+        ...
+
+
+class GraphGatewayProtocol(Protocol):
+    """Abstraction for the Kuzu/Graph implementation."""
+
+    def add_artifact(self, path: str, name: str, layer: str) -> None: ...
+    def add_symbol(self, path: str, name: str, type: str) -> None: ...
+    def add_violation(self, code: str, symbol_name: str,
+                      message: str) -> None: ...
+    def ensure_violation(self, code: str, message: str) -> None:
+        """Ensure a violation node exists in the graph (e.g. from master registry)."""
+        ...
+
+    def add_dependency(self, symbol_name: str, dep_name: str) -> None: ...
+
+    def add_strategy(
+        self,
+        strat_id: str,
+        pattern: str,
+        rationale: str,
+        steps: list[str],
+        codes: list[str],
+    ) -> None:
+        """Register a design pattern and its mapping from violation codes."""
+        ...
+
+    def query_recommended_strategies(self) -> list[RecommendedStrategy]:
+        """
+        The 'Inference Engine' call. 
+        Returns a list of patterns mapped to specific code hotspots.
+        """
+        ...
+
+
+class SAEBootstrapperProtocol(Protocol):
+    """Handles static graph hydration during init."""
+    def bootstrap(self) -> None: ...

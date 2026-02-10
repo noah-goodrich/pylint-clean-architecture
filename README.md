@@ -25,6 +25,34 @@ Enforcing architectural boundaries, dependency rules, and design patterns to ens
 *   **Contract Integrity**: Verifies that Infrastructure implements Domain Protocols correctly.
 *   **Anti-Bypass Guard**: Prevents "lazy" disabling of Prime Directives without high-level authorization (Justification).
 
+## Quick Start
+
+```bash
+# 1. Install
+pip install excelsior-architect
+
+# 2. Initialize (from your project root)
+excelsior init
+# Creates .agent/instructions.md, ARCHITECTURE_ONBOARDING.md, docs/GENERATION_GUIDANCE.md,
+# configures Ruff in pyproject.toml, and hydrates the Knowledge Graph
+
+# 3. Run the audit
+excelsior check
+# Gated sequential audit: Import-Linter → Ruff → Mypy → Excelsior → Ruff
+# Writes .excelsior/check/last_audit.json, .excelsior/check/ai_handover.json
+
+# 4. Fix violations (auto-fix or guided)
+excelsior fix                    # Apply auto-fixes
+# OR
+excelsior plan <rule_id>         # Get guided fix instructions for a specific rule
+
+# 5. Strategic refactoring (optional)
+excelsior blueprint              # Generate .excelsior/BLUEPRINT.md from Knowledge Graph
+# Requires: run 'excelsior check' first
+```
+
+See **[docs/QUICKSTART.md](docs/QUICKSTART.md)** for a step-by-step walkthrough with explanations.
+
 ## Docking Procedures
 
 ```bash
@@ -59,12 +87,12 @@ See **[docs/EXCELSIOR_PASSES_AND_GATES.md](docs/EXCELSIOR_PASSES_AND_GATES.md)**
 
 | Command | Description |
 |--------|-------------|
-| `excelsior check` [path] | Run the gated audit (import-linter → Ruff → Mypy → Excelsior → Ruff). Writes `.excelsior/last_audit_check.json`, `.excelsior/ai_handover_check.json`. |
-| `excelsior fix` [path] [--comments] | Multi-pass auto-fix (Ruff → W9015 → architecture → [governance comments if `--comments`] → Ruff). Default: no in-file comments; use handover + plan-fix for instructions. Writes `.excelsior/last_audit_fix.json`, `.excelsior/ai_handover_*.json`. |
-| `excelsior init` [--template …] [--check-layers] | Initialize project: creates `.agent/instructions.md`, `.agent/pre-flight.md`, `ARCHITECTURE_ONBOARDING.md` (if missing), appends handshake to Makefile; optionally runs Ruff wizard to add `[tool.excelsior.ruff]` to `pyproject.toml`. |
-| `excelsior generate-guidance` [--output-dir docs] | Generate `docs/GENERATION_GUIDANCE.md` from the rule registry; optionally append to `.cursorrules` if present. |
-| `excelsior plan-fix` \<rule_id\> [--violation-index N] [--source check\|fix\|ai_workflow] | Generate a single-violation fix plan markdown from the latest handover (`.excelsior/fix_plans/<rule_id>_<timestamp>.md`). |
-| `excelsior ai-workflow` [path] | Run fix then check; exit 1 if violations remain. Writes `.excelsior/last_audit_ai_workflow.json`. |
+| `excelsior init` [options] | Initialize project: `.agent/instructions.md`, `ARCHITECTURE_ONBOARDING.md`, `docs/GENERATION_GUIDANCE.md`, Ruff config in `pyproject.toml`, Knowledge Graph. Use `--guidance-only` to regenerate guidance only. |
+| `excelsior check` [path] | Run the gated audit (Import-Linter → Ruff → Mypy → Excelsior → Ruff). Writes `.excelsior/check/last_audit.json`, `.excelsior/check/ai_handover.json`. Includes health report unless `--no-health`. |
+| `excelsior fix` [path] [options] | Multi-pass auto-fix (Ruff → W9015 → architecture → [governance comments if `--comments`] → Ruff). Use `--iterative` for fix/check loop until clean. |
+| `excelsior plan` [topic] [options] | Explain a rule or generate a fix plan. No topic = list topics. Example: `excelsior plan W9015` or `excelsior plan adapter`. Source: `--source check\|health\|fix` (default: health). |
+| `excelsior blueprint` [--source check\|health] | Diagnose architectural hotspots and suggest OO patterns. Writes `.excelsior/BLUEPRINT.md`. Requires `excelsior check` first. |
+| `excelsior verify` [--baseline] | Re-run check and diff against saved baseline (score and violation counts). Use `--baseline` to save current state. |
 
 ### Excelsior Auto-Fix Suite
 
@@ -117,6 +145,9 @@ See [RULES.md](RULES.md) for a complete catalog of enforced Prime Directives and
 
 ## Mission Log
 
+- **[docs/QUICKSTART.md](docs/QUICKSTART.md)** - Step-by-step guided walkthrough
+- **[docs/COMMANDS.md](docs/COMMANDS.md)** - Full CLI command reference
+- **[docs/EXCELSIOR_PASSES_AND_GATES.md](docs/EXCELSIOR_PASSES_AND_GATES.md)** - Pass order and gating behavior
 - **[CHANGELOG.md](CHANGELOG.md)** - Mission history and architectural updates
 
 ## Contributing

@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,9 +11,8 @@ version = "1.6.0"
 description = "Excelsior: High-fidelity AI Governance Framework for Clean Architecture."
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "MIT"}
 authors = [
-    {name = "Antigravity Team"}
+    { name = "Antigravity Team" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -36,7 +38,11 @@ dependencies = [
     "ruff>=0.3.0",
     "PyYAML>=6.0",
     "types-PyYAML>=6.0.12",
+    "kuzu>=0.4.0",
 ]
+
+[project.license]
+text = "MIT"
 
 [project.scripts]
 excelsior = "excelsior_architect.__main__:main"
@@ -53,39 +59,55 @@ snowflake = [
 ]
 
 [tool.mypy]
-# Stubs for untyped packages (astroid, libcst, snowflake, etc.) live inside the package
-# at src/excelsior_architect/stubs/ for distribution alongside the main package.
 mypy_path = "src/excelsior_architect/stubs"
 follow_imports = "silent"
 ignore_missing_imports = true
-# Exclude the stubs directory from being treated as a Python module to avoid
-# "Source file found twice under different module names" error
-exclude = ["src/excelsior_architect/stubs/"]
+exclude = [
+    "src/excelsior_architect/stubs/",
+]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[tool.setuptools.package-dir]
+"" = "src"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = [
+    "src",
+]
 
 [tool.setuptools.package-data]
-"excelsior_architect" = ["py.typed", "stubs/**/*.pyi", "infrastructure/resources/*.yaml"]
-"*" = ["assets/*.png"]
+excelsior_architect = [
+    "py.typed",
+    "stubs/**/*.pyi",
+    "infrastructure/resources/*.yaml",
+    "resources/data/*.csv",
+]
+"*" = [
+    "assets/*.png",
+]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-# Run only fast tests by default; use -m slow or make test-slow for slow tests.
+testpaths = [
+    "tests",
+]
+python_files = [
+    "test_*.py",
+]
+python_classes = [
+    "Test*",
+]
 addopts = "--cov=src --cov-report=term-missing --cov-report=json --cov-fail-under=80 --coverage-impact -m 'not slow'"
-pythonpath = ["src"]
+pythonpath = [
+    "src",
+]
 markers = [
     "unit: mark a test as a unit test.",
     "slow: mark a test as slow (subprocess, full CLI, etc.); excluded from default runs.",
 ]
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
+version_toml = [
+    "pyproject.toml:project.version",
+]
 branch = "main"
 upload_to_pypi = true
 upload_to_release = true
@@ -99,27 +121,32 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C90", # mccabe complexity
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "C90",
 ]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-# Long template strings in architecture docs
-"src/excelsior_architect/constants.py" = ["E501"]
+"src/excelsior_architect/constants.py" = [
+    "E501",
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 11
 
 [tool.pylint.main]
-load-plugins = ["excelsior_architect"]
+load-plugins = [
+    "excelsior_architect",
+]
 
 [tool.pylint.messages_control]
-disable = ["all"]
+disable = [
+    "all",
+]
 enable = [
     "clean-arch-delegation",
     "clean-arch-demeter",
@@ -141,23 +168,37 @@ enable = [
     "duplicate-code",
 ]
 
+[tool.pylint.MASTER]
+load-plugins = [
+    "excelsior_architect",
+]
+
+[tool.pylint.REPORTS]
+output-format = "colorized,clean-arch-summary"
+
 [tool.clean-arch]
-silent_layers = ["Domain", "UseCase"]
-allowed_io_interfaces = ["TelemetryPort", "UserInterfaceProtocol"]
-# allowed_lod_modules removed in v3 (Dynamic Discovery Active)
-# allowed_lod_methods removed in v3 (Dynamic Discovery Active)
+silent_layers = [
+    "Domain",
+    "UseCase",
+]
+allowed_io_interfaces = [
+    "TelemetryPort",
+    "UserInterfaceProtocol",
+]
 project_name = "EXCELSIOR"
 color = "red"
 welcome_msg = "Command Cruiser Online"
-shared_kernel_modules = ["stellar_ui_kit"]
-audit_exclude_paths = ["tests/bait", "src/excelsior_architect/stubs"]
+shared_kernel_modules = [
+    "stellar_ui_kit",
+]
+audit_exclude_paths = [
+    "tests/bait",
+    "src/excelsior_architect/stubs",
+]
 
 [tool.clean-arch.contract_integrity]
-# ️USER APPROVAL REQUIRED FOR ANY ADDITIONS ️
-# See docs/CONTRACT_INTEGRITY_SPEC.md for full specification.
-# Auto-detected: TypedDict, CSTTransformer, _ prefix, @internal
 internal_implementation = [
-    "ExcelsiorContainer",  # DI container itself (composition root, not a dependency)
+    "ExcelsiorContainer",
 ]
 
 [tool.clean-arch.layer_map]
@@ -166,22 +207,14 @@ internal_implementation = [
 "excelsior_architect.interface" = "Interface"
 "excelsior_architect.infrastructure" = "Infrastructure"
 "excelsior_architect.__main__" = "Infrastructure"
-# Note: excelsior_architect.stubs is excluded via audit_exclude_paths (contains .pyi stubs, not Python code)
 
 [tool.coverage.run]
-source = ["excelsior_architect"]
+source = [
+    "excelsior_architect",
+]
 omit = [
     "**/tests/**",
 ]
-
-[tool.pylint.MASTER]
-load-plugins = [
-    "excelsior_architect"
-]
-
-[tool.pylint.REPORTS]
-# This makes Pylint use our table reporter by default
-output-format = "colorized,clean-arch-summary"
 
 [tool.importlinter]
 root_package = "excelsior_architect"
@@ -190,8 +223,39 @@ root_package = "excelsior_architect"
 name = "Clean Architecture Layers"
 type = "layers"
 layers = [
-    "excelsior_architect.infrastructure",  # Outermost - can import everything
-    "excelsior_architect.interface",       # Can import UseCase/Domain
-    "excelsior_architect.use_cases",       # Can import Domain
-    "excelsior_architect.domain",          # Innermost - imports NOTHING
+    "excelsior_architect.infrastructure",
+    "excelsior_architect.interface",
+    "excelsior_architect.use_cases",
+    "excelsior_architect.domain",
 ]
+
+[tool.excelsior.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.excelsior.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "C90",
+    "I",
+    "N",
+    "UP",
+    "PL",
+    "PT",
+    "B",
+    "A",
+    "C4",
+    "SIM",
+    "ARG",
+    "PTH",
+    "RUF",
+]
+ignore = [
+    "E501",
+    "PLR0913",
+]
+
+[tool.excelsior.ruff.lint.mccabe]
+max-complexity = 10

@@ -5,7 +5,8 @@ This project adheres to **Clean Architecture** principles enforced by the `excel
 ## Layer Boundaries
 
 The project is structured into strict layers.
-Inner layers (Domain, UseCase) **MUST NOT** import from Outer layers (Infrastructure, Interface).
+Inner layers (Domain, UseCase) **MUST NOT** import from Outer layers
+(Infrastructure, Interface).
 
 ### 1. Domain Layer
 *   **Purpose**: Contains pure business logic, entities, and protocols (interfaces).
@@ -19,7 +20,8 @@ Inner layers (Domain, UseCase) **MUST NOT** import from Outer layers (Infrastruc
 *   **Purpose**: Orchestrates the flow of data between Domain Objects and Interfaces/Infrastructure.
 *   **Rules**:
     *   **No Infrastructure-specific drivers or raw I/O** (e.g. no `requests`, no `sqlalchemy.session`).
-    *   **Dependency Injection**: Infrastructure components (Repositories, Clients) MUST be injected via constructor using Domain Protocols.
+    *   **Dependency Injection**: Infrastructure components (Repositories, Clients)
+        MUST be injected via constructor using Domain Protocols.
     *   **Law of Demeter**: Objects should not reach through dependencies (e.g. avoid `obj.child.method()`).
 
 ### 3. Interface Layer (Controllers/CLI)
@@ -44,5 +46,4 @@ Inner layers (Domain, UseCase) **MUST NOT** import from Outer layers (Infrastruc
 
 ## Helper Command
 
-To check compliance, run:
-`pylint src/`
+To check compliance, run: `excelsior check` or `pylint src/`

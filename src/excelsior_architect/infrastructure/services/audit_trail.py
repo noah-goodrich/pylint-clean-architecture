@@ -30,6 +30,9 @@ from excelsior_architect.infrastructure.adapters.ruff_adapter import RuffAdapter
 from excelsior_architect.infrastructure.services.guidance_service import (
     GuidanceService,
 )
+from excelsior_architect.infrastructure.services.canonical_message_registry import (
+    CanonicalMessageRegistry,
+)
 from excelsior_architect.infrastructure.services.rule_analysis import (
     RuleFixabilityService,
 )
@@ -49,6 +52,7 @@ class AuditTrailService(AuditTrailServiceProtocol):
         config_loader: "ConfigurationLoader",
         guidance_service: GuidanceService,
         raw_log_port: RawLogPort,
+        canonical_registry: CanonicalMessageRegistry | None = None,
     ) -> None:
         self.telemetry = telemetry
         self.rule_fixability_service = rule_fixability_service
@@ -56,6 +60,7 @@ class AuditTrailService(AuditTrailServiceProtocol):
         self._config_loader = config_loader
         self._guidance = guidance_service
         self._raw_log_port = raw_log_port
+        self._canonical_registry = canonical_registry
 
     def save_report(
         self, report: ArchitecturalHealthReport, source: str | None = None
@@ -445,6 +450,11 @@ class AuditTrailService(AuditTrailServiceProtocol):
 
                 # rule_id for registry lookup (e.g. mypy.no-any-return, excelsior.W9006)
                 rule_id = f"{linter}.{result.code}"
+                canonical_message = ""
+                if self._canonical_registry:
+                    canonical_message = self._canonical_registry.get_canonical_or_fallback(
+                        rule_id, result.message
+                    )
 
                 # Ready-to-paste directive for an AI to fix this single violation
                 locations_str = ", ".join(
@@ -471,6 +481,7 @@ class AuditTrailService(AuditTrailServiceProtocol):
                     "rule_id": rule_id,
                     "code": result.code,
                     "message": result.message,
+                    "canonical_message": canonical_message or result.message,
                     "locations": result.locations,
                     "category": category,
                     "fixable": fixable,

@@ -28,6 +28,11 @@ class LocalArtifactStorage(ArtifactStorageProtocol):
         """Write content to artifact at key. Overwrites if present."""
         self._ensure_parent(key)
         path = self._path(key)
+        # #region agent log
+        import os, time, json as _json
+        _log_path = os.environ.get("EXCELSIOR_DEBUG_LOG", "/development/.cursor/debug.log")
+        open(_log_path, "a").write(_json.dumps({"timestamp": int(time.time() * 1000), "location": "artifact_storage_gateway.py:write_artifact", "message": "resolved path", "data": {"key": key, "path": path, "base": getattr(self, "_base", None)}, "hypothesisId": "H3"}) + "\n")
+        # #endregion
         self._fs.make_dirs(self._base, exist_ok=True)
         self._fs.write_text(path, content, encoding=encoding)
 

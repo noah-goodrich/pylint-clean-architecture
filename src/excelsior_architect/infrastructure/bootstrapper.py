@@ -1,33 +1,41 @@
+"""
+SAE bootstrap: hydrates the Knowledge Graph with violation/pattern registries.
+
+Use SAEBootstrapper with injected GraphGatewayProtocol and FileSystemProtocol
+so the same flow can run against local FS, Snowflake stages, S3, etc.
+"""
+from typing import TYPE_CHECKING
+
 from excelsior_architect.use_cases.initialize_graph import InitializeGraphUseCase
-from excelsior_architect.infrastructure.gateways.kuzu_gateway import KuzuGraphGateway
+
+if TYPE_CHECKING:
+    from excelsior_architect.domain.protocols import FileSystemProtocol, GraphGatewayProtocol
 
 
-def bootstrap_sae():
-    """
-    Initializes the Strategic Architecture Engine Brain for local execution.
-    Hydrates the graph with master registries for Excelsior, MyPy, and Ruff.
-    """
-    gateway = KuzuGraphGateway()
-    init_use_case = InitializeGraphUseCase(gateway)
+# Paths relative to excelsior_architect package (loaded via importlib.resources)
+_SAE_DATA_DIR = "resources/data"
 
-    # Base resource path
-    data_dir = "src/excelsior_architect/resources/data"
 
-    # The Design Patterns Tree is the strategic core
-    patterns_csv = f"{data_dir}/DESIGN_PATTERNS_TREE.csv"
+class SAEBootstrapper:
+    """Implements SAEBootstrapperProtocol: hydrates the graph via InitializeGraphUseCase."""
 
-    # We load all three violation registries to ensure the graph
-    # can map signals from every tool to the strategic patterns.
-    violation_registries = [
-        f"{data_dir}/EXCELSIOR_VIOLATIONS.csv",
-        f"{data_dir}/MYPY_VIOLATIONS.csv",
-        f"{data_dir}/RUFF_VIOLATIONS.csv"
-    ]
+    def __init__(
+        self,
+        gateway: "GraphGatewayProtocol",
+        filesystem: "FileSystemProtocol",
+        data_dir: str | None = None,
+    ) -> None:
+        self.gateway = gateway
+        self.filesystem = filesystem
+        self.data_dir = data_dir or _SAE_DATA_DIR
 
-    for registry in violation_registries:
-        init_use_case.execute(
-            violations_csv=registry,
-            patterns_csv=patterns_csv
-        )
-
-    print("SAE Knowledge Graph Hydrated Successfully with all registries.")
+    def bootstrap(self) -> None:
+        """Load patterns and all violation registries into the graph."""
+        patterns_csv = f"{self.data_dir}/design_patterns_tree.csv"
+        violation_registries = [
+            f"{self.data_dir}/excelsior_violations.csv",
+            f"{self.data_dir}/mypy_violations.csv",
+            f"{self.data_dir}/ruff_violations.csv",
+        ]
+        use_case = InitializeGraphUseCase(self.gateway, self.filesystem)
+        use_case.execute(patterns_csv=patterns_csv, violations_csv_paths=violation_registries)

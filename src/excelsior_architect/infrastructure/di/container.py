@@ -13,11 +13,15 @@ from excelsior_architect.infrastructure.gateways.artifact_storage_gateway import
 )
 from excelsior_architect.infrastructure.gateways.astroid_gateway import AstroidGateway
 from excelsior_architect.infrastructure.gateways.filesystem_gateway import FileSystemGateway
+from excelsior_architect.infrastructure.gateways.kuzu_gateway import KuzuGraphGateway
 from excelsior_architect.infrastructure.gateways.python_gateway import PythonGateway
 from excelsior_architect.infrastructure.reporters import TerminalAuditReporter
 from excelsior_architect.infrastructure.services.audit_trail import AuditTrailService
 from excelsior_architect.infrastructure.services.guidance_service import GuidanceService
 from excelsior_architect.infrastructure.services.rule_analysis import RuleFixabilityService
+from excelsior_architect.infrastructure.services.canonical_message_registry import (
+    CanonicalMessageRegistry,
+)
 from excelsior_architect.infrastructure.services.scaffolder import Scaffolder
 from excelsior_architect.infrastructure.services.stub_authority import StubAuthority
 from excelsior_architect.infrastructure.services.stub_creator import StubCreatorService
@@ -36,14 +40,17 @@ if TYPE_CHECKING:
         AuditTrailServiceProtocol,
         FileSystemProtocol,
         FixerGatewayProtocol,
+        GraphGatewayProtocol,
         LinterAdapterProtocol,
         PythonProtocol,
+        SAEBootstrapperProtocol,
         ScaffolderProtocol,
         StubAuthorityProtocol,
         StubCreatorProtocol,
         TelemetryPort,
         ViolationBridgeProtocol,
     )
+    from excelsior_architect.domain.services.graph_ingestor import GraphIngestor
     from excelsior_architect.interface.reporters import AuditReporter
 
 T = TypeVar("T")
@@ -84,6 +91,9 @@ class ExcelsiorContainer:
         self.register_singleton("StubCreatorService", StubCreatorService())
         filesystem = FileSystemGateway()
         self.register_singleton("FileSystemGateway", filesystem)
+        # Graph gateway, SAE bootstrapper, and graph ingestor are created lazily on first
+        # use so the Pylint plugin (which never needs them) does not open the Kuzu DB
+        # and hit "Could not set lock on file" when tests or other processes use the same path.
         artifact_storage = LocalArtifactStorage(
             base_path=".excelsior", filesystem=filesystem)
         self.register_singleton("ArtifactStorage", artifact_storage)
@@ -126,6 +136,13 @@ class ExcelsiorContainer:
         rule_fixability_service = RuleFixabilityService()
         self.register_singleton("RuleFixabilityService",
                                 rule_fixability_service)
+        from excelsior_architect.infrastructure.gateways.package_resource_filesystem import (
+            PackageResourceFileSystem,
+        )
+        self.register_singleton(
+            "CanonicalMessageRegistry",
+            CanonicalMessageRegistry(filesystem=PackageResourceFileSystem()),
+        )
         self.register_singleton(
             "AuditTrailService",
             AuditTrailService(
@@ -135,6 +152,7 @@ class ExcelsiorContainer:
                 config_loader=config_loader,
                 guidance_service=guidance_service,
                 raw_log_port=raw_log_service,
+                canonical_registry=self.get("CanonicalMessageRegistry"),
             ),
         )
 
@@ -233,6 +251,46 @@ class ExcelsiorContainer:
     def get_fixer_gateway(self) -> "FixerGatewayProtocol":
         """Return the LibCST fixer gateway."""
         return cast("FixerGatewayProtocol", self.get("LibCSTFixerGateway"))
+
+    def get_graph_gateway(self) -> "GraphGatewayProtocol":
+        """Return the graph gateway (SAE knowledge graph). Lazy-init to avoid opening Kuzu when only linting."""
+        if "KuzuGraphGateway" not in self._singletons:
+            self.register_singleton(
+                "KuzuGraphGateway",
+                KuzuGraphGateway(db_path=".excelsior/graph"),
+            )
+        return cast("GraphGatewayProtocol", self.get("KuzuGraphGateway"))
+
+    def get_sae_bootstrapper(self) -> "SAEBootstrapperProtocol":
+        """Return the SAE bootstrapper (hydrates graph on init). Lazy-init."""
+        if "SAEBootstrapper" not in self._singletons:
+            from excelsior_architect.infrastructure.bootstrapper import SAEBootstrapper
+            from excelsior_architect.infrastructure.gateways.package_resource_filesystem import (
+                PackageResourceFileSystem,
+            )
+            self.register_singleton(
+                "SAEBootstrapper",
+                SAEBootstrapper(
+                    gateway=self.get_graph_gateway(),
+                    filesystem=PackageResourceFileSystem(),
+                ),
+            )
+        return cast("SAEBootstrapperProtocol", self.get("SAEBootstrapper"))
+
+    def get_graph_ingestor(self) -> "GraphIngestor":
+        """Return the graph ingestor (populates graph from project + violations). Lazy-init."""
+        if "GraphIngestor" not in self._singletons:
+            from excelsior_architect.domain.services.graph_ingestor import GraphIngestor
+            self.register_singleton(
+                "GraphIngestor",
+                GraphIngestor(
+                    graph=self.get_graph_gateway(),
+                    ast=self.get_astroid_gateway(),
+                    filesystem=self.get_filesystem_gateway(),
+                    canonical_registry=self.get("CanonicalMessageRegistry"),
+                ),
+            )
+        return cast("GraphIngestor", self.get("GraphIngestor"))
 
     @classmethod
     def get_instance(cls) -> "ExcelsiorContainer":
